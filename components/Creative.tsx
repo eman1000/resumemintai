@@ -44,7 +44,7 @@ const Creative = () => {
       {/* <div
         className={`btn btn-creative start-now-button ${downloadIsReady ? 'fadeIn' : 'hide'}`}
       > */}
-        <SubscribePay />
+        <SubscribePay isNonC />
       {/* </div> */}
     </div>
   );

@@ -10,7 +10,7 @@ import { track } from '@/lib/track';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-function CheckoutInner() {
+function CheckoutInner({ isNonC }: { isNonC?: boolean }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +44,7 @@ function CheckoutInner() {
       <button
         onClick={confirm}
         disabled={!stripe || !elements || submitting}
-        className="w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60"
+        className={`${!isNonC ? "w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60" : "btn btn-creative start-now-button"}`}
       >
         {submitting ? 'Processing…' : 'Continue'}
       </button>
@@ -52,7 +52,7 @@ function CheckoutInner() {
   );
 }
 
-export default function SubscribePay() {
+export default function SubscribePay({ isNonC }: { isNonC?: boolean }) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
@@ -84,7 +84,7 @@ export default function SubscribePay() {
   if (!clientSecret) {
     return (
       <div className="max-w-md w-full space-y-3">
-        <button onClick={start} disabled={starting} className="w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60">
+        <button onClick={start} disabled={starting} className={` ${!isNonC ? "w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60" : "btn btn-creative start-now-button"}`}>
           {starting ? 'Preparing…' : 'Continue'}
         </button>
         <div className="text-xs text-neutral-500">We’ll save your payment method first; the subscription is created after this step.</div>
@@ -94,7 +94,7 @@ export default function SubscribePay() {
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
-      <CheckoutInner />
+      <CheckoutInner isNonC />
     </Elements>
   );
 }
