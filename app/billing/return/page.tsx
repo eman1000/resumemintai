@@ -69,7 +69,7 @@ export default function BillingReturn() {
         });
 
         toast.success('Subscription started!');
-        router.replace('/builder'); // or '/account'
+        router.replace('/builder');
       } catch (e: any) {
         console.error(e);
         toast.error(e?.message || 'Could not activate subscription');
