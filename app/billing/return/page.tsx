@@ -15,7 +15,7 @@ export default function BillingReturn() {
   useEffect(() => {
     (async () => {
       try {
-        const setupIntentId = sp.get('setup_intent'); // "seti_..."
+        const setupIntentId = sp.get('setup_intent'); 
         if (!setupIntentId) {
           setMsg('Missing confirmation. Please try again.');
           return;
