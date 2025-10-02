@@ -1,0 +1,4 @@
+{
+  "projects": { "default": "resumemint-edf2f" },
+  "firestore": { "indexes": "firestore.indexes.json" }
+}

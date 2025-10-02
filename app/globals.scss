@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 10 10 14;
+  --fg: 244 244 248;
+}
+
+html, body, #__next { height: 100%; }
+body { @apply bg-neutral-950 text-neutral-100 antialiased;
+  font-size: 20px;
+
+}
+
+/* fancy gradient button */
+.btn-gradient {
+  @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold text-white shadow-lg;
+  background: linear-gradient(90deg, #5b8cff, #a855f7, #ef4444);
+  background-size: 200% 200%;
+  transition: background-position 300ms ease;
+}
+.btn-gradient:hover { background-position: 100% 0; }
+
+/* hero gradient blobs */
+.blob {
+  position: absolute;
+  filter: blur(60px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.blob-1 { width: 420px; height: 420px; left: -80px; top: -120px; background: radial-gradient(circle at center, #5b8cff 0%, transparent 60%); }
+.blob-2 { width: 520px; height: 520px; right: -120px; top: 0px; background: radial-gradient(circle at center, #a855f7 0%, transparent 60%); }
+
+.card {
+  @apply rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur p-5;
+}
+
+.section { @apply max-w-6xl mx-auto px-4 py-16; }
+
+/* Print-friendly */
+@media print {
+  body { background: white; color: black; }
+  .no-print { display: none !important; }
+  .print\:bg-white { background: white !important; }
+  .print\:text-black { color: black !important; }
+}
+
+/* === Dev/Builder preview: A4 page look === */
+@layer utilities {
+  .a4-sheet {
+    width: 794px;                 /* ≈ 210mm at 96dpi */
+    background: #ffffff;
+    color: #111827;
+    border-radius: 0.75rem;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+  .a4-preview-wrap {
+    padding: 1.25rem;
+    background: radial-gradient(1200px 600px at 50% -10%, rgba(124,58,237,.20), transparent 65%),
+                radial-gradient(900px 500px at 90% 20%, rgba(59,130,246,.12), transparent 55%);
+  }
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 9999px;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,.12);
+}
+
+.builder{
+  padding: 20px;
+}
+
+.resume{ background:#fff; }
+.page-wrapper {
+  margin: 0 auto;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 16px 10px 16px;
+  background-color: #fff;
+  height: 150vh;
+
+
+}
+
+
+.above-fold {
+  text-align: center;
+  width: 100%;
+  @media (max-width: 600px) {
+    height: 100vh;
+  }
+}
+
+.download-animation__wrapper {
+  width: 70%;
+  margin: 0 auto;
+  margin-top: 5rem;
+  overflow: hidden;
+  border-radius: 500px;
+  max-width: 330px;
+  min-height: 261px;
+}
+
+.download-animation {
+  max-height: 300px;
+  transform: scale(103%) translateY(2px);
+  opacity: 0.9;
+  border-radius: 500px;
+  @media (max-width: 460px) {
+    width: 100%;
+    transform: scale(104%) translateY(2px);
+  }
+}
+
+.animated-text-container {
+  position: relative;
+  overflow: hidden;
+  height: 54px; /* Adjust based on your layout */
+  margin-top: 20px;
+}
+
+.animated-text {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 18px; /* 18px font text size */
+  font-weight: 600;
+  /* For non-final messages, use fadeInOut animation */
+  animation: fadeInOut 2s ease-in-out;
+  color: #333;
+}
+
+/* For the final message, only fade in and then remain static */
+.animated-text.final {
+  animation: fadeIn 0.5s ease-in-out forwards;
+  font-size: 22px;
+  color: green;
+  line-height: 1.15;
+  padding: 0 8px;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.show-desktop {
+  display: inline-block;
+  width: 100%;
+  @media (max-width: 2200px) {
+    display: none;
+  }
+}
+
+.show-mobile {
+  display: none;
+  @media (max-width: 2200px) {
+    display: inline;
+  }
+}
+
+
+.btn {
+  background: #ff0c0b;
+  text-transform: uppercase;
+  font-size: 20px;
+  color: #f5f5f5;
+  font-weight: 600;
+  padding: 23px 15px;
+  border-radius: 5px;
+  width: 100%;
+  cursor: pointer;
+
+  @media (min-width: 1000px) {
+    font-size: 24px;
+    line-height: 1.4;
+  }
+  &#user-details-submit-button {
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 25px;
+      height: 25px;
+      background: url('/images/lock.png') center bottom no-repeat;
+      background-size: auto 20px;
+      margin-right: 5px;
+    }
+  }
+}
+
+.btn-creative {
+  background: #0cb504;
+  text-transform: capitalize;
+  font-size: 27px;
+  font-weight: 600;
+}
+
+.start-now-button {
+  width: 350px;
+  max-width: 100%;
+  margin-top: 10px;
+  margin-bottom: 120px;
+  font-weight: bold;
+  @media (max-width: 600px) {
+    margin: 0;
+    margin-top: 25px;
+
+    .desktop-copy {
+      display: none;
+    }
+    .mobile-copy {
+      display: inline;
+    }
+  }
+}

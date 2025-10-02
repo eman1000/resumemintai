@@ -1,0 +1,56 @@
+.animated-text-container {
+  position: relative;
+  overflow: hidden;
+  height: 54px; /* Adjust based on your layout */
+  margin-top: 20px;
+}
+
+.animated-text {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 18px; /* 18px font text size */
+  font-weight: 600;
+  /* For non-final messages, use fadeInOut animation */
+  animation: fadeInOut 2s ease-in-out;
+  color: #333;
+}
+
+/* For the final message, only fade in and then remain static */
+.animated-text.final {
+  animation: fadeIn 0.5s ease-in-out forwards;
+  font-size: 22px;
+  color: green;
+  line-height: 1.15;
+  padding: 0 8px;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
