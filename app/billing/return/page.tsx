@@ -51,7 +51,7 @@ export default function BillingReturn() {
 
                 // Push to GTM for Google Ads conversion
         try {
-          const subId = j?.subscriptionId;     // from your activate response
+          const subId = j?.subscriptionId;     
           const value = 0;                     // optional: pass your amount if you want
           (window as any).dataLayer = (window as any).dataLayer || [];
           (window as any).dataLayer.push({
@@ -68,7 +68,6 @@ export default function BillingReturn() {
           dedupeKey: setupIntentId, // idempotent write server-side
         });
 
-       
         toast.success('Subscription started!');
         router.replace('/builder'); // or '/account'
       } catch (e: any) {
