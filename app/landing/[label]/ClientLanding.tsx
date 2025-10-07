@@ -142,7 +142,7 @@ export default function ClientLanding({
       </section>
 
       {/* PRICING (simple) */}
-      <section id="pricing" className="mx-auto max-w-7xl px-4 py-16">
+      {/* <section id="pricing" className="mx-auto max-w-7xl px-4 py-16">
         <h2 className="text-2xl md:text-3xl font-extrabold">Pricing</h2>
         <div className="mt-8 grid md:grid-cols-2 gap-6">
           {cfg.pricing.map((p) => (
@@ -167,7 +167,7 @@ export default function ClientLanding({
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* FAQ */}
       <section id="faq" className="mx-auto max-w-5xl px-4 py-16">
