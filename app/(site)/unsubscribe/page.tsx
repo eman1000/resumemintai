@@ -1,35 +1,32 @@
-'use client';
-import { useState } from 'react';
 import PageShell from '@/components/PageShell';
-import { signInWithPopup } from 'firebase/auth';
-import { auth, provider } from '@/app/firebase';
+import '../../policies.scss';
+const LAST_UPDATED = '05 Oct 2025';
 
 export default function Unsubscribe() {
-  const [loading, setLoading] = useState(false);
-
-  const onGoogle = async () => {
-    try {
-      setLoading(true);
-      await signInWithPopup(auth, provider);
-      window.location.href = '/account';
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <PageShell title="Unsubscribe" subtitle="Manage your subscription">
-      <div className="prose prose-invert max-w-none">
-        <p>To change your plan or cancel your subscription, you need to be logged in. This helps us securely verify your account and access your subscription settings.</p>
-        <h3>How to proceed</h3>
+    <PageShell title="Unsubscribe / Cancel">
+      <div className="policy">
+        <p className="text-sm opacity-70">Last updated: {LAST_UPDATED}</p>
+
+        <h2>How to Cancel</h2>
         <ol>
-          <li>Click the button below to log in using Google.</li>
-          <li>After login, you will be redirected to your account page.</li>
-          <li>On the <strong>Manage Subscription</strong> page, you can change your plan or cancel your subscription.</li>
+          <li>Open your <strong>Account</strong> page in the app.</li>
+          <li>Choose <strong>“Cancel at period end”</strong> or <strong>“Cancel immediately”</strong> (if available).</li>
+          <li>Follow the on-screen confirmation.</li>
         </ol>
-        <button onClick={onGoogle} className="mt-4 px-4 py-2 rounded-xl bg-white text-black font-semibold" disabled={loading}>
-          {loading ? 'Continuing…' : 'Continue with Google'}
-        </button>
+        <p>
+          Can’t access your account? Email <a href="mailto:support@plenqor.com">support@plenqor.com</a> from your purchase email
+          and request cancellation. We’ll confirm by reply.
+        </p>
+
+        <h2>What Happens Next</h2>
+        <ul>
+          <li><strong>Cancel at period end:</strong> keep access until the end of the current 28-day cycle, then it stops.</li>
+          <li><strong>Immediate cancel (if available):</strong> access stops immediately.</li>
+        </ul>
+
+        <h2>Prevent Future Charges</h2>
+        <p>Cancel before the next renewal date. If you cancel during the trial, the recurring fee will not be charged.</p>
       </div>
     </PageShell>
   );

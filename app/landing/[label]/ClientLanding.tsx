@@ -29,15 +29,7 @@ export default function ClientLanding({
   cfg: LandingVariant;
   label: string;
 }) {
-  const { data: geoData } = useGeo();
 
-  // Only runs in the browser
-  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isIOS = /iPhone|iPad|iPod/.test(ua);
-  const cc = geoData?.country_code?.toUpperCase();
-  const isCompliant = !isIOS || cc === 'IN' || cc === 'INDIA';
-
-  if (!isCompliant) return <NonC />;
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-50">
@@ -85,7 +77,7 @@ export default function ClientLanding({
           <label className="flex items-start gap-2">
             <input defaultChecked id="c2" type="checkbox" className="mt-1 h-4 w-4 rounded border-white/40 bg-transparent" />
             <span>
-              Your subscription starts now for €0.01 (1-day trial) and auto-renews at €49.99 / 28 days until canceled.
+              Your subscription starts now for €0.00 (1-day trial) and auto-renews at €49.99 / 28 days until canceled.
             </span>
           </label>
         </div>
