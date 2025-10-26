@@ -2,13 +2,14 @@
 
 import PageShell from '@/components/PageShell';
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth, provider } from '@/app/firebase';
+import { useQuery } from '@/app/builder/hooks/use-query';
 
 export default function LoginPage() {
   return (
@@ -20,12 +21,12 @@ export default function LoginPage() {
 
 function LoginInner() {
   const router = useRouter();
-  const params = useSearchParams();
-  const ret = params.get('return') || '/builder';
+  const params = useQuery();
+  const ret = params?.get('return') || '/builder';
 
   // optional: prefill from query (?email=...&pw=...)
-  const [email, setEmail] = useState(params.get('email') || '');
-  const [pw, setPw] = useState(params.get('pw') || '');
+  const [email, setEmail] = useState(params?.get('email') || '');
+  const [pw, setPw] = useState(params?.get('pw') || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 

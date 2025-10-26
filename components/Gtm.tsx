@@ -1,13 +1,14 @@
 // components/Gtm.tsx  (unchanged)
 'use client';
 import { useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useQuery } from '@/app/builder/hooks/use-query';
 
 declare global { interface Window { dataLayer: any[] } }
 
 export default function Gtm() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useQuery();
   const gtmId = process.env.NEXT_PUBLIC_GTM_ID!;
 
   // Load GTM once

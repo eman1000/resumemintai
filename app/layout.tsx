@@ -37,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster position="top-center" />
         {/* <AutoUrlSignin /> */}
         {children}
+
       </body>
     </html>
   );

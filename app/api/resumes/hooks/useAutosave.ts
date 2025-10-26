@@ -1,4 +1,5 @@
 // useAutosave.ts (essentials)
+'use client';
 import isEqual from "fast-deep-equal";
 import debounce from "lodash.debounce";
 import React from "react";

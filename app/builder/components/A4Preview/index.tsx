@@ -27,10 +27,10 @@ export const A4Preview: React.FC<Props> = ({ filename = "resume.pdf", selectedTe
           {selectedTemplate?.renderer === 'classic' && <ClassicTemplate {...props} />}
         </div>
       </div>
-
+{/* 
       <div className="mt-3">
         <button className="border rounded px-3 py-2" onClick={handleDownload}>Download PDF</button>
-      </div>
+      </div> */}
     </>
   );
 };

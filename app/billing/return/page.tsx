@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { auth } from '@/app/firebase';
 import {
@@ -12,9 +12,10 @@ import {
   isSignInWithEmailLink,
   signInWithEmailLink,
 } from 'firebase/auth';
+import { useQuery } from '@/app/builder/hooks/use-query';
 
 export default function BillingReturn() {
-  const sp = useSearchParams();
+  const sp = useQuery();
   const router = useRouter();
 
   const [phase, setPhase] = useState<'finalizing' | 'ready' | 'error'>('finalizing');
@@ -50,7 +51,7 @@ export default function BillingReturn() {
   useEffect(() => {
     (async () => {
       try {
-        const setupIntentId = sp.get('setup_intent');
+        const setupIntentId = sp?.get('setup_intent');
         if (!setupIntentId) {
           setPhase('error');
           setMsg('Missing confirmation. Please try again.');

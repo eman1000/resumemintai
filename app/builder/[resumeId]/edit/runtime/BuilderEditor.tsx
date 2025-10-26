@@ -28,9 +28,29 @@ import {
 import { LanguageCode, localizeDocTitles } from "@/lib/i18n";
 import UploadSvg from "@/app/builder/components/UploadSvg";
 import LinkedInIcon from "@/app/builder/components/LinkedInIcon";
+import toast from "react-hot-toast";
 /* =======================
    Field catalog (PD)
 ======================= */
+
+// --- AI Suggestion types ---
+type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
+type AISuggestEmploymentBullets = { kind: "employment_bullets"; recordKey?: string; bullets: string[] };
+type AISuggestSkills = { kind: "skills"; items: Array<{ name: string; level?: string }> };
+type AISuggestLanguages = { kind: "languages"; items: Array<{ name: string; level?: string }> };
+type AISuggestHobbies = { kind: "hobbies"; items: string[] };
+type AISuggestGeneric = { kind: "generic_text"; html: string };
+
+type AISuggestResponse =
+  | AISuggestProfile
+  | AISuggestEmploymentBullets
+  | AISuggestSkills
+  | AISuggestLanguages
+  | AISuggestHobbies
+  | AISuggestGeneric;
+
+
+  
 type FieldType = "text" | "date" | "textarea";
 
 type PDFieldDef = {
@@ -2116,7 +2136,8 @@ const SectionCardPatched: React.FC<{
   months?: string[];
   t?: (key: string) => string;
   skills?: string[];
-}> = ({ section, onChangeTitle, onChangeDescription, onChangePD, setDoc, months, t, skills }) => {
+  onAISuggest?: (section: CVSection) => void;   // ⬅️ add this
+}> = ({ section, onChangeTitle, onChangeDescription, onChangePD, setDoc, months, t, skills, onAISuggest }) => {
   const [open, setOpen] = useState(true);
 
   const updatePD = (updater: (val: PDValues) => PDValues) => {
@@ -2139,7 +2160,7 @@ const SectionCardPatched: React.FC<{
           <button
             className="inline-flex border justify-center rounded relative overflow-hidden max-w-full focus-visible:ring-4 ring-blue-200 items-center bg-transparent text-gray-700 border-gray-400 hover:bg-blue-50 hover:border-blue-400 font-medium py-1 px-2"
             type="button"
-            onClick={() => alert(`AI suggestion for ${section.key}`)}
+            onClick={() => onAISuggest?.(section)}
           >
             ✨  {t?.("action.aiSuggestions")}
           </button>
@@ -2263,7 +2284,52 @@ function periodObjToText(
   return String(p);
 }
 
+const JDModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  jdText: string;
+  setJdText: (s: string) => void;
+  onAnalyze: (text: string) => Promise<void>;
+}> = ({ open, onClose, jdText, setJdText, onAnalyze }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[9998] bg-black/20 grid place-items-center">
+      <div className="w-[720px] max-w-[95vw] bg-white rounded-xl border p-4 space-y-3">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Paste Job Description</h3>
+          <button className="text-sm px-2 py-1 border rounded" onClick={onClose}>Close</button>
+        </div>
+        <textarea
+          className="w-full h-64 border rounded p-2"
+          placeholder="Paste the full job post here…"
+          value={jdText}
+          onChange={(e) => setJdText(e.target.value)}
+        />
+        <div className="flex justify-end gap-2">
+          <button className="px-3 py-2 border rounded" onClick={onClose}>Cancel</button>
+          <button
+            className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+            disabled={!jdText.trim()}
+            onClick={async () => { await onAnalyze(jdText); onClose(); }}
+          >
+            Analyze JD
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
+type OptimizeOut = {
+  sections: CVSection[];
+  tailoredBullets: Array<{ sectionKey: CVSectionKey; recordKey: string; bullets: string[] }>;
+  coverage: {
+    mustHaveCovered: string[]; mustHaveMissing: string[];
+    niceToHaveCovered: string[]; niceToHaveMissing: string[];
+    keywordsCovered: string[]; keywordsMissing: string[];
+  };
+  atsChecklist: string[];
+};
 export default function BuilderEditor({
   initialData,
   onChangeData,
@@ -2313,6 +2379,66 @@ const [doc, setDoc] = useState<CVDocument>(
   const [busyLabel, setBusyLabel] = useState<string>("");
   const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [language, setLanguage] = React.useState<"en-UK" | any>("en-UK");
+
+// === ATS/JD state ===
+const [jdOpen, setJdOpen] = useState(false);
+const [jdText, setJdText] = useState("");
+const [job, setJob] = useState<any>(null);
+
+const [ats, setAts] = useState<OptimizeOut | null>(null);
+
+const [smartOpen, setSmartOpen] = React.useState(false); // open by default (first-time)
+const [jdInput, setJdInput] = React.useState("");
+
+async function handleSmartTailor() {
+  if (!jdInput.trim()) { toast.error("Paste the job description or URL"); return; }
+  try {
+    setBusy(true); setBusyLabel("Tailoring your resume…");
+    // 1) analyze + set job
+    const a = await fetch("/api/job/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        /^https?:\/\//i.test(jdInput) ? { url: jdInput.trim() } : { text: jdInput.trim() }
+      ),
+    });
+    if (!a.ok) throw new Error(await a.text());
+    const { job: analyzedJob } = await a.json();
+    setJob(analyzedJob);
+
+    // 2) tailor
+    const t = await fetch("/api/ats/optimize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sections: doc.sections, job: analyzedJob }),
+    });
+    if (!t.ok) throw new Error(await t.text());
+    const out = await t.json(); // OptimizeOut
+    setAts(out);
+    setDoc((prev) => ({ ...prev, sections: mergeSections(prev.sections, out.sections) }));
+    toast.success("Tailored to this job");
+    setSmartOpen(false);
+  } catch (e: any) {
+    toast.error(String(e?.message || e));
+  } finally { setBusy(false); setBusyLabel(""); }
+}
+
+// --- call /api/job/analyze ---
+async function analyzeJD(text: string) {
+  setBusy(true); setBusyLabel("Analyzing job description…");
+  try {
+    const r = await fetch("/api/job/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const j = await r.json(); // { job }
+    setJob(j.job);
+    return j.job;
+  } finally { setBusy(false); setBusyLabel(""); }
+}
+
 
 
 
@@ -2418,6 +2544,201 @@ useEffect(() => {
   }
 }, [lang]);
 
+
+
+
+// --- ATS score helper ---
+type Coverage = OptimizeOut["coverage"];
+
+function computeAtsScore(cov: Coverage) {
+  const mustCovered = cov.mustHaveCovered?.length ?? 0;
+  const mustTotal   = (cov.mustHaveCovered?.length ?? 0) + (cov.mustHaveMissing?.length ?? 0);
+
+  const niceCovered = cov.niceToHaveCovered?.length ?? 0;
+  const niceTotal   = (cov.niceToHaveCovered?.length ?? 0) + (cov.niceToHaveMissing?.length ?? 0);
+
+  const kwCovered   = cov.keywordsCovered?.length ?? 0;
+  const kwTotal     = (cov.keywordsCovered?.length ?? 0) + (cov.keywordsMissing?.length ?? 0);
+
+  const pct = (n: number, d: number) => (d > 0 ? n / d : 1);
+
+  // weights: must-haves (60%), nice-to-haves (20%), keywords (20%)
+  const score =
+    0.6 * pct(mustCovered, mustTotal) +
+    0.2 * pct(niceCovered, niceTotal) +
+    0.2 * pct(kwCovered, kwTotal);
+
+  return Math.round(score * 100);
+}
+
+const atsScore = React.useMemo(
+  () => (ats?.coverage ? computeAtsScore(ats.coverage) : null),
+  [ats]
+);
+
+
+async function requestAISuggestion(section: CVSection): Promise<AISuggestResponse> {
+  try {
+    const res = await fetch("/api/assist/section-suggest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, doc, job }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const json = await res.json();
+    return (json?.suggestion as AISuggestResponse) || fallbackSuggestionFor(section);
+  } catch {
+    return fallbackSuggestionFor(section);
+  }
+}
+
+// utilities used by applier
+function ensureFields(sec: CVSection, wanted: Array<{ key: string; role: string }>): CVSection {
+  const have = new Set((sec.fields || []).map(f => (f.role || f.key)));
+  const nextFields = [...(sec.fields || [])];
+  for (const w of wanted) {
+    if (!have.has(w.role)) nextFields.push(w as any);
+  }
+  return { ...sec, fields: nextFields };
+}
+function roleIndex(sec: CVSection, role: string, fallbackIdx = 0) {
+  const idx = (sec.fields || []).findIndex(f => (f.role || f.key) === role);
+  return idx >= 0 ? idx : fallbackIdx;
+}
+
+function applyAISuggestion(sectionKey: CVSectionKey, suggestion: AISuggestResponse) {
+  setDoc(prev => {
+    const sections = prev.sections.map(sec => {
+      if (sec.key !== sectionKey) return sec;
+
+      switch (suggestion.kind) {
+        // PROFILE: set headline + rich text summary
+        case "profile": {
+          const patched = ensureFields(sec, [
+            { key: "h", role: "header" },
+            { key: "v", role: "richtextValue" },
+          ]);
+          const idxH = roleIndex(patched, "header", 0);
+          const idxV = roleIndex(patched, "richtextValue", 1);
+          const rec = patched.records?.[0] || { key: "p1", values: [] as any[] };
+
+          const values = [...(rec.values || [])];
+          if (suggestion.headline) values[idxH] = suggestion.headline;
+          if (suggestion.summaryHtml) values[idxV] = suggestion.summaryHtml;
+
+          return { ...patched, records: [{ ...rec, values }] };
+        }
+
+        // EMPLOYMENT: add/replace bullets in the first (or targeted) record
+        case "employment_bullets": {
+          const patched = ensureFields(sec, [
+            { key: "h", role: "header" },
+            { key: "sub", role: "subheader" },
+            { key: "city", role: "city" },
+            { key: "per", role: "period" },
+            { key: "rich", role: "richtextValue" },
+          ]);
+          const idxRich = roleIndex(patched, "richtextValue", 4);
+          const html = `<ul>${suggestion.bullets.map(b => `<li>${b}</li>`).join("")}</ul>`;
+
+          const pickIdx = (() => {
+            if (suggestion.recordKey) {
+              const i = (patched.records || []).findIndex(r => r.key === suggestion.recordKey);
+              if (i >= 0) return i;
+            }
+            return 0; // fall back to first record
+          })();
+
+          const nextRecords = [...(patched.records?.length ? patched.records : [{ key: newKey("emp"), values: ["","","","", ""] }])];
+          const rec = nextRecords[Math.min(pickIdx, nextRecords.length - 1)];
+          const values = [...(rec.values || [])];
+          values[idxRich] = html; // replace; change to append if you prefer
+          nextRecords[Math.min(pickIdx, nextRecords.length - 1)] = { ...rec, values };
+          return { ...patched, records: nextRecords };
+        }
+
+        // SKILLS: append items (avoid duplicates by name)
+        case "skills": {
+          const patched = ensureFields(sec, [
+            { key: "h", role: "header" },
+            { key: "lvl", role: "level" },
+          ]);
+          const existingNames = new Set(
+            (patched.records || []).map(r => String(r.values?.[roleIndex(patched, "header", 0)] || "").toLowerCase().trim())
+          );
+          const toAdd = suggestion.items.filter(it => !existingNames.has(it.name.toLowerCase().trim()));
+          const adds = toAdd.map(it => ({
+            key: newKey("skill"),
+            values: [it.name, it.level || ""],
+          }));
+          return { ...patched, records: [...(patched.records || []), ...adds] };
+        }
+
+        // LANGUAGES: append items (avoid duplicates)
+        case "languages": {
+          const patched = ensureFields(sec, [
+            { key: "h", role: "header" },
+            { key: "lvl", role: "level" },
+          ]);
+          const existingNames = new Set(
+            (patched.records || []).map(r => String(r.values?.[roleIndex(patched, "header", 0)] || "").toLowerCase().trim())
+          );
+          const toAdd = suggestion.items.filter(it => !existingNames.has(it.name.toLowerCase().trim()));
+          const adds = toAdd.map(it => ({
+            key: newKey("lang"),
+            values: [it.name, it.level || ""],
+          }));
+          return { ...patched, records: [...(patched.records || []), ...adds] };
+        }
+
+        // HOBBIES: append items (avoid duplicates)
+        case "hobbies": {
+          const patched = ensureFields(sec, [{ key: "h", role: "header" }]);
+          const have = new Set(
+            (patched.records || []).map(r => String(r.values?.[roleIndex(patched, "header", 0)] || "").toLowerCase().trim())
+          );
+          const adds = suggestion.items
+            .filter(n => !have.has(n.toLowerCase().trim()))
+            .map(n => ({ key: newKey("hobby"), values: [n] }));
+          return { ...patched, records: [...(patched.records || []), ...adds] };
+        }
+
+        // Anything else: write into description (or a richtext field if present)
+        default: {
+          const html = suggestion.html || "<p>Suggested content.</p>";
+          const rtIdx = roleIndex(sec, "richtextValue", -1);
+          if (rtIdx >= 0 && (sec.records?.length ?? 0) > 0) {
+            const next = [...(sec.records || [])];
+            const r0 = next[0];
+            const vals = [...(r0.values || [])];
+            vals[rtIdx] = html;
+            next[0] = { ...r0, values: vals };
+            return { ...sec, records: next };
+          }
+          return { ...sec, description: html };
+        }
+      }
+    });
+
+    return { ...prev, sections };
+  });
+}
+
+async function handleAISuggest(section: CVSection) {
+  setBusy(true);
+  setBusyLabel("Generating suggestion…");
+  try {
+    const suggestion = await requestAISuggestion(section);
+    applyAISuggestion(section.key, suggestion);
+    toast.success("Suggestion inserted");
+  } catch (e: any) {
+    toast.error(String(e?.message || "Couldn’t insert suggestion"));
+  } finally {
+    setBusy(false);
+    setBusyLabel("");
+  }
+}
+
   return (
     <>
 
@@ -2426,6 +2747,7 @@ useEffect(() => {
         <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* LEFT: Controls + Sections */}
           <div>
+
             <div className="mb-4 flex gap-2 flex-wrap items-center">
               <button
                 className="border rounded px-3 py-2 disabled:opacity-60"
@@ -2449,6 +2771,8 @@ useEffect(() => {
               >
                 <LinkedInIcon /> Import from LinkedIn
               </button>
+
+
 
               <div className="ms-auto flex gap-3 items-center">
                 <label className="flex items-center gap-2 text-sm">
@@ -2488,6 +2812,52 @@ useEffect(() => {
               </div>
             </div>
 
+            <div className="w-full border rounded-lg p-3 bg-white">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold">Smart Match (ATS)</div>
+                <button
+                  className="text-sm text-blue-700"
+                  onClick={() => setSmartOpen((v) => !v)}
+                >
+                  {smartOpen ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {smartOpen && (
+                <div className="mt-3 space-y-3">
+                  <textarea
+                    className="w-full h-28 border rounded p-2"
+                    placeholder="Paste the job description or a job URL here…"
+                    value={jdInput}
+                    onChange={(e) => setJdInput(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-60"
+                      onClick={handleSmartTailor}
+                      disabled={!jdInput.trim()}
+                    >
+                      ✨ Tailor to Job
+                    </button>
+
+                    <button
+                      className="px-3 py-2 rounded border"
+                      onClick={() => {
+                        if (!navigator.clipboard) return;
+                        navigator.clipboard.readText()
+                          .then((txt) => setJdInput(txt || ""))
+                          .catch(() => {});
+                      }}
+                    >
+                      Paste from Clipboard
+                    </button>
+
+                  </div>
+
+                  
+                </div>
+              )}
+            </div>
             <DragDropContext onDragEnd={onDragEnd}>
               <Droppable droppableId="sections">
                 {(provided) => (
@@ -2550,6 +2920,7 @@ useEffect(() => {
                                 months={months}
                                 t={t}
                                 skills={skillLevels}
+                                onAISuggest={handleAISuggest}  
                               />
                             </div>
                           </div>
@@ -2583,6 +2954,61 @@ useEffect(() => {
           onClose={() => setLinkedinOpen(false)}
           onSubmit={submitLinkedInUrl}
         />
+
+        <JDModal
+          open={jdOpen}
+          onClose={() => setJdOpen(false)}
+          jdText={jdText}
+          setJdText={setJdText}
+          onAnalyze={async (text) => { await analyzeJD(text); }}
+        />
+
+        {ats && (
+          <div className="mt-4 border rounded-lg p-4 bg-green-50">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <div className="font-semibold text-green-800">Tailoring complete</div>
+                <div className="text-sm text-green-900">
+                  We matched your resume to this job. Review highlights, insert suggested bullets, and export.
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button className="px-3 py-2 rounded border" onClick={() => setSmartOpen(true)}>
+                  Retarget to another job
+                </button>
+                <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={handleDownload}>
+                  Export PDF
+                </button>
+              </div>
+            </div>
+
+            {!!ats.atsChecklist?.length && (
+              <div
+                className="
+                  fixed bottom-0 inset-x-0 z-30
+                  bg-white/95 backdrop-blur
+                  border-t shadow-[0_-4px_10px_rgba(0,0,0,0.06)]
+                  px-4 py-3
+                "
+                style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold">ATS checklist</div>
+                  {atsScore != null && (
+                    <div className="text-sm">
+                      ATS score: <span className="font-semibold">{atsScore}</span>/100
+                    </div>
+                  )}
+                </div>
+                <ul className="list-disc ps-5">
+                  {ats.atsChecklist.map((c, i) => <li key={"ac-"+i}>{c}</li>)}
+                </ul>
+              </div>
+            )}
+
+          </div>
+        )}
+
       </main>
     </>
   );
