@@ -44,7 +44,7 @@ export default function Wysiwyg({ value = "", onChange, placeholder }: Props) {
     const current = editor.getHTML();
     const incoming = value || "<p></p>";
     if (current !== incoming) {
-      editor.commands.setContent(incoming, false);
+      editor.commands.setContent(incoming, { emitUpdate: false });
       editor.commands.focus("end");
     }
   }, [value, editor]);

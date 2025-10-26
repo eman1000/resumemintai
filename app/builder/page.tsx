@@ -259,7 +259,7 @@ export default function BuilderHome() {
       <ConfirmDialog
         open={!!confirmFor}
         title="Delete this resume?"
-        message={`“${confirmFor?.title || "Untitled CV"}” will be permanently deleted.`}
+        description={`“${confirmFor?.title || "Untitled CV"}” will be permanently deleted.`}
         confirmText="Delete"
         onCancel={() => setConfirmFor(null)}
         onConfirm={() => {

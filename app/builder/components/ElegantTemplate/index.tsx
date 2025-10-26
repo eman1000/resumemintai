@@ -17,12 +17,13 @@ export type ElegantProps = {
   mainSections: Section[];
 
   colors?: {
-    primary?: string;   // used for labels, icons, links, etc.
-    accent?: string;    // banner & label (fallback to tinted primary)
-    text?: string;
-    header?: string;
-    divider?: string;
-  };
+  primary?: string;
+  accent?: string;
+  text?: string;
+  header?: string;
+  divider?: string;
+  sidebar?: string; // ⬅️ Add this property
+};
   fontFamily?: string;
   sizes?: {
     body?: number;
@@ -153,19 +154,22 @@ export default function ElegantTemplate(props: ElegantProps) {
 const sidebar    = colors?.sidebar ?? "#000000";   // <-- rail bg, default black
 
   // Pour
+  const mainPourOptions: any = {
+    gaps,
+    titleLabel: { bg: primary, text: "#ffffff", padX: 8, padY: 3, rx: 3 },
+  };
+  const railPourOptions: any = {
+    gaps,
+    titleLabel: { bg: primary, text: "#ffffff", padX: 8, padY: 3, rx: 3 },
+  };
+
   const mainPages = pourSectionsPaged(
     mainFirst, mainFollow, mainSections, styleMain,
-    {
-      gaps,
-      titleLabel: { bg: primary, text: "#ffffff", padX: 8, padY: 3, rx: 3 },
-    }
+    mainPourOptions
   );
   const railPages = pourSectionsPaged(
     railFirst, railFollow, railSections, styleRail,
-    {
-      gaps,
-      titleLabel: { bg: primary, text: "#ffffff", padX: 8, padY: 3, rx: 3 },
-    }
+    railPourOptions
   );
 
   const total = Math.max(mainPages.length, railPages.length);

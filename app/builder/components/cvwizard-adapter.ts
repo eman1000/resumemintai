@@ -1,6 +1,7 @@
 // components/cvwizard-adapter.ts
-import type { CircularProps, Section, RecordItem } from "../CircularTemplate";
+// @ts-ignore
 import draftToHtml from "draftjs-to-html";
+import { Section, RecordItem, CircularProps } from "./CircularTemplate";
 const SKILL_LEVEL_ALIAS: Record<string, string> = {
   "beginner": "1",
   "novice": "1",

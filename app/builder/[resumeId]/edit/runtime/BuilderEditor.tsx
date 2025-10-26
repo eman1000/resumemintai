@@ -564,31 +564,8 @@ const DEFAULT_SECTIONS: CVSection[] = [
 ================================================= */
 type TemplateData = any;
 
-function periodObjToText(p?: any): string | undefined {
-  if (!p) return undefined;
-  if (Array.isArray(p)) {
-    const [a, b] = [p[0], p[1]];
-    const s =
-      typeof a === "string" ? a : [a?.month, a?.year].filter(Boolean).join(" ");
-    const e =
-      b == null
-        ? ""
-        : typeof b === "string"
-        ? b
-        : b?.present
-        ? "Present"
-        : [b?.month, b?.year].filter(Boolean).join(" ");
-    return [s, e].filter(Boolean).join(" – ");
-  }
-  if (typeof p === "object") {
-    const s = [p?.start?.month, p?.start?.year].filter(Boolean).join(" ");
-    const e = p?.end?.present
-      ? "Present"
-      : [p?.end?.month, p?.end?.year].filter(Boolean).join(" ");
-    return [s, e].filter(Boolean).join(" – ");
-  }
-  return String(p);
-}
+// keep this helper near your other utils
+
 
 function isMeaningful(v: any) {
   if (v == null) return false;
@@ -601,7 +578,10 @@ function isNonEmptyRecord(rec: CVRecord, fields: CVField[]) {
   return fields.some((_, idx) => isMeaningful(rec.values?.[idx]));
 }
 
-function cvDocToTemplateData(doc: CVDocument): any {
+function cvDocToTemplateData(doc: CVDocument,   opts: { dateFormat: "MMM YYYY" | "MM/YYYY"; months: string[]; presentLabel: string }
+): any {
+  const { dateFormat, months, presentLabel } = opts;
+
   const data: any = {};
 
   // Personal details
@@ -670,7 +650,9 @@ function cvDocToTemplateData(doc: CVDocument): any {
         fields.forEach((f, idx) => {
           const role = f.role || f.key;
           let v = rec.values?.[idx];
-          if (role === "period") v = periodObjToText(v);
+          if (role === "period") {
+            v = periodObjToText(v, dateFormat, months, presentLabel);
+          }
           obj.fields[role] = v;
         });
         return obj;
@@ -1590,7 +1572,7 @@ const SkillsEditor: React.FC<{
   section: CVSection;
   setDoc: React.Dispatch<React.SetStateAction<CVDocument>>;
   t: (k: string, fb?: string) => string;
-  skills?: string[]; // localized levels (ordered)
+  skills: string[]; // localized levels (ordered)
 }> = ({ section, setDoc, t, skills = ["Beginner","Moderate","Good","Very Good","Excellent"] }) => {
   const ensureFields = () =>
     section.fields?.length ? section.fields : [{ key: "h", role: "header" }, { key: "lvl", role: "level" }];
@@ -2035,9 +2017,9 @@ const SectionBodyByKey: React.FC<{
   section: CVSection;
   setDoc: React.Dispatch<React.SetStateAction<CVDocument>>;
   onChangeDescription?: (text: string) => void;
-  months?: string[];
-  t?: (key: string, fb?: string) => string;
-  skills?: string[];
+  months: string[];
+  t: (key: string, fb?: string) => string;
+  skills: string[];
 }> = ({ section, setDoc, onChangeDescription, months, t, skills }) => {
   switch (section.key) {
     case "profile":
@@ -2095,18 +2077,13 @@ const SectionBodyByKey: React.FC<{
 
     case "skills":
       return <SkillsEditor section={section} setDoc={setDoc} t={t}
-          months={months}
           skills={skills ?? []}/>;
 
     case "languages":
-      return <LanguagesEditor section={section} setDoc={setDoc} t={t}
-          months={months}
-          skills={skills ?? []}/>;
+      return <LanguagesEditor section={section} setDoc={setDoc} t={t}/>;
 
     case "hobbies":
-      return <HobbiesEditor section={section} setDoc={setDoc}  t={t}
-          months={months}
-          skills={skills ?? []} />;
+      return <HobbiesEditor section={section} setDoc={setDoc}  t={t} />;
 
     case "courses":
       return (
@@ -2219,6 +2196,73 @@ export type I18nPack = {
   months: string[];       // months[0] === "" placeholder
   skillLevels: string[];  // ordered labels
 };
+// keep this helper near your other utils
+function formatMonthYear(
+  d: { month?: string; year?: string } | undefined,
+  fmt: "MMM YYYY" | "MM/YYYY",
+  months: string[]
+) {
+  if (!d || (!d.month && !d.year)) return "";
+  const year = d.year?.trim() || "";
+  if (fmt === "MM/YYYY") {
+    // months[0] === "" placeholder, real months start at index 1
+    const idx = months.indexOf(d.month || "");
+    const mm = idx > 0 ? String(idx).padStart(2, "0") : "";
+    return [mm, year].filter(Boolean).join("/");
+  }
+  // "MMM YYYY"
+  const mmm = d.month ? d.month.slice(0, 3) : "";
+  return [mmm, year].filter(Boolean).join(" ");
+}
+
+// 🔁 unified function (replaces the old implementation)
+function periodObjToText(
+  p: any,
+  fmt?: "MMM YYYY" | "MM/YYYY",
+  months?: string[],
+  presentLabel?: string
+): string | undefined {
+  if (!p) return undefined;
+
+  // fallback to previous behavior if not provided
+  const FMT = fmt ?? "MMM YYYY";
+  const MONTHS = months ?? [
+    "", "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
+  ];
+  const PRESENT = presentLabel ?? "Present";
+
+  const pair = (a?: any, b?: any) => {
+    const s =
+      typeof a === "string"
+        ? a
+        : formatMonthYear({ month: a?.month, year: a?.year }, FMT, MONTHS);
+
+    const e =
+      b == null
+        ? ""
+        : typeof b === "string"
+        ? b
+        : b?.present
+        ? PRESENT
+        : formatMonthYear({ month: b?.month, year: b?.year }, FMT, MONTHS);
+
+    return [s, e].filter(Boolean).join(" – ");
+  };
+
+  if (Array.isArray(p)) return pair(p[0], p[1]);
+
+  if (typeof p === "object") {
+    const s = formatMonthYear(p?.start, FMT, MONTHS);
+    const e = p?.end?.present
+      ? PRESENT
+      : formatMonthYear(p?.end, FMT, MONTHS);
+    return [s, e].filter(Boolean).join(" – ");
+  }
+
+  return String(p);
+}
+
 
 export default function BuilderEditor({
   initialData,
@@ -2229,6 +2273,8 @@ export default function BuilderEditor({
   lang,
   renderer,
   onChangeRenderer,  
+  dateFormat
+  
 }: {
   initialData: any;
   onChangeData: (data: any) => void;
@@ -2237,6 +2283,7 @@ export default function BuilderEditor({
   i18n: I18nPack;
   lang: LanguageCode;
   renderer?: string;
+  dateFormat: "MMM YYYY" | "MM/YYYY";
   onChangeRenderer?: (r: string) => void;
 
 }) {
@@ -2265,7 +2312,6 @@ const [doc, setDoc] = useState<CVDocument>(
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string>("");
   const [linkedinOpen, setLinkedinOpen] = useState(false);
-  const [dateFormat, setDateFormat] = React.useState<"MMM YYYY" | "MM/YYYY">("MMM YYYY");
   const [language, setLanguage] = React.useState<"en-UK" | any>("en-UK");
 
 
@@ -2328,9 +2374,13 @@ React.useEffect(() => setActiveTemplateId(initialTplId), [initialTplId]);
   }, [tpl]);
 
   const previewProps = useMemo(() => {
-    const data = cvDocToTemplateData(doc);
+    const data = cvDocToTemplateData(doc, {
+      dateFormat,
+      months,
+      presentLabel: i18n.t("label.present", "Present"),
+    });
     return toCircularProps(data, options);
-  }, [doc, options]);
+  }, [doc, options, dateFormat, months, i18n]);
 
   const submitLinkedInUrl = React.useCallback(
     async (url: string) => {
@@ -2354,7 +2404,7 @@ React.useEffect(() => setActiveTemplateId(initialTplId), [initialTplId]);
 
 React.useEffect(() => {
   // If the doc was seeded in English, translate titles once on mount.
-  setDoc((d) => localizeDocTitles(d, i18n.lang as LanguageCode, "en"));
+  setDoc((d) => localizeDocTitles(d, i18n.lang as LanguageCode));
   prevLangRef.current = lang as any;
 }, []);
 
@@ -2363,7 +2413,7 @@ useEffect(() => {
   const prev = prevLangRef.current;
   const next = lang as LanguageCode;
   if (prev !== next) {
-    setDoc((d) => localizeDocTitles(d, next, prev));
+    setDoc((d) => localizeDocTitles(d, next));
     prevLangRef.current = next;
   }
 }, [lang]);
@@ -2490,7 +2540,7 @@ useEffect(() => {
                                               {
                                                 key: x.records?.[0]?.key || "pd-1",
                                                 values: updater((x.records?.[0]?.values || {}) as PDValues),
-                                              },
+                                              } as CVRecord, // ⬅️ Explicit type assertion
                                             ],
                                           }
                                         : x
@@ -2516,9 +2566,11 @@ useEffect(() => {
           {/* RIGHT: Sticky A4 Live Preview */}
           <div className="lg:sticky lg:top-4 h-fit">
             <A4Preview
+              // key={`preview-${dateFormat}`} 
               props={previewProps}
               selectedTemplate={tpl}
               wrapRef={wrapRef}
+              // @ts-ignore
               handleDownload={handleDownload}
             />
           </div>

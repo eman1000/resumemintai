@@ -77,11 +77,10 @@ function EditPageInner() {
 
   // when language changes: relabel default section titles (non-destructive)
 const handleChangeLanguage = (next: LanguageCode) => {
-  console.log("Changing language to", next);
   setLang(next);
   setData((prev: any) => {
     if (!prev?.sections) return prev;
-    const patched = localizeDocTitles(prev, next, prevLangRef.current);
+    const patched = localizeDocTitles(prev, next);
     prevLangRef.current = next;
     return patched;
   });
@@ -234,6 +233,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
         i18n={{ t, lang, months, skillLevels }}
         renderer={renderer}
         lang={lang}
+        dateFormat={dateFormat} 
         onChangeRenderer={setRenderer}
       />
 

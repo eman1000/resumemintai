@@ -1,4 +1,3 @@
-import { Props } from "next/script";
 import { useRef } from "react";
 import { CircularProps, CircularTemplate } from "../CircularTemplate";
 import { exportSvgContainerToPdf } from "./exportSvgPdf";
