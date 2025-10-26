@@ -1,4 +1,4 @@
-import AutoUrlSignin from '@/components/AutoUrlSignin';
+// import AutoUrlSignin from '@/components/AutoUrlSignin';
 import './globals.scss';
 import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
@@ -14,6 +14,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
+      <head>
+
+        <link
+  href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+  rel="stylesheet"
+/>
+      </head>
       <body>
                 {/* GTM */}
         <Gtm />
@@ -28,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </noscript>
         )}
         <Toaster position="top-center" />
-        <AutoUrlSignin />
+        {/* <AutoUrlSignin /> */}
         {children}
       </body>
     </html>

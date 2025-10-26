@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { auth } from '@/app/firebase';
 import AuthGate from '@/components/AuthGate';
-import { ensureAnonOnce } from '@/lib/ensureAnon';
 import SiteNav from '@/components/SiteNav';
 import SiteNavAuth from '@/components/SiteNavAuth';
 
@@ -39,7 +38,6 @@ export default function AccountBillingPage() {
       try {
         if (!auth.currentUser) {
           // allow anonymous users too
-          await await ensureAnonOnce();
         }
         const idToken = await auth.currentUser!.getIdToken(true);
 

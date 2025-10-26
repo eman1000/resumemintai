@@ -1,7 +1,10 @@
+// app/components/AuthGate.tsx
 'use client';
+
 import { useEffect, useState, ReactNode } from 'react';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/app/firebase';
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -9,41 +12,67 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const auth = getAuth();
+    let alive = true;
+
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
+        if (!alive) return;
         setReady(true);
         setOk(false);
-        router.push('/login'); // or show inline login
+        router.push('/login'); // or inline login
         return;
       }
+
       try {
         const idToken = await user.getIdToken(true);
         const res = await fetch('/api/account/ensure', {
           method: 'POST',
           headers: { Authorization: `Bearer ${idToken}` },
         });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'ensure_failed');
 
-      // ✅ enforce subscription here
-      if (!json.subscribed) {
-        router.push('/landing/vtdft'); // or '/pricing'
-        return;
-      }
+        if (res.status === 401) {
+          // token invalid / expired → send to login
+          if (!alive) return;
+          setReady(true);
+          setOk(false);
+          router.push('/login');
+          return;
+        }
 
-      setOk(true);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'ensure_failed');
+
+        if (!json.subscribed) {
+          // not subscribed → send to your paywall/landing
+          router.push('/landing/vtdft');
+          return;
+        }
+
+        if (!alive) return;
+        setOk(true);
       } catch (e) {
         console.error('AuthGate ensure error', e);
+        if (!alive) return;
         setOk(false);
       } finally {
+        if (!alive) return;
         setReady(true);
       }
     });
-    return () => unsub();
+
+    return () => {
+      alive = false;
+      unsub();
+    };
   }, [router]);
 
-  if (!ready) return <div className="p-6 text-sm text-neutral-400">Checking access…</div>;
+  if (!ready) {
+    return (
+      <div className="p-6 text-sm text-neutral-400">
+        Checking access…
+      </div>
+    );
+  }
   if (!ok) return null;
   return <>{children}</>;
 }

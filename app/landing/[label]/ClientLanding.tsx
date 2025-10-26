@@ -8,14 +8,12 @@ import NonC from '@/components/NonC';
 import { useGeo } from '@/lib/useGeo';
 import type { LandingVariant } from './landingData';
 import { auth } from '@/app/firebase';
-import { ensureAnonOnce } from '@/lib/ensureAnon';
 import { track } from '@/lib/track';
 import { useEffect } from 'react';
 export function LandingImpression() {
   useEffect(() => {
     (async () => {
-      if (!auth.currentUser) await ensureAnonOnce();
-      const t = await auth.currentUser!.getIdToken();
+      const t = await auth?.currentUser?.getIdToken();
       // Fires GTM (GA4) + writes to /api/track
       track({ event: 'impression', props: { page: 'landing', _idToken: t } });
     })();

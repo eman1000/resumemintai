@@ -246,3 +246,57 @@ body { @apply bg-neutral-950 text-neutral-100 antialiased;
     }
   }
 }
+
+
+.previewWrapper, svg {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: block;
+    align-self: flex-start; /* prevent stretching that can clamp height */
+
+}
+
+/* A4 in points; matches jsPDF default unit */
+.resume-page {
+  width: 595.28pt;    /* 210mm */
+  height: 841.89pt;   /* 297mm */
+  margin: 0;
+  page-break-after: always;
+  break-after: page;
+  background: #fff;   /* white page (helps on dark UIs) */
+}
+
+.resume-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+/* Make sure the SVG fills its page exactly (no resizing/reflow). */
+.resume-page > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* When printing the preview, keep the same pagination. */
+@page { size: A4; margin: 0; }
+/* globals.css */
+/* TipTap list defaults */
+.tiptap ul,
+.tiptap ol {
+  margin: .5rem 0;
+  padding-left: 1.25rem;     /* indent so markers show */
+}
+.tiptap ul { list-style: disc; }
+.tiptap ol { list-style: decimal; }
+.tiptap li p { margin: 0; }  /* TipTap wraps LI text in <p> */
+
+
+.edu-row {
+  display: grid;
+  grid-template-columns: 1fr auto; /* left content | right date */
+  align-items: start;
+  gap: .5rem;
+}
+.edu-row .period { justify-self: end; }

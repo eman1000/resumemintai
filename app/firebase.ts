@@ -1,6 +1,6 @@
 'use client';
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   browserLocalPersistence,
@@ -10,7 +10,12 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Make sure these NEXT_PUBLIC_* vars exist in your .env.local
+/** Ensure we never init twice across HMR */
+declare global {
+  // eslint-disable-next-line no-var
+  var __FIREBASE_APP__: FirebaseApp | undefined;
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
@@ -20,20 +25,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// Prefer a cached app on globalThis (survives Fast Refresh)
+const _app =
+  globalThis.__FIREBASE_APP__ ??
+  (getApps().length ? getApp() : initializeApp(firebaseConfig));
 
-// Export singletons so every import uses the same instance
-export const auth = getAuth(app);
+globalThis.__FIREBASE_APP__ = _app;
+
+// Export singletons
+export const auth = getAuth(_app);
 export const provider = new GoogleAuthProvider();
-export const db = getFirestore(app);
+export const db = getFirestore(_app);
 
-// Persist auth in the browser (safe-guard for SSR)
+// Persist auth only in the browser
 if (typeof window !== 'undefined') {
   setPersistence(auth, browserLocalPersistence).catch(() => {});
 }
 
-
-// A one-time promise that resolves after the very first auth state is known
+// A one-time promise that resolves when the first auth state is known
 let _authReadyResolve: (v?: unknown) => void;
 export const authReady = new Promise(res => (_authReadyResolve = res));
 onAuthStateChanged(auth, () => _authReadyResolve?.());

@@ -1,0 +1,10 @@
+/* SVG spacing freeze for the CV template */
+.cv-root svg,
+.cv-root svg * {
+  line-height: normal !important;
+  letter-spacing: normal !important;
+  font-kerning: normal !important;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-variant-ligatures: none;
+}
