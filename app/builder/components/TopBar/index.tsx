@@ -225,8 +225,8 @@ export default function TopBar({
                 <div className="px-3 py-2 text-xs font-semibold text-gray-400">
                   {t("top.dateFormat", "DATE FORMAT")}
                 </div>
-                <DateItem label={t("date.sample.mmmYYYY", "Oct 2025")} value="MMM YYYY" />
-                <DateItem label={t("date.sample.mmYYYY", "10/2025")} value="MM/YYYY" />
+                {/* <DateItem label={t("date.sample.mmmYYYY", "Oct 2025")} value="MMM YYYY" />
+                <DateItem label={t("date.sample.mmYYYY", "10/2025")} value="MM/YYYY" /> */}
 
                 <div className="my-2 h-px bg-white/10" />
 

@@ -14,14 +14,41 @@ export function debugSql(sql: string, values: unknown[]) {
   });
 }
 
-export async function run<T>(pool: Pool, f: (c: PoolClient) => Promise<any>) {
+const RETRIABLE_CODES = new Set([
+  '57P01', // admin_shutdown
+  '57P02', // crash_shutdown
+  '57P03', // cannot_connect_now
+  '08000', '08003', '08006', // connection errors
+  'XX000', // db_termination seen via PgBouncer
+]);
+
+export async function run<T>(
+  pool: Pool,
+  fn: (c: PoolClient) => Promise<T>,
+  attempt = 0
+): Promise<T> {
   const client = await pool.connect();
   try {
-    return await f(client);
+    return await fn(client);
+  } catch (e: any) {
+    const msg = String(e?.message || '');
+    const code = e?.code as string | undefined;
+
+    const retriable =
+      (code && RETRIABLE_CODES.has(code)) ||
+      /ECONNRESET|terminat|closed|db_termination|Connection terminated/i.test(msg);
+
+    if (retriable && attempt < 2) {
+      console.warn('[PG] transient error, retrying…', code || msg);
+      await new Promise(r => setTimeout(r, 200 + attempt * 300));
+      return run(pool, fn, attempt + 1);
+    }
+    throw e;
   } finally {
     client.release();
   }
 }
+
 
 export async function runGetOne<T>(
   pool: Pool,

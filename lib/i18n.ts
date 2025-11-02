@@ -115,6 +115,10 @@ const BASE: Partial<Record<LanguageCode, Dict>> = {
     "action.addHobby": "+ Add hobby",
     "action.uploadResume": "Upload resume",
     "action.importLinkedIn": "Import from LinkedIn",
+    "action.removeSection": "Remove section",
+    "action.remove": "Remove",
+    "action.cancel": "Cancel",
+
 
     // inputs
     "label.year": "Year",

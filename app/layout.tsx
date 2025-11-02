@@ -1,8 +1,10 @@
-// import AutoUrlSignin from '@/components/AutoUrlSignin';
+// app/layout.tsx
 import './globals.scss';
 import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
-import Gtm from '@/components/Gtm';
+import Script from 'next/script';
+import Hotjar from '@/components/Hotjar';
+import TrackPageView from '@/components/TrackPageView';
 
 export const metadata: Metadata = {
   title: 'AI Resume Builder',
@@ -10,34 +12,39 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-    const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
-
   return (
     <html lang="en">
       <head>
+        <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=G-G1TL8Q135F`}
+            strategy="afterInteractive"
+          />
 
+       {/* Google Ads / GA4 (direct gtag) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17589141195"
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-17589141195'); // Google Ads
+            gtag('config', 'G-G1TL8Q135F');   // GA4 (optional)
+          `}
+        </Script>
         <link
-  href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
-  rel="stylesheet"
-/>
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+          rel="stylesheet"
+        />
       </head>
       <body>
-                {/* GTM */}
-        <Gtm />
-        {gtmId && (
-          <noscript>
-            <iframe
-              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
-              height="0"
-              width="0"
-              style={{ display: 'none', visibility: 'hidden' }}
-            />
-          </noscript>
-        )}
-        <Toaster position="top-center" />
-        {/* <AutoUrlSignin /> */}
-        {children}
 
+        <TrackPageView />
+        <Hotjar />
+        <Toaster position="top-center" />
+        {children}
       </body>
     </html>
   );

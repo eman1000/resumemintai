@@ -5,44 +5,165 @@ import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElement
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import { auth } from '@/app/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || 'price_xxx';
 
-function CheckoutInner({ onConfirmed }: { onConfirmed: () => void }) {
+function CheckoutInner({
+  onActivated,
+  setupIntentClientSecret,
+  setupIntentMeta,
+}: {
+  onActivated: (payload: any) => void;
+  setupIntentClientSecret: string;
+  setupIntentMeta: { email: string };
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const lock = useRef(false);
 
-  const confirm = useCallback(async () => {
+  const confirmAndActivate = useCallback(async () => {
     if (!stripe || !elements || lock.current) return;
     lock.current = true;
     setSubmitting(true);
+
+    // 0) If SI already succeeded (e.g., refresh), skip straight to activate
+    try {
+      const retrieved = await stripe.retrieveSetupIntent(setupIntentClientSecret);
+      const pre = retrieved?.setupIntent;
+      if (pre?.status === 'succeeded' && pre.id) {
+        const r = await fetch('/api/billing/activate-guest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ setupIntentId: pre.id, priceId: PRICE_ID }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+
+        (window as any).dataLayer = (window as any).dataLayer || [];
+        (window as any).dataLayer.push({
+          event: 'ads_conversion',
+          conversion_name: 'purchase',
+          subscription_id: j.subscriptionId,
+          value: 1.0,
+          currency: 'USD',
+        });
+
+        toast.success('Subscription activated!');
+        // ✅ use setup_intent so /billing/return unlocks UI
+        location.href = `/billing/return?setup_intent=${encodeURIComponent(pre.id)}`;
+        return;
+      }
+    } catch {
+      // ignore – fall through to normal confirm
+    }
+
+    // 1) Confirm SI (if not already succeeded)
     const result = await stripe.confirmSetup({
       elements,
       confirmParams: { return_url: `${location.origin}/billing/return` },
+      redirect: 'if_required',
     });
-    if ((result as any)?.error) {
-      toast.error((result as any).error?.message || 'Payment confirmation failed');
+
+    // 2) Handle errors (including "already succeeded")
+    const err: any = (result as any)?.error;
+    if (err) {
+      if (err.code === 'setup_intent_unexpected_state' && err?.setup_intent?.id) {
+        try {
+          const r = await fetch('/api/billing/activate-guest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ setupIntentId: err.setup_intent.id, priceId: PRICE_ID }),
+          });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+
+          (window as any).dataLayer = (window as any).dataLayer || [];
+          (window as any).dataLayer.push({
+            event: 'ads_conversion',
+            conversion_name: 'purchase',
+            subscription_id: j.subscriptionId,
+            value: 1.0,
+            currency: 'USD',
+          });
+
+          toast.success('Subscription activated!');
+          // ✅ use setup_intent here as well
+          location.href = `/billing/return?setup_intent=${encodeURIComponent(err.setup_intent.id)}`;
+          return;
+        } catch (e: any) {
+          toast.error(e?.message || 'Activation failed');
+          lock.current = false;
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      toast.error(err?.message || 'Payment confirmation failed');
       lock.current = false;
       setSubmitting(false);
       return;
     }
-    onConfirmed();
-  }, [stripe, elements, onConfirmed]);
+
+    // 3) Normal success → activate
+    const siId =
+      (result as any)?.setupIntent?.id ||
+      (result as any)?.setupIntent?.client_secret?.split('_secret')[0];
+
+    if (!siId) {
+      toast.error('Missing SetupIntent id');
+      lock.current = false;
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const r = await fetch('/api/billing/activate-guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+
+      (window as any).dataLayer = (window as any).dataLayer || [];
+      (window as any).dataLayer.push({
+        event: 'ads_conversion',
+        conversion_name: 'purchase',
+        subscription_id: j.subscriptionId,
+        value: 1.0,
+        currency: 'USD',
+      });
+
+      toast.success('Subscription activated!');
+      // ✅ and here
+      location.href = `/billing/return?setup_intent=${encodeURIComponent(siId)}`;
+    } catch (e: any) {
+      toast.error(e?.message || 'Activation failed');
+      lock.current = false;
+      setSubmitting(false);
+    }
+  }, [stripe, elements, setupIntentClientSecret]);
 
   return (
     <div className="max-w-md w-full space-y-4">
-      <ExpressCheckoutElement onConfirm={confirm} options={{ paymentMethodOrder: ['apple_pay','google_pay'] }} />
+      <ExpressCheckoutElement
+        onConfirm={confirmAndActivate}
+        options={{ paymentMethodOrder: ['apple_pay', 'google_pay'] }}
+      />
       <PaymentElement options={{ layout: 'accordion' }} />
       <button
-        onClick={confirm}
+        onClick={confirmAndActivate}
         disabled={!stripe || !elements || submitting}
         className="w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60"
       >
-        {submitting ? 'Processing…' : 'Continue'}
+        {submitting ? 'Processing…' : 'Start subscription'}
       </button>
+      <div className="text-xs text-neutral-500">
+        We’ll securely save your payment method, then start your subscription.
+      </div>
     </div>
   );
 }
@@ -59,18 +180,9 @@ export default function SubscribePay() {
     if (starting) return;
     setStarting(true);
     try {
-      // If user is signed in, use auth flow (no email field needed)
-      const user = auth.currentUser || await new Promise<any>(res => onAuthStateChanged(auth, u => res(u)));
-      if (user) {
-        const t = await user.getIdToken();
-        const r = await fetch('/api/billing/start', { method: 'POST', headers: { Authorization: `Bearer ${t}` } });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j?.error || j?.detail || 'start_failed');
-        setClientSecret(j.clientSecret);
-        return;
-      }
+      // Always force guest flow
+      try { if (auth?.currentUser) await signOut(auth); } catch {}
 
-      // Guest flow → email is REQUIRED
       if (!emailValid) {
         toast.error('Enter a valid email');
         setStarting(false);
@@ -84,6 +196,7 @@ export default function SubscribePay() {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j?.error || j?.detail || 'start_failed');
+
       setClientSecret(j.clientSecret);
     } catch (e: any) {
       console.error(e);
@@ -93,30 +206,26 @@ export default function SubscribePay() {
   }, [starting, emailValid, emailTrimmed]);
 
   if (!clientSecret) {
-    const showEmail = !auth.currentUser; // only show email if not signed in
     return (
       <form
         className="max-w-md w-full space-y-3"
         onSubmit={(e) => { e.preventDefault(); start(); }}
       >
-        {showEmail && (
-          <input
-            placeholder="Email to receive your receipt & account link"
-            className="w-full rounded-lg border border-white/20 bg-transparent px-3 py-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            inputMode="email"
-            name="email"
-            autoComplete="email"
-            required
-            aria-invalid={email.length > 0 && !emailValid}
-          />
-        )}
+        <input
+          placeholder="Email to receive your receipt & account link"
+          className="w-full rounded-lg border border-white/20 bg-transparent px-3 py-2"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          type="email"
+          inputMode="email"
+          name="email"
+          autoComplete="email"
+          required
+          aria-invalid={email.length > 0 && !emailValid}
+        />
         <button
           type="submit"
-          onClick={start}
-          disabled={starting || (showEmail && !emailValid)}
+          disabled={starting || !emailValid}
           className="w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60"
         >
           {starting ? 'Preparing…' : 'Continue'}
@@ -130,7 +239,11 @@ export default function SubscribePay() {
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
-      <CheckoutInner onConfirmed={() => { /* no-op */ }} />
+      <CheckoutInner
+        setupIntentClientSecret={clientSecret}
+        setupIntentMeta={{ email: emailTrimmed }}
+        onActivated={() => { /* handled inside inner (redirect) */ }}
+      />
     </Elements>
   );
 }

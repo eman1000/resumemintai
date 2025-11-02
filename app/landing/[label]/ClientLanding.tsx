@@ -27,7 +27,15 @@ export default function ClientLanding({
   cfg: LandingVariant;
   label: string;
 }) {
+  const { data: geoData } = useGeo();
 
+  // Only runs in the browser
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const cc = geoData?.country_code?.toUpperCase();
+  const isCompliant = !isIOS || cc === 'IN' || cc === 'INDIA';
+
+  if (!isCompliant) return <NonC />;
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-50">

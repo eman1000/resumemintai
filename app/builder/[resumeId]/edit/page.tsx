@@ -15,6 +15,7 @@ import { useResumeActions } from "@/app/builder/hooks/useResumeActions";
 import { withAuth } from "../../_client/withAuth";
 import { LanguageProvider, useI18n } from "@/app/context/LanguageContext";
 import { LanguageCode, localizeDocTitles } from "@/lib/i18n";
+import FullscreenLoader from "../../components/FullscreenLoader";
 
 type LoadedResume = {
   id?: string;
@@ -184,7 +185,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
     save({ language: lang });
   }, [lang, loaded, save]);
 
-  if (!loaded) return <div className="p-6">Loading…</div>;
+  if (!loaded) return <FullscreenLoader label={"Loading..."} />;
 
   return (
     <div className="min-h-screen bg-white">

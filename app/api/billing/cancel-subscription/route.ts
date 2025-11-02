@@ -1,127 +1,136 @@
 // app/api/billing/cancel-subscription/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { adminAuth, adminDb } from '@/lib/firebaseAdmin';
+// @ts-nocheck
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
+import { getUserFromRequest } from "@/app/api/server/auth/getUserFromRequest";
+import { run } from "@/app/api/server/db";
+import pool from "@/app/api/server/db/pool";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// Stripe SDK
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    // @ts-ignore
-  apiVersion: '2024-06-20',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
 
-// Considered "active" for your app logic
-const ACTIVE = new Set(['active', 'trialing', 'past_due'] as const);
+// Mirrors your resumes route mapping
+async function getDbUserIdByFirebaseUid(firebaseUid: string) {
+  const { rows } = await run(pool, (c) =>
+    c.query<{ id: string }>(
+      `select id from public.users where firebase_uid = $1 limit 1`,
+      [firebaseUid],
+    )
+  );
+  return rows[0]?.id ?? null;
+}
+
+async function getStripeCustomerIdByUserId(userId: string) {
+  const { rows } = await run(pool, (c) =>
+    c.query<{ stripe_customer_id: string | null }>(
+      `select stripe_customer_id from public.users where id = $1 limit 1`,
+      [userId],
+    )
+  );
+  return rows[0]?.stripe_customer_id || null;
+}
 
 type Body = {
-  // If passed, we cancel this exact subscription.
-  // If omitted, we'll locate the caller's active sub via Firestore (stripeSubs) using their uid.
   subscriptionId?: string;
-
-  // 'at_period_end' (default) or 'now'
-  mode?: 'at_period_end' | 'now';
-
-  // Only used when mode === 'now': whether to prorate the final invoice (default true)
+  mode?: "at_period_end" | "now";
   prorate?: boolean;
 };
 
-async function findUsersActiveSubscription(uid: string): Promise<string | null> {
-  // Look up your cached subs (written by your webhook) for this accountId
-  const snap = await adminDb
-    .collection('stripeSubs')
-    .where('accountId', '==', uid)
-    .orderBy('updatedAt', 'desc')
-    .limit(20)
-    .get();
-
-  // Pick the newest active-ish one
-  for (const d of snap.docs) {
-    const status = (d.get('status') || '').toString();
-    if (ACTIVE.has(status as any)) return d.id; // the doc id is sub.id in your webhook
-  }
-  return null;
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    // 1) Auth: require Firebase ID token
-    const authz = req.headers.get('authorization') || '';
-    const idToken = authz.startsWith('Bearer ') ? authz.slice(7) : '';
-    if (!idToken) {
-      return NextResponse.json({ error: 'missing_auth' }, { status: 401 });
-    }
-
-    const decoded = await adminAuth.verifyIdToken(idToken);
-    const uid = decoded.uid;
+    // 1) Auth (same as /api/resumes)
+    const fb = await getUserFromRequest(); // throws { name: 'UNAUTHORIZED' } on failure
+    const userId = await getDbUserIdByFirebaseUid(fb.uid);
+    if (!userId) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
     // 2) Parse body
-    const { subscriptionId: bodySubId, mode = 'at_period_end', prorate = true } =
-      (await req.json().catch(() => ({}))) as Body;
+    const body = (await req.json().catch(() => ({}))) as Body;
+    const mode = body.mode ?? "at_period_end";
+    const prorate = body.prorate ?? true;
 
-    // 3) Get the subscription id either from body or by looking up user's active sub
-    const subscriptionId =
-      bodySubId || (await findUsersActiveSubscription(uid));
-    if (!subscriptionId) {
-      return NextResponse.json({ error: 'no_active_subscription' }, { status: 404 });
+    // 3) Resolve subscription id
+    let subId = body.subscriptionId?.trim() || "";
+
+    if (!subId) {
+      const customerId = await getStripeCustomerIdByUserId(userId);
+      if (!customerId) {
+        return NextResponse.json({ error: "no_customer" }, { status: 404 });
+      }
+
+      // Find newest active-ish subscription for this customer
+      const list = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        expand: ["data.items.data.price"],
+        limit: 20,
+      });
+
+      const ACTIVE = new Set(["active", "trialing", "past_due"]);
+      const candidate = list.data.find((s) => ACTIVE.has(s.status as any));
+      if (!candidate) {
+        return NextResponse.json({ error: "no_active_subscription" }, { status: 404 });
+      }
+      subId = candidate.id;
     }
 
-    // 4) Safety: fetch the subscription from Stripe and confirm it belongs to this user
-    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    // 4) Extra safety: ensure the Stripe sub belongs to this user’s customer
+    const sub = await stripe.subscriptions.retrieve(subId);
+    const subCustomerId =
+      typeof sub.customer === "string" ? sub.customer : (sub.customer as any)?.id;
 
-    // We expect accountId to be stamped in metadata by your create-subscription flow
-    const ownerAccountId = (sub.metadata?.accountId as string) || '';
-    if (ownerAccountId && ownerAccountId !== uid) {
-      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    const dbCustomerId = await getStripeCustomerIdByUserId(userId);
+    if (dbCustomerId && subCustomerId && dbCustomerId !== subCustomerId) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    // 5) Perform cancellation
-    let updated:
-      | Stripe.Response<Stripe.Subscription>
-      | Stripe.Subscription;
+    // 5) Perform cancel
+    const updated =
+      mode === "at_period_end"
+        ? await stripe.subscriptions.update(
+            subId,
+            { cancel_at_period_end: true },
+            { idempotencyKey: `sub-cancel-${subId}-atend` },
+          )
+        : await stripe.subscriptions.cancel(
+            subId,
+            { prorate },
+            { idempotencyKey: `sub-cancel-${subId}-now` },
+          );
 
-    if (mode === 'at_period_end') {
-      // Set cancel_at_period_end: true
-      updated = await stripe.subscriptions.update(
-        subscriptionId,
-        { cancel_at_period_end: true },
-        { idempotencyKey: `sub-cancel-${subscriptionId}-atend` }
-      );
-    } else {
-      // Cancel immediately; optionally prorate (creates a final invoice)
-      updated = await stripe.subscriptions.cancel(
-        subscriptionId,
-        { prorate },
-        { idempotencyKey: `sub-cancel-${subscriptionId}-now` }
-      );
-    }
+    // 6) Best-effort cache to your subscriptions table (webhook remains source of truth)
+    await run(pool, (c) =>
+      c.query(
+        `
+        insert into subscriptions (id, user_id, status, price_id, current_period_end, cancel_at_period_end, created_at, updated_at)
+        values ($1,$2,$3,$4,$5,$6, now(), now())
+        on conflict (id) do update set
+          status = excluded.status,
+          price_id = excluded.price_id,
+          current_period_end = excluded.current_period_end,
+          cancel_at_period_end = excluded.cancel_at_period_end,
+          updated_at = now()
+        `,
+        [
+          updated.id,
+          userId,
+          updated.status,
+          updated.items.data[0]?.price?.id ?? null,
+          updated.current_period_end
+            ? new Date(updated.current_period_end * 1000).toISOString()
+            : null,
+          !!updated.cancel_at_period_end,
+        ],
+      ),
+    );
 
-    // 6) (Optional) Best-effort local cache update NOW;
-    // Your webhook will also update it shortly, but this makes the UI snappy.
-    try {
-      await adminDb.collection('stripeSubs').doc(subscriptionId).set(
-        {
-          status: updated.status,
-          cancelAtPeriodEnd: !!updated.cancel_at_period_end,
-          cancelAt: updated.cancel_at ? new Date(updated.cancel_at * 1000) : null,
-          canceledAt: updated.canceled_at ? new Date(updated.canceled_at * 1000) : null,
-          updatedAt: new Date(),
-        },
-        { merge: true }
-      );
-    } catch (_) {
-      // Ignore; webhook is source of truth anyway
-    }
-
-    // 7) Respond with useful info for the UI
+    // 7) Respond
     return NextResponse.json({
       subscriptionId: updated.id,
       status: updated.status,
       cancel_at_period_end: updated.cancel_at_period_end,
-      // @ts-ignore
       current_period_end: updated.current_period_end
-      // @ts-ignore
         ? new Date(updated.current_period_end * 1000).toISOString()
         : null,
       canceled_at: updated.canceled_at
@@ -129,13 +138,10 @@ export async function POST(req: NextRequest) {
         : null,
     });
   } catch (e: any) {
-    // Surface Stripe errors cleanly
-    const msg =
-      e?.raw?.message || e?.message || 'cancel_failed';
-    const code = e?.raw?.code || e?.code;
-    return NextResponse.json(
-      { error: 'cancel_failed', message: msg, code },
-      { status: 400 }
-    );
+    if (e?.name === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    const msg = e?.raw?.message || e?.message || "cancel_failed";
+    return NextResponse.json({ error: "cancel_failed", message: msg }, { status: 400 });
   }
 }

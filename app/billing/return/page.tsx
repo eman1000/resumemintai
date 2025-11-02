@@ -1,7 +1,7 @@
 // app/billing/return/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { auth } from '@/app/firebase';
@@ -13,6 +13,9 @@ import {
   signInWithEmailLink,
 } from 'firebase/auth';
 import { useQuery } from '@/app/builder/hooks/use-query';
+import { fireAdsConversionDirect } from '@/lib/ads';
+
+const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO as string;
 
 export default function BillingReturn() {
   const sp = useQuery();
@@ -24,7 +27,31 @@ export default function BillingReturn() {
   const [sending, setSending] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
 
-  // Complete magic-link sign-in if the user opened the email here
+  // ✅ helper: bind the signed-in Firebase user to the guest accountId
+  const claimNow = useCallback(async () => {
+    try {
+      const t = await auth.currentUser!.getIdToken(true);
+      const accountId = localStorage.getItem('resumemint_account_id');
+      if (!accountId) {
+        toast.error('Missing account link. Please contact support.');
+        return;
+      }
+      const r = await fetch('/api/account/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ accountId }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.detail || j?.error || 'claim_failed');
+      toast.success('Account linked!');
+      router.replace('/builder');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Could not link account');
+    }
+  }, [router]);
+
+  // Complete magic-link sign-in if the user opened the email here → then claim
   useEffect(() => {
     (async () => {
       if (!isSignInWithEmailLink(auth, window.location.href)) return;
@@ -33,12 +60,9 @@ export default function BillingReturn() {
       try {
         await signInWithEmailLink(auth, email, window.location.href);
         localStorage.removeItem('emailForClaim');
-        const t = await auth.currentUser!.getIdToken(true);
-        // Optionally POST to /api/account/claim if you keep it
-        // await fetch('/api/account/claim', { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${t}`}, body: JSON.stringify({ email }) });
-
         toast.success('Signed in!');
-        router.replace('/builder');
+        // ✅ bind this signed-in user to the guest account
+        await claimNow();
       } catch (e: any) {
         console.error(e);
         toast.error(e?.message || 'Sign-in link failed');
@@ -51,45 +75,60 @@ export default function BillingReturn() {
   useEffect(() => {
     (async () => {
       try {
-        const setupIntentId = sp?.get('setup_intent');
+        const id = sp?.get('setup_intent') ?? '';
+        const clientSecret = sp?.get('setup_intent_client_secret') ?? '';
+        const redirectStatus = sp?.get('redirect_status'); // 'succeeded' | 'failed' | 'pending'
+
+        let setupIntentId = id;
+        if (!setupIntentId && clientSecret) {
+          const m = clientSecret.match(/(seti|si)_[^_]+/i);
+          if (m) setupIntentId = m[0];
+        }
+
+        if (!setupIntentId && redirectStatus === 'succeeded') {
+          // nothing else to do without stripe.js here
+        }
+
         if (!setupIntentId) {
           setPhase('error');
           setMsg('Missing confirmation. Please try again.');
           return;
         }
 
-        // If already signed in → use normal activate
+        // Email-first path: already authenticated → call /api/billing/activate and done
         if (auth.currentUser) {
           const t = await auth.currentUser.getIdToken();
           const r = await fetch('/api/billing/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-            body: JSON.stringify({
-              setupIntentId,
-              priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
-            }),
+            body: JSON.stringify({ setupIntentId, priceId: PRICE_ID }),
           });
           const j = await r.json();
           if (!r.ok) throw new Error(j?.error || j?.detail || 'activate_failed');
+
+          fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
           toast.success('Subscription started!');
           router.replace('/builder');
           return;
         }
 
-        // Guest path → server will infer email from SetupIntent/Customer
+        // Guest path: activate-guest then prompt sign-in to claim
         const r = await fetch('/api/billing/activate-guest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            setupIntentId,
-            priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
-          }),
+          body: JSON.stringify({ setupIntentId, priceId: PRICE_ID }),
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j?.error || j?.detail || 'activate_failed');
 
-        if (j.email) setEmailForClaim(j.email);
-        setMsg('Payment method saved. Access your subscription:');
+        // ✅ persist ids for the claim step
+        if (j.accountId) localStorage.setItem('resumemint_account_id', j.accountId);
+        if (j.customerId) localStorage.setItem('resumemint_stripe_customer_id', j.customerId);
+
+        fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
+
+        // no need to depend on email coming back from server
+        setMsg('Payment method saved. Sign in to unlock your subscription:');
         setPhase('ready');
       } catch (e: any) {
         console.error(e);
@@ -97,14 +136,16 @@ export default function BillingReturn() {
         setPhase('error');
       }
     })();
-  }, [sp, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const continueWithGoogle = async () => {
     try {
       setGoogleBusy(true);
       await signInWithPopup(auth, new GoogleAuthProvider());
       toast.success('Signed in!');
-      router.replace('/builder');
+      // ✅ bind to guest account
+      await claimNow();
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Google sign-in failed');

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import AnimatedCtaLabel from './AnimatedCtaLabel';
 import SubscribePay from './SubscribePay';
+import SubscribePayNE from './SubscribePayNE';
 
 const Creative = () => {
     const [downloadIsReady, setDownloadIsReady] = useState(false);
@@ -44,7 +45,7 @@ const Creative = () => {
       {/* <div
         className={`btn btn-creative start-now-button ${downloadIsReady ? 'fadeIn' : 'hide'}`}
       > */}
-        <SubscribePay isNonC />
+        <SubscribePayNE />
       {/* </div> */}
     </div>
   );

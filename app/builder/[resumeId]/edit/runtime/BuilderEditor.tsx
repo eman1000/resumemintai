@@ -29,6 +29,8 @@ import { LanguageCode, localizeDocTitles } from "@/lib/i18n";
 import UploadSvg from "@/app/builder/components/UploadSvg";
 import LinkedInIcon from "@/app/builder/components/LinkedInIcon";
 import toast from "react-hot-toast";
+import FullscreenLoader from "@/app/builder/components/FullscreenLoader";
+import ConfirmDialog from "@/components/ConfirmDialog";
 /* =======================
    Field catalog (PD)
 ======================= */
@@ -49,7 +51,27 @@ type AISuggestResponse =
   | AISuggestHobbies
   | AISuggestGeneric;
 
-
+// Fallback suggestion if API isn't available or returns nothing
+function fallbackSuggestionFor(section: CVSection): AISuggestResponse {
+  switch (section.key) {
+    case "profile":
+      return { kind: "profile", headline: "Results-driven [Role]", summaryHtml: "<p>Add a concise summary highlighting 2–3 achievements and 3–5 keywords from the JD.</p>" };
+    case "employment":
+      return { kind: "employment_bullets", bullets: [
+        "Delivered X by doing Y, resulting in Z.",
+        "Improved A by B% via C.",
+        "Collaborated with D to ship E ahead of schedule."
+      ]};
+    case "skills":
+      return { kind: "skills", items: [{ name: "Stakeholder Management" }, { name: "SQL" }, { name: "React" }] };
+    case "languages":
+      return { kind: "languages", items: [{ name: "English", level: "Fluent" }] };
+    case "hobbies":
+      return { kind: "hobbies", items: ["Photography", "Trail running"] };
+    default:
+      return { kind: "generic_text", html: "<p>Suggested content for this section.</p>" };
+  }
+}
   
 type FieldType = "text" | "date" | "textarea";
 
@@ -810,8 +832,8 @@ function computeDescriptionFromRecords(s: CVSection): string {
 
 /* ================ Section merging ================ */
 function mergeSections(current: CVSection[], incoming: CVSection[]): CVSection[] {
+  if (!incoming || incoming.length === 0) return current; // ⬅️ keep existing if API returns empty
   const map = new Map(current.map((s) => [s.key, s]));
-
   for (const inc of incoming) {
     const prev = map.get(inc.key);
     if (!prev) {
@@ -822,11 +844,12 @@ function mergeSections(current: CVSection[], incoming: CVSection[]): CVSection[]
       ...prev,
       fields: inc.fields?.length ? inc.fields : prev.fields,
       records: inc.records ?? prev.records,
-      title: prev.title, // keep manual title
+      title: prev.title,
     });
   }
   return Array.from(map.values());
 }
+
 
 /* =========================================================
    Utilities shared by the record editors
@@ -1405,15 +1428,6 @@ const EmploymentLikeEditor: React.FC<{
   );
 };
 
-
-const FullscreenLoader: React.FC<{ label?: string }> = ({ label = "Working…" }) => (
-  <div className="fixed inset-0 z-[9999] grid place-items-center bg-white/70 backdrop-blur-sm">
-    <div className="flex flex-col items-center gap-3">
-      <div className="h-10 w-10 rounded-full border-4 border-gray-300 border-t-transparent animate-spin" />
-      <div className="text-sm text-gray-700">{label}</div>
-    </div>
-  </div>
-);
 
 // EducationEditor (i18n-ready)
 const EducationEditor: React.FC<{
@@ -2032,6 +2046,101 @@ const ProfileEditor: React.FC<{
   );
 };
 
+const GenericSectionEditor: React.FC<{
+  section: CVSection;
+  setDoc: React.Dispatch<React.SetStateAction<CVDocument>>;
+  t: (k: string, fb?: string) => string;
+}> = ({ section, setDoc, t }) => {
+  // Ensure the section has a richtext field and a first record aligned to it.
+  React.useEffect(() => {
+    setDoc((prev) => {
+      const sections = prev.sections.map((s) => {
+        if (s.key !== section.key) return s;
+
+        const fields = [...(s.fields || [])];
+        // ensure 'richtextValue' field exists
+        let richIdx = fields.findIndex((f) => (f.role || f.key) === "richtextValue");
+        if (richIdx < 0) {
+          fields.push({ key: "rich", role: "richtextValue" });
+          richIdx = fields.length - 1;
+        }
+
+        let records = [...(s.records || [])];
+
+        // If there are no records yet, seed one, placing content at richIdx
+        if (records.length === 0) {
+          const values = new Array(fields.length).fill(undefined);
+          const initial = s.description && s.description.trim() ? s.description : "";
+          values[richIdx] = initial;
+          records = [{ key: `gen-${Math.random().toString(36).slice(2, 8)}`, values }];
+          // Optionally clear legacy description so it doesn't look out-of-sync
+          return { ...s, fields, records, description: "" };
+        } else {
+          // Pad existing first record so values.length matches fields.length
+          const r0 = records[0];
+          const values = [...(r0.values || [])];
+          if (values.length < fields.length) values.length = fields.length;
+          records[0] = { ...r0, values };
+          return { ...s, fields, records };
+        }
+      });
+      return { ...prev, sections };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section.key]);
+
+  // Helpers to get/set the rich text at the correct index
+  const getRich = React.useCallback(() => {
+    const fields = section.fields || [];
+    const richIdx = fields.findIndex((f) => (f.role || f.key) === "richtextValue");
+    const r0 = section.records?.[0];
+    if (richIdx < 0 || !r0) return "";
+    return String(r0.values?.[richIdx] || "");
+  }, [section.fields, section.records]);
+
+  const setRich = (html: string) => {
+    setDoc((prev) => {
+      const sections = prev.sections.map((s) => {
+        if (s.key !== section.key) return s;
+
+        const fields = s.fields || [{ key: "rich", role: "richtextValue" }];
+        let richIdx = fields.findIndex((f) => (f.role || f.key) === "richtextValue");
+        if (richIdx < 0) {
+          // If somehow missing, append and set index
+          richIdx = fields.length;
+          fields.push({ key: "rich", role: "richtextValue" });
+        }
+
+        const recs = s.records?.length
+          ? [...s.records]
+          : [{ key: `gen-${Math.random().toString(36).slice(2, 8)}`, values: new Array(fields.length).fill(undefined) }];
+
+        const r0 = recs[0];
+        const values = [...(r0.values || [])];
+        if (values.length < fields.length) values.length = fields.length;
+        values[richIdx] = html;
+        recs[0] = { ...r0, values };
+
+        return { ...s, fields, records: recs };
+      });
+      return { ...prev, sections };
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs text-gray-500">
+        {t("label.description", "Description (optional)")}
+      </label>
+      <Wysiwyg
+        value={getRich()}
+        onChange={setRich}
+        placeholder={t("placeholder.startTyping", "Start typing here…")}
+      />
+    </div>
+  );
+};
+
 
 const SectionBodyByKey: React.FC<{
   section: CVSection;
@@ -2116,13 +2225,8 @@ const SectionBodyByKey: React.FC<{
       );
 
     default:
-      return (
-        <>
-          <label className="block text-xs text-gray-500">
-            {t?.("label.description", "Description (optional)")}
-          </label>
-        </>
-      );
+      return <GenericSectionEditor section={section} setDoc={setDoc} t={t} />;
+
   }
 };
 
@@ -2136,13 +2240,16 @@ const SectionCardPatched: React.FC<{
   months?: string[];
   t?: (key: string) => string;
   skills?: string[];
-  onAISuggest?: (section: CVSection) => void;   // ⬅️ add this
-}> = ({ section, onChangeTitle, onChangeDescription, onChangePD, setDoc, months, t, skills, onAISuggest }) => {
+  onAISuggest?: (section: CVSection) => void;
+  onRequestRemove?: (key: CVSectionKey) => void;
+
+}> = ({ section, onChangeTitle, onChangeDescription, onChangePD, setDoc, months, t, skills, onAISuggest, onRequestRemove }) => {
   const [open, setOpen] = useState(true);
 
   const updatePD = (updater: (val: PDValues) => PDValues) => {
     onChangePD?.(updater);
   };
+
 
   return (
     <div data-testid={section.key} className="w-full border-b border-gray-200 collapsible-section">
@@ -2163,6 +2270,15 @@ const SectionCardPatched: React.FC<{
             onClick={() => onAISuggest?.(section)}
           >
             ✨  {t?.("action.aiSuggestions")}
+          </button>
+
+           <button
+            className="inline-flex border justify-center rounded focus-visible:ring-4 ring-red-200 items-center bg-transparent text-red-700 border-red-400 hover:bg-red-50 hover:border-red-500 font-medium py-1 px-2"
+            type="button"
+            onClick={() => onRequestRemove?.(section.key)}
+            title={t?.("action.removeSection")}
+          >
+            🗑 {t?.("action.removeSection")}
           </button>
         </div>
       </div>
@@ -2210,6 +2326,97 @@ const DEFAULT_TITLES: Partial<Record<CVSectionKey, string>> = {
   signature: "Signature",
   footer: "Footer",
 };
+const ALL_SECTION_KEYS: CVSectionKey[] = [
+  "personalDetails","profile","employment","educations","skills","languages",
+  "hobbies","qualities","courses","certificates","internships","sideActivities",
+  "achievements","references","signature","footer",
+];
+
+function defaultSectionForKey(key: CVSectionKey, t: (k:string, fb?:string)=>string): CVSection {
+  const title = t?.(`section.${key}`, DEFAULT_TITLES[key] || key) ?? (DEFAULT_TITLES[key] || key);
+
+  switch (key) {
+    case "personalDetails":
+      return { key, title, fields: [], records: [{ key: "pd-1", values: {} }], collapsible: true, description: "" };
+
+    case "profile":
+      return {
+        key, title,
+        fields: [{ key: "h", role: "header" }, { key: "v", role: "richtextValue" }],
+        records: [{ key: "p1", values: ["", ""] }],
+        collapsible: true, description: "",
+      };
+
+    case "employment":
+    case "internships":
+    case "sideActivities":
+      return {
+        key, title,
+        fields: [
+          { key: "h", role: "header" },
+          { key: "sub", role: "subheader" },
+          { key: "city", role: "city" },
+          { key: "per", role: "period" },
+          { key: "rich", role: "richtextValue" },
+        ],
+        records: [],
+        collapsible: true, description: "",
+      };
+
+    case "educations":
+      return {
+        key, title,
+        fields: [
+          { key: "h", role: "header" },
+          { key: "sub", role: "subheader" },
+          { key: "city", role: "city" },
+          { key: "per", role: "period" },
+          { key: "rich", role: "richtextValue" },
+        ],
+        records: [],
+        collapsible: true, description: "",
+      };
+
+    case "skills":
+      return {
+        key, title,
+        fields: [{ key: "h", role: "header" }, { key: "lvl", role: "level" }],
+        records: [],
+        collapsible: true, description: "",
+      };
+
+    case "languages":
+      return {
+        key, title,
+        fields: [{ key: "h", role: "header" }, { key: "lvl", role: "level" }],
+        records: [],
+        collapsible: true, description: "",
+      };
+
+    case "hobbies":
+      return {
+        key, title,
+        fields: [{ key: "h", role: "header" }],
+        records: [],
+        collapsible: true, description: "",
+      };
+
+    case "qualities":
+    case "courses":
+    case "certificates":
+    case "achievements":
+    case "references":
+    case "signature":
+    case "footer":
+    default:
+      return {
+        key, title,
+        fields: [{ key: "rich", role: "richtextValue" }],
+        records: [{ key: `gen-${Math.random().toString(36).slice(2, 8)}`, values: [""] }],
+        collapsible: true, description: "",
+      };
+  }
+}
 
 export type I18nPack = {
   t: (k: string, fb?: string) => string;
@@ -2283,6 +2490,40 @@ function periodObjToText(
 
   return String(p);
 }
+const AddSectionChips: React.FC<{
+  doc: CVDocument;
+  setDoc: React.Dispatch<React.SetStateAction<CVDocument>>;
+  t: (k: string, fb?: string) => string;
+}> = ({ doc, setDoc, t }) => {
+  const existing = new Set(doc.sections.map((s) => s.key));
+  const palette = ALL_SECTION_KEYS.filter((k) => !existing.has(k));
+
+  if (!palette.length) return null;
+
+  return (
+    <div className="mt-4">
+      <div className="text-xs text-gray-500 mb-2">{t("ui.addSection", "Add a section")}</div>
+      <div className="flex flex-wrap gap-2">
+        {palette.map((k) => (
+          <button
+            key={k}
+            type="button"
+            className="px-3 py-1 rounded-full border hover:bg-gray-50 text-sm"
+            onClick={() =>
+              setDoc((prev) => ({
+                ...prev,
+                sections: [...prev.sections, defaultSectionForKey(k as CVSectionKey, t)],
+              }))
+            }
+            title={t(`section.${k}`, DEFAULT_TITLES[k] || k)}
+          >
+            + {t(`section.${k}`, DEFAULT_TITLES[k] || k)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const JDModal: React.FC<{
   open: boolean;
@@ -2330,6 +2571,81 @@ type OptimizeOut = {
   };
   atsChecklist: string[];
 };
+
+function makeEmptySection(key: CVSectionKey, t: I18nPack["t"]): CVSection {
+  const fromDefaults = DEFAULT_SECTIONS.find(s => s.key === key);
+  if (fromDefaults) {
+    // clone & localize title
+    return {
+      ...fromDefaults,
+      title: t?.(`section.${fromDefaults.key}`, fromDefaults.title) ?? fromDefaults.title,
+      records: [...(fromDefaults.records || [])],
+    };
+  }
+
+  // fallback shapes for keys not in DEFAULT_SECTIONS
+  const baseTitle = t?.(`section.${key}`, DEFAULT_TITLES[key] || String(key)) ?? (DEFAULT_TITLES[key] || String(key));
+  switch (key) {
+    case "qualities":
+    case "achievements":
+    case "references":
+    case "certificates":
+    case "courses":
+    case "internships":
+    case "sideActivities":
+      return {
+        key,
+        title: baseTitle,
+        collapsible: true,
+        description: "",
+        fields: [
+          { key: "h", role: "header" },
+          { key: "sub", role: "subheader" },
+          { key: "city", role: "city" },
+          { key: "per", role: "period" },
+          { key: "rich", role: "richtextValue" },
+        ],
+        records: [],
+      };
+    default:
+      return {
+        key,
+        title: baseTitle,
+        collapsible: true,
+        description: "",
+        fields: [{ key: "v", role: "richtextValue" }],
+        records: [{ key: newKey(key), values: [""] }],
+      };
+  }
+}
+function syncColumnsToDocOrder(
+  doc: CVDocument,
+  prevOptions: any
+) {
+  const leftList  = (prevOptions?.sectionsLeft  || "").split(",").map(s => s.trim()).filter(Boolean);
+  const rightList = (prevOptions?.sectionsRight || "").split(",").map(s => s.trim()).filter(Boolean);
+
+  const leftSet  = new Set(leftList);
+  const rightSet = new Set(rightList);
+
+  // Keep only sections that exist (and preserve new order from doc.sections)
+  const orderedKeys = doc.sections.map(s => s.key);
+
+  const orderedLeft  = orderedKeys.filter(k => leftSet.has(k));
+  const orderedRight = orderedKeys.filter(k => rightSet.has(k));
+
+  // Any sections not listed in either column default to left (optional)
+  const unplaced = orderedKeys.filter(k => !leftSet.has(k) && !rightSet.has(k));
+  const finalLeft = [...orderedLeft, ...unplaced];
+
+  return {
+    ...prevOptions,
+    sectionsLeft: finalLeft.join(","),
+    sectionsRight: orderedRight.join(","),
+  };
+}
+
+
 export default function BuilderEditor({
   initialData,
   onChangeData,
@@ -2353,32 +2669,32 @@ export default function BuilderEditor({
   onChangeRenderer?: (r: string) => void;
 
 }) {
-    const { t, months, skillLevels } = i18n;
-const initialTplId = React.useMemo(
-  () => SAMPLE_TEMPLATES.find(t => t.renderer === renderer)?.id ?? SAMPLE_TEMPLATES[0].id,
-  [renderer]
-);
-const makeDefaultSections = React.useCallback(
-  () =>
-    DEFAULT_SECTIONS.map((s) => ({
-      ...s,
-      // use the i18n key as primary, fall back to the hardcoded English
-      title: t?.(`section.${s.key}`, s.title) ?? s.title,
-    })),
-  [t]
-);
+  const [confirmRemoveKey, setConfirmRemoveKey] = useState<CVSectionKey | null>(null);
 
-const [doc, setDoc] = useState<CVDocument>(
-  initialData && initialData.sections
-    ? initialData
-    : { id: "local", sections: makeDefaultSections() }
-);
+    const { t, months, skillLevels } = i18n;
+    const initialTplId = React.useMemo(
+      () => SAMPLE_TEMPLATES.find(t => t.renderer === renderer)?.id ?? SAMPLE_TEMPLATES[0].id,
+      [renderer]
+    );
+    const makeDefaultSections = React.useCallback(
+      () =>
+        DEFAULT_SECTIONS.map((s) => ({
+          ...s,
+          // use the i18n key as primary, fall back to the hardcoded English
+          title: t?.(`section.${s.key}`, s.title) ?? s.title,
+        })),
+      [t]
+    );
+
+  const [doc, setDoc] = useState<CVDocument>(() => {
+    const hasSections = Array.isArray(initialData?.sections) && initialData.sections.length > 0;
+    return hasSections ? initialData : { id: "local", sections: makeDefaultSections() };
+  });
 
 
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string>("");
   const [linkedinOpen, setLinkedinOpen] = useState(false);
-  const [language, setLanguage] = React.useState<"en-UK" | any>("en-UK");
 
 // === ATS/JD state ===
 const [jdOpen, setJdOpen] = useState(false);
@@ -2390,6 +2706,12 @@ const [ats, setAts] = useState<OptimizeOut | null>(null);
 const [smartOpen, setSmartOpen] = React.useState(false); // open by default (first-time)
 const [jdInput, setJdInput] = React.useState("");
 
+useEffect(() => {
+  // If sections ever become empty, repopulate with defaults so users can build from scratch.
+  if (!doc.sections || doc.sections.length === 0) {
+    setDoc({ id: doc.id || "local", sections: makeDefaultSections() });
+  }
+}, [doc.sections, makeDefaultSections]);
 async function handleSmartTailor() {
   if (!jdInput.trim()) { toast.error("Paste the job description or URL"); return; }
   try {
@@ -2483,30 +2805,72 @@ React.useEffect(() => setActiveTemplateId(initialTplId), [initialTplId]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const onDragEnd = useCallback((result: DropResult) => {
-    if (!result.destination) return;
-    const src = result.source.index;
-    const dst = result.destination.index;
-    setDoc((prev) => {
-      const next = [...prev.sections];
-      const [moved] = next.splice(src, 1);
-      next.splice(dst, 0, moved);
-      return { ...prev, sections: next };
-    });
-  }, []);
+const onDragEnd = useCallback((result: DropResult) => {
+  if (!result.destination) return;
+  const src = result.source.index;
+  const dst = result.destination.index;
 
-  useEffect(() => {
-    setOptions(tpl.defaultOptions);
-  }, [tpl]);
+  setDoc((prev) => {
+    const nextSections = [...prev.sections];
+    const [moved] = nextSections.splice(src, 1);
+    nextSections.splice(dst, 0, moved);
+    const nextDoc = { ...prev, sections: nextSections };
+
+    // IMPORTANT: also update template column order so preview matches
+    setOptions((prevOpts: any) => syncColumnsToDocOrder(nextDoc, prevOpts));
+
+    return nextDoc;
+  });
+}, []);
 
   const previewProps = useMemo(() => {
-    const data = cvDocToTemplateData(doc, {
+    const safeDoc = (doc?.sections?.length ?? 0) > 0
+      ? doc
+      : { id: "local", sections: makeDefaultSections() };
+
+    const data = cvDocToTemplateData(safeDoc, {
       dateFormat,
       months,
       presentLabel: i18n.t("label.present", "Present"),
     });
     return toCircularProps(data, options);
-  }, [doc, options, dateFormat, months, i18n]);
+  }, [doc, options, dateFormat, months, i18n, makeDefaultSections]);
+
+const addSection = useCallback((key: CVSectionKey) => {
+  setDoc(prev => {
+    // avoid duplicates
+    if (prev.sections.some(s => s.key === key)) return prev;
+    const added = makeEmptySection(key, t);
+    return { ...prev, sections: [...prev.sections, added] };
+  });
+}, [t]);
+
+const requestRemoveSection = useCallback((key: CVSectionKey) => {
+  setConfirmRemoveKey(key);
+}, []);
+
+const actuallyRemoveSection = useCallback(() => {
+  if (!confirmRemoveKey) return;
+  setDoc(prev => ({
+    ...prev,
+    sections: prev.sections.filter(s => s.key !== confirmRemoveKey),
+  }));
+  setConfirmRemoveKey(null);
+}, [confirmRemoveKey]);
+
+const cancelRemoveSection = useCallback(() => {
+  setConfirmRemoveKey(null);
+}, []);
+
+// Compute available sections dynamically
+const presentKeys = useMemo(() => new Set(doc.sections.map(s => s.key)), [doc.sections]);
+const allKeys: CVSectionKey[] = [
+  "personalDetails","profile","employment","educations","skills","languages","hobbies",
+  "qualities","courses","certificates","internships","sideActivities","achievements",
+  "references","signature","footer",
+];
+const addableKeys = allKeys.filter(k => !presentKeys.has(k));
+
 
   const submitLinkedInUrl = React.useCallback(
     async (url: string) => {
@@ -2858,6 +3222,7 @@ async function handleAISuggest(section: CVSection) {
                 </div>
               )}
             </div>
+     
             <DragDropContext onDragEnd={onDragEnd}>
               <Droppable droppableId="sections">
                 {(provided) => (
@@ -2920,7 +3285,8 @@ async function handleAISuggest(section: CVSection) {
                                 months={months}
                                 t={t}
                                 skills={skillLevels}
-                                onAISuggest={handleAISuggest}  
+                                onAISuggest={handleAISuggest} 
+                                onRequestRemove={requestRemoveSection}
                               />
                             </div>
                           </div>
@@ -2932,6 +3298,9 @@ async function handleAISuggest(section: CVSection) {
                 )}
               </Droppable>
             </DragDropContext>
+
+{/* chips palette to add back / add new */}
+<AddSectionChips doc={doc} setDoc={setDoc} t={t} />
           </div>
 
           {/* RIGHT: Sticky A4 Live Preview */}
@@ -3008,7 +3377,16 @@ async function handleAISuggest(section: CVSection) {
 
           </div>
         )}
-
+        {/* Remove section confirm */}
+        <ConfirmDialog
+          open={!!confirmRemoveKey}
+          title={t("confirm.removeSection.title", "Remove this section?")}
+          description={t("confirm.removeSection.desc", "This section will be removed from the resume. You can add it back later via “Add section”.")}
+          confirmText={t("action.remove", "Remove")}
+          cancelText={t("action.cancel", "Cancel")}
+          onCancel={cancelRemoveSection}
+          onConfirm={actuallyRemoveSection}
+        />
       </main>
     </>
   );
