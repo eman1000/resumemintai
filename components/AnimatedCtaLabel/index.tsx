@@ -1,36 +1,42 @@
-"use client"
-import React, { useState, useEffect } from 'react';
+"use client";
+import React, { useEffect, useState } from 'react';
 import './AnimatedCtaLabel.scss';
 
-const AnimatedCtaLabel = ({setDownloadIsReady}:{setDownloadIsReady: React.Dispatch<React.SetStateAction<boolean>>}) => {
+const AnimatedCtaLabel = ({
+  setDownloadIsReady,
+}: {
+  setDownloadIsReady: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
   const messages = [
     { id: 'animatedText1', defaultMessage: 'Initializing...' },
     { id: 'animatedText2', defaultMessage: 'Almost there...' },
     { id: 'animatedText3', defaultMessage: 'Please hold tight for just a moment.' },
-    { id: 'animatedText4', defaultMessage: 'Success! You’re all set — let’s continue' }
+    { id: 'animatedText4', defaultMessage: 'Success! You’re all set — let’s continue' },
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const isLast = currentIndex === messages.length - 1;
 
-  const isLastMessage = currentIndex === messages.length - 1;
-
-  if (isLastMessage) {
-    setDownloadIsReady(true);
-  }
-
+  // advance messages every 2s until the last one
   useEffect(() => {
-    // Stop updating once the final message is reached.
-    if (currentIndex === messages.length - 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex < messages.length - 1 ? prevIndex + 1 : prevIndex));
+    if (isLast) return;
+    const id = setInterval(() => {
+      setCurrentIndex((i) => (i < messages.length - 1 ? i + 1 : i));
     }, 2000);
+    return () => clearInterval(id);
+  }, [isLast, messages.length]);
 
-    return () => clearInterval(interval);
-  }, [currentIndex, messages.length]);
+  // notify parent exactly once when we reach the last message
+  useEffect(() => {
+    if (isLast) setDownloadIsReady(true);
+  }, [isLast, setDownloadIsReady]);
 
   return (
     <div className="animated-text-container">
-      <h4 key={currentIndex} className={`animated-text ${currentIndex === messages.length - 1 ? 'final' : ''}`}>
+      <h4
+        key={currentIndex}
+        className={`animated-text ${isLast ? 'final' : ''}`}
+      >
         {messages[currentIndex].defaultMessage}
       </h4>
     </div>

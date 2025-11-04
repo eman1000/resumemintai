@@ -164,24 +164,19 @@ function WalletAutoFlow({
 
       {!paymentRequest && (
         <div className="text-sm text-neutral-400">
-          Wallet not available on this device.
+          Loading...
         </div>
       )}
 
-      <div className="text-xs text-neutral-500">
-        You won’t be charged today. <strong>Total due now: $0.00</strong>.
-      </div>
+     
     </div>
   );
 }
 
 /* ---------- Starter: separate component with its own hooks ---------- */
-function SubscribeStarter({
-  onStarted,
-}: {
-  onStarted: (payload: StartResponse) => void;
-}) {
+function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void }) {
   const [starting, setStarting] = useState(false);
+  const startedRef = useRef(false);
 
   const start = useCallback(async () => {
     if (starting) return;
@@ -197,7 +192,6 @@ function SubscribeStarter({
       const j: StartResponse = await r.json();
       if (!r.ok) throw new Error((j as any)?.error || (j as any)?.detail || 'start_failed');
 
-      // Persist optional ids
       if (j.accountId) localStorage.setItem('resumemint_account_id', j.accountId);
       if (j.customerId) localStorage.setItem('resumemint_stripe_customer_id', j.customerId);
 
@@ -210,18 +204,14 @@ function SubscribeStarter({
   }, [starting, onStarted]);
 
   useEffect(() => {
+    if (startedRef.current) return;   // <-- prevent StrictMode double call
+    startedRef.current = true;
     start();
   }, [start]);
 
-  return (
-    <form className="max-w-md w-full space-y-3" onSubmit={(e) => { e.preventDefault(); start(); }}>
-      <button type="submit" disabled={starting} className="btn btn-creative start-now-button">
-        {starting ? 'Preparing…' : 'Continue 1'}
-      </button>
-
-    </form>
-  );
+  return null; // no fallback button while auto-starting
 }
+
 
 /* ---------- Page component: mounts Elements only after secret exists ---------- */
 export default function SubscribePage() {

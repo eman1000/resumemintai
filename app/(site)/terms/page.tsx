@@ -25,7 +25,7 @@ export default function Terms() {
         <h2>Pricing, Trial & Billing</h2>
         <ul>
           <li><strong>Trial:</strong> €0.00 for 1 day.</li>
-          <li><strong>After trial:</strong> €19.99 every 28 days (auto-renew) until canceled.</li>
+          <li><strong>After trial:</strong> €49.99 every 28 days (auto-renew) until canceled.</li>
           <li>Prices shown in EUR; your issuer may apply FX fees. Taxes may apply where required.</li>
           <li>Charges appear as <strong>RESUMEMINT</strong> (Plenqor LLC).</li>
         </ul>

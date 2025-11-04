@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { useQuery } from '@/app/builder/hooks/use-query';
 import { fireAdsConversionDirect } from '@/lib/ads';
+import { track } from '@/lib/track';
 
 const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO as string;
 
@@ -106,7 +107,7 @@ export default function BillingReturn() {
           const j = await r.json();
           if (!r.ok) throw new Error(j?.error || j?.detail || 'activate_failed');
 
-          fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
+          fireAdsConversionDirect({ value: 49.99, currency: 'EUR', transactionId: j.subscriptionId });
           toast.success('Subscription started!');
           router.replace('/builder');
           return;
@@ -125,7 +126,13 @@ export default function BillingReturn() {
         if (j.accountId) localStorage.setItem('resumemint_account_id', j.accountId);
         if (j.customerId) localStorage.setItem('resumemint_stripe_customer_id', j.customerId);
 
-        fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
+        fireAdsConversionDirect({ value: 1, currency: 'EUR', transactionId: j.subscriptionId });
+        try{
+            track({ event: 'sale', props: { page: 'landing'} });
+        }catch(e){
+          console.error(e);
+        }
+        
 
         // no need to depend on email coming back from server
         setMsg('Payment method saved. Sign in to unlock your subscription:');

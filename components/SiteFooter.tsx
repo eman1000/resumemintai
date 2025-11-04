@@ -11,6 +11,7 @@ export default function SiteFooter() {
         </div>
         <div>
           <p className="font-semibold text-neutral-200 mb-2">Contact</p>
+          <p><a href="/contact" className="hover:text-white">Contact Support</a></p>
           <p>help@resumemintai.com</p>
         
         <div className="mt-1">

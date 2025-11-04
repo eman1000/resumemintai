@@ -33,9 +33,12 @@ export default function ClientLanding({
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isIOS = /iPhone|iPad|iPod/.test(ua);
   const cc = geoData?.country_code?.toUpperCase();
-  const isCompliant = !isIOS || cc === 'IN' || cc === 'INDIA';
+  const isCompliant = !window.ApplePaySession || !isIOS || cc === 'IN' || cc === 'INDIA';
 
-  if (!isCompliant) return <NonC />;
+  if (!isCompliant) return <>
+    <LandingImpression />
+  <NonC />
+  </>;
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-50">
@@ -63,7 +66,7 @@ export default function ClientLanding({
         </h1>
 
         <p className="mt-6 text-lg text-white/85 md:text-xl">
-          1-day free trial, then <strong>€19.99 per month</strong> with auto-renewal.
+          1-day free trial, then <strong>€49.99 per month</strong> with auto-renewal.
         </p>
 
         <div className="mt-8 w-full max-w-md">
