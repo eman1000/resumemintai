@@ -1,8 +1,6 @@
-// app/builder/_client/withAuth.ts
 import { auth } from "@/app/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-/** Wait for Firebase to be ready and return a fresh ID token. Throws if not signed in. */
 export async function getIdTokenOrThrow(): Promise<string> {
   // Already have a user?
   if (auth.currentUser) {

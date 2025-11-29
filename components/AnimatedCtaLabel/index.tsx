@@ -29,6 +29,17 @@ const AnimatedCtaLabel = ({
   // notify parent exactly once when we reach the last message
   useEffect(() => {
     if (isLast) setDownloadIsReady(true);
+    if (isLast) {
+    // This event marks animation completion (Creative also listens to state)
+    // It's fine to keep both — this one is the direct signal.
+    // If you prefer only one, keep this and remove the Creative listener.
+    // (But I like both for robustness.)
+    try {
+      const { track } = require('@/lib/track'); // avoid SSR import issues
+      track({ event: 'animation_done', props: { page: 'landing' } });
+    } catch {}
+      setDownloadIsReady(true);
+    }
   }, [isLast, setDownloadIsReady]);
 
   return (

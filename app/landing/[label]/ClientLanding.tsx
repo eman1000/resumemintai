@@ -66,7 +66,7 @@ export default function ClientLanding({
         </h1>
 
         <p className="mt-6 text-lg text-white/85 md:text-xl">
-          1-day free trial, then <strong>€49.99 per month</strong> with auto-renewal.
+          1-day free trial, then <strong>€19.99 per month</strong> with auto-renewal.
         </p>
 
         <div className="mt-8 w-full max-w-md">
@@ -86,7 +86,7 @@ export default function ClientLanding({
           <label className="flex items-start gap-2">
             <input defaultChecked id="c2" type="checkbox" className="mt-1 h-4 w-4 rounded border-white/40 bg-transparent" />
             <span>
-              Your subscription starts now for €0.00 (1-day trial) and auto-renews at €49.99 / 28 days until canceled.
+              Your subscription starts now for €0.00 (1-day trial) and auto-renews at €19.99 / 28 days until canceled.
             </span>
           </label>
         </div>

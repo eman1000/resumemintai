@@ -5,6 +5,8 @@ import {
   Elements,
   PaymentRequestButtonElement,
   useStripe,
+  useElements,
+  PaymentElement,
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
@@ -20,24 +22,29 @@ type StartResponse = {
   clientSecret: string;
   accountId?: string;
   customerId?: string;
-  merchantCountry?: string; // optional; default below
-  priceCurrency?: string;   // optional; default below
+  merchantCountry?: string;
+  priceCurrency?: string;
 };
 
-/* ---------- Wallet-only flow (mounted only after clientSecret exists) ---------- */
+type SubscribeAllPayProps = {
+  onWalletReadyChange?: (ready: boolean) => void;
+  onWalletSupportChange?: (supported: boolean) => void;
+};
+
+/* -------------------- Wallet (Apple/Google Pay) -------------------- */
 function WalletAutoFlow({
   clientSecret,
   merchantCountry = 'US',
-  priceCurrency = 'eur',
+  priceCurrency = 'usd',
   onActivated,
   onWalletReadyChange,
-  onWalletSupportChange, 
+  onWalletSupportChange,
 }: {
   clientSecret: string;
   merchantCountry?: string;
   priceCurrency?: string;
   onActivated: (payload: any) => void;
-  onWalletReadyChange: (ready: boolean) => void;
+  onWalletReadyChange?: (ready: boolean) => void;
   onWalletSupportChange?: (supported: boolean) => void;
 }) {
   const stripe = useStripe();
@@ -45,11 +52,11 @@ function WalletAutoFlow({
   const prReady = useRef(false);
   const [submitting, setSubmitting] = useState(false);
 
-   useEffect(() => {
+  useEffect(() => {
     onWalletReadyChange?.(false);
+    onWalletSupportChange?.(false);
   }, [onWalletReadyChange, onWalletSupportChange]);
 
-  // Build Payment Request (only after stripe is ready)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -65,22 +72,27 @@ function WalletAutoFlow({
         });
 
         const can = await pr.canMakePayment();
-        // console.log('[PR] canMakePayment =>', can);
 
         if (!can || (!can.applePay && !can.googlePay)) {
           if (!cancelled) {
             setPaymentRequest(null);
             onWalletReadyChange?.(false);
-            onWalletSupportChange?.(false);  
+            onWalletSupportChange?.(false);
           }
           track({ event: 'payment-request-can-failure', props: { page: 'landing', can } });
           return;
+        }
+
+        if (!cancelled) {
+          setPaymentRequest(pr);
+          onWalletSupportChange?.(true);
         }
 
         pr.on('paymentmethod', async (ev) => {
           try {
             track({ event: 'payment-request-start', props: { page: 'landing' } });
             setSubmitting(true);
+
             const { error, setupIntent } = await stripe.confirmSetup({
               clientSecret,
               confirmParams: { payment_method: ev.paymentMethod.id },
@@ -95,10 +107,7 @@ function WalletAutoFlow({
               return;
             }
 
-            const siId =
-              setupIntent?.id ||
-              setupIntent?.client_secret?.split('_secret')[0];
-
+            const siId = setupIntent?.id || setupIntent?.client_secret?.split('_secret')[0];
             if (!siId) {
               track({ event: 'payment-request-failure', props: { page: 'landing', error: 'Missing SetupIntent id' } });
               ev.complete('fail');
@@ -138,44 +147,35 @@ function WalletAutoFlow({
           }
         });
 
-        pr.on?.('cancel', () => setSubmitting(false));
-
-        if (!cancelled) {
-          setPaymentRequest(pr);
-          onWalletSupportChange?.(true);  
-          // don't mark ready yet—wait for the hidden PRB to call onReady
-        }
       } catch (e: any) {
         if (!cancelled) {
           setPaymentRequest(null);
           onWalletReadyChange?.(false);
-          onWalletSupportChange?.(false);    
+          onWalletSupportChange?.(false);
         }
       }
     })();
 
     return () => { cancelled = true; };
-  }, [stripe, clientSecret, merchantCountry, priceCurrency, onActivated, onWalletReadyChange, onWalletSupportChange]);
+  }, [stripe, clientSecret, merchantCountry, priceCurrency, onWalletReadyChange, onWalletSupportChange]);
 
-  const buttonVisible = !!paymentRequest && prReady.current && !submitting;
-
-  // One-click: programmatically open the wallet
   const openWallet = useCallback(async () => {
     track({ event: 'open-wallet', props: { page: 'landing' } });
     if (!paymentRequest || !stripe || submitting) return;
-    // Ensure the hidden PRB is mounted at least once
     if (!prReady.current) await new Promise((r) => setTimeout(r, 0));
     try {
       await paymentRequest.show();
       track({ event: 'open-wallet-success', props: { page: 'landing' } });
     } catch (e: any) {
-      track({ event: 'open-wallet-failure', props: { page: 'landing', error: e } });
+      track({ event: 'open-wallet-failure', props: { page: 'landing', error: e?.message || String(e) } });
       toast.error(e?.message || 'Could not open wallet');
     }
   }, [paymentRequest, stripe, submitting]);
 
+  const showBtn = !!paymentRequest && prReady.current && !submitting;
+
   return (
-    <div className="max-w-md w-full space-y-4">
+    <div className="space-y-3">
       {/* Hidden PRB to initialize the wallet bridge */}
       <div style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}>
         {paymentRequest && (
@@ -184,33 +184,92 @@ function WalletAutoFlow({
             onReady={() => {
               prReady.current = true;
               onWalletReadyChange?.(true);
-              track({ event: 'wallet_ready', props: { page: 'landing' } }); // NEW
-
+              track({ event: 'wallet_ready', props: { page: 'landing' } });
             }}
           />
         )}
       </div>
 
-      {/* Only render the button when ready */}
-      {buttonVisible ? (
-        <button
-          onClick={openWallet}
-          disabled={!buttonVisible}
-          className="btn btn-creative start-now-button"
-        >
-          {submitting ? 'Processing…' : 'Continue'}
+      {showBtn ? (
+        <button onClick={openWallet} disabled={!showBtn} className="btn btn-creative start-now-button">
+          {submitting ? 'Processing…' : 'Continue with Apple/Google Pay'}
         </button>
       ) : (
-        // Optional lightweight placeholder while waiting
-        <div className="text-sm text-neutral-400">Loading…</div>
+        <div className="text-sm text-neutral-400">Checking wallet…</div>
       )}
-
-     
     </div>
   );
 }
 
-/* ---------- Starter: separate component with its own hooks ---------- */
+/* -------------------- Card (PaymentElement) -------------------- */
+function CardSetupFlow({
+  onActivated,
+}: {
+  onActivated: (payload: any) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = useCallback(async () => {
+    if (!stripe || !elements || submitting) return;
+    try {
+      setSubmitting(true);
+      track({ event: 'card_submit', props: { page: 'landing' } });
+
+      const { error, setupIntent } = await stripe.confirmSetup({
+        elements,
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        track({ event: 'card_confirm_fail', props: { page: 'landing', error: error.message } });
+        toast.error(error.message || 'Card confirmation failed');
+        setSubmitting(false);
+        return;
+      }
+
+      const siId = setupIntent?.id || setupIntent?.client_secret?.split('_secret')[0];
+      if (!siId) {
+        track({ event: 'card_confirm_fail', props: { page: 'landing', error: 'Missing SetupIntent id' } });
+        toast.error('Missing SetupIntent id');
+        setSubmitting(false);
+        return;
+      }
+
+      const r = await fetch('/api/billing/activate-guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+
+      track({ event: 'card_confirm_success', props: { page: 'landing', setupIntentId: siId } });
+      toast.success('Subscription activated!');
+      onActivated?.(j);
+      location.href = `/billing/return?setup_intent=${encodeURIComponent(siId)}`;
+    } catch (e: any) {
+      toast.error(e?.message || 'Activation failed');
+      setSubmitting(false);
+    }
+  }, [stripe, elements, submitting, onActivated]);
+
+  useEffect(() => {
+    track({ event: 'card_form_view', props: { page: 'landing' } });
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <PaymentElement options={{ layout: 'accordion' }} />
+      <button onClick={onSubmit} disabled={!stripe || !elements || submitting} className="btn btn-creative w-full">
+        {submitting ? 'Processing…' : 'Continue'}
+      </button>
+    </div>
+  );
+}
+
+/* -------------------- Starter: request SetupIntent -------------------- */
 function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void }) {
   const [starting, setStarting] = useState(false);
   const startedRef = useRef(false);
@@ -229,57 +288,43 @@ function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void
       });
       const j: StartResponse = await r.json();
       if (!r.ok) throw new Error((j as any)?.error || (j as any)?.detail || 'start_failed');
+
       track({
         event: 'start_guest_success',
         props: { page: 'landing', accountId: j.accountId, customerId: j.customerId },
-        dedupeKey: j.accountId
+        dedupeKey: j.accountId,
       });
+
       if (j.accountId) localStorage.setItem('resumemint_account_id', j.accountId);
       if (j.customerId) localStorage.setItem('resumemint_stripe_customer_id', j.customerId);
 
       onStarted(j);
     } catch (e: any) {
       track({ event: 'start_guest_fail', props: { page: 'landing', error: e?.message } });
-
-      console.error(e);
       toast.error(e?.message || 'Could not start checkout');
       setStarting(false);
     }
   }, [starting, onStarted]);
 
   useEffect(() => {
-    if (startedRef.current) return;   // <-- prevent StrictMode double call
+    if (startedRef.current) return;
     startedRef.current = true;
     start();
   }, [start]);
 
-  return null; // no fallback button while auto-starting
+  return null;
 }
 
-
-/* ---------- Page component: mounts Elements only after secret exists ---------- */
-export default function SubscribePage({
-  onWalletReadyChange,
-  onWalletSupportChange
-}:{
-  onWalletReadyChange?: (ready: boolean) => void;
-  onWalletSupportChange?: (supported: boolean) => void;
-}) {
+/* -------------------- Unified Component: Wallet + Card -------------------- */
+export default function SubscribeAllPay(props: SubscribeAllPayProps) {
+  const { onWalletReadyChange, onWalletSupportChange } = props;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [merchantCountry, setMerchantCountry] = useState<string>('US');
   const [priceCurrency, setPriceCurrency] = useState<string>('usd');
 
-
-  useEffect(() => {
-    onWalletReadyChange?.(false);
-    return () => onWalletReadyChange?.(false);
-  }, [onWalletReadyChange]);
-
   useEffect(() => {
     track({ event: 'show-checkout', props: { page: 'landing' } });
   }, []);
-  // NOTE: no hooks after this point depend on clientSecret existence.
-  // We switch entire subtrees, not hook flow inside a single component.
 
   if (!clientSecret) {
     return (
@@ -289,22 +334,41 @@ export default function SubscribePage({
           if (j.merchantCountry) setMerchantCountry(j.merchantCountry);
           if (j.priceCurrency) setPriceCurrency(j.priceCurrency);
           onWalletReadyChange?.(false);
+          onWalletSupportChange?.(false);
         }}
       />
     );
   }
-  
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
-      <WalletAutoFlow
-        clientSecret={clientSecret}
-        merchantCountry={merchantCountry}
-        priceCurrency={priceCurrency}
-        onActivated={() => { /* redirect handled inside */ }}
-        onWalletReadyChange={(ready) => onWalletReadyChange?.(ready)}
-        onWalletSupportChange={onWalletSupportChange}
-      />
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret,
+        appearance: { theme: 'night' },
+      }}
+    >
+      <div className="max-w-md w-full space-y-6">
+        {/* Wallet (shows only if supported; button appears when ready) */}
+        <WalletAutoFlow
+          clientSecret={clientSecret}
+          merchantCountry={merchantCountry}
+          priceCurrency={priceCurrency}
+          onActivated={() => {}}
+          onWalletReadyChange={onWalletReadyChange}
+          onWalletSupportChange={onWalletSupportChange}
+        />
+
+        {/* Divider */}
+        <div className="flex items-center gap-3">
+          <div className="h-px bg-neutral-700 flex-1" />
+          <span className="text-xs uppercase tracking-wide text-neutral-400">or</span>
+          <div className="h-px bg-neutral-700 flex-1" />
+        </div>
+
+        {/* Card fallback (always rendered, safe in parallel) */}
+        <CardSetupFlow onActivated={() => {}} />
+      </div>
     </Elements>
   );
 }

@@ -11,7 +11,7 @@ export default function Privacy() {
         <h2>Overview</h2>
         <p>
           ResumeMint is operated by <strong>Plenqor LLC</strong> (Wyoming, USA). Contact:
-          <a href="mailto:support@plenqor.com"> support@plenqor.com</a>. Address: [Mailing Address], Wyoming, USA.
+          <a href="mailto:support@plenqor.com"> support@plenqor.com</a>. Address: 1309 Coffeen Avenue STE 1200, Sheridan, Wyoming 82801, USA.
         </p>
 
         <h2>Data We Collect</h2>
@@ -78,8 +78,7 @@ export default function Privacy() {
 
         <h2>Contact</h2>
         <p>
-          Plenqor LLC (dba “ResumeMint”) • <a href="mailto:info@plenqor.com">info@plenqor.com</a> • [Mailing Address],
-          Wyoming, USA
+          Plenqor LLC (dba “ResumeMint”) • <a href="mailto:info@plenqor.com">info@plenqor.com</a> • 1309 Coffeen Avenue STE 1200, Sheridan, Wyoming 82801, USA.
         </p>
       </div>
     </PageShell>

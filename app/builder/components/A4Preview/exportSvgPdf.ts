@@ -1,4 +1,3 @@
-// exportSvgPdf.ts
 import jsPDF from "jspdf";
 
 /** Convert an <svg> to a high-res canvas, then to a PNG dataURL */

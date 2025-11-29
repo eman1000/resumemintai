@@ -5,7 +5,7 @@ import SiteFooter from '@/components/SiteFooter';
 const tiers = [
   {
     name: 'Starter',
-    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€49.99/month'],
+    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€19.99/month'],
     desc: 'Perfect for users exploring AI resume improvement for the first time.',
     featuresYes: [
       '1 resume template (basic layout)',
@@ -31,7 +31,7 @@ const tiers = [
   },
   {
     name: 'Elite',
-    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€49.99/month'],
+    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€19.99/month'],
     desc: 'For professionals and power users who want it all.',
     featuresYes: [
       'All templates unlocked (10+ modern styles)',

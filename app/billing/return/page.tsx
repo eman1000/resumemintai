@@ -1,4 +1,3 @@
-// app/billing/return/page.tsx
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -107,7 +106,7 @@ export default function BillingReturn() {
           const j = await r.json();
           if (!r.ok) throw new Error(j?.error || j?.detail || 'activate_failed');
 
-          fireAdsConversionDirect({ value: 49.99, currency: 'EUR', transactionId: j.subscriptionId });
+          fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
           toast.success('Subscription started!');
           router.replace('/builder');
           return;

@@ -1,10 +1,8 @@
-// app/api/admin/stripe/sync/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { run } from "@/app/api/server/db";
 import pool from "@/app/api/server/db/pool";
 
-// OPTIONAL: if you used `pool` elsewhere, import it. Otherwise adapt `run`.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

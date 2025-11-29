@@ -1,7 +1,5 @@
-// app/api/assist/section-suggest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// ---- Types shared with the client (keep in sync) ----
 type CVSectionKey =
   | "personalDetails"
   | "profile"
@@ -62,7 +60,7 @@ async function askLLM(system: string, user: string): Promise<AISuggestResponse |
   if (!apiKey) return null;
 
   try {
-    // Using OpenAI Chat Completions JSON mode (works with most recent GPT models).
+    // Using OpenAI Chat Completions JSON mode 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },

@@ -1,4 +1,3 @@
-// app/api/server/auth/getUserFromRequest.ts
 import { cookies, headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { adminAuth } from './firebase-admin';

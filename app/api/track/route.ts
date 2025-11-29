@@ -1,4 +1,3 @@
-// app/api/track/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/app/api/server/auth/firebase-admin';
 import pool from '../server/db/pool';
@@ -8,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Incoming = {
-  event: 'impression' | 'checkout_start' | 'sale' | string;
+  event: string;
   props?: Record<string, any>;
   ts?: number;
   dedupeKey?: string | null;
@@ -17,6 +16,11 @@ type Incoming = {
 function fromMs(ms?: number): string {
   const t = typeof ms === 'number' && isFinite(ms) ? new Date(ms) : new Date();
   return t.toISOString();
+}
+
+// keep event safe for DB / analytics (matches typical CHECK constraint)
+function normalizeEvent(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 64).replace(/^_+|_+$/g, '');
 }
 
 export async function POST(req: NextRequest) {
@@ -34,29 +38,17 @@ export async function POST(req: NextRequest) {
 
     // ── Read body safely (avoid Body is unusable)
     let raw = '';
-    try {
-      raw = await req.text();                 // read ONCE
-    } catch { /* ignore */ }
-
-    if (!raw || !raw.trim()) {
-      // Sometimes sendBeacon/keepalive yields an empty body
-      return NextResponse.json({ ok: true, inserted: 0 });
-    }
+    try { raw = await req.text(); } catch {}
+    if (!raw || !raw.trim()) return NextResponse.json({ ok: true, inserted: 0 });
 
     let parsed: Incoming | Incoming[];
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      // Bad/partial JSON—don’t 500 the page
-      return NextResponse.json({ ok: true, inserted: 0 });
-    }
-
+    try { parsed = JSON.parse(raw); } catch { return NextResponse.json({ ok: true, inserted: 0 }); }
     const payloads = Array.isArray(parsed) ? parsed : [parsed];
 
     const h = req.headers;
     const ipHeader =
       h.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      // @ts-ignore
+      // @ts-ignore (Node runtime sometimes exposes req.ip)
       (req as any).ip || null;
 
     const ua   = h.get('user-agent') || null;
@@ -73,17 +65,21 @@ export async function POST(req: NextRequest) {
     const lat = latStr ? Number(latStr) : null;
     const lon = lonStr ? Number(lonStr) : null;
 
-    const allowed = new Set(['impression', 'checkout_start', 'sale']);
-
+    // Accept ANY event; just require it to exist and normalize it
     const rows = payloads
-      .filter((p): p is Incoming => !!p && !!(p as any).event && allowed.has((p as any).event))
+      .filter((p): p is Incoming => !!p && typeof (p as any).event === 'string' && (p as any).event.trim().length > 0)
       .map((p) => {
         const props = p.props ?? {};
         const keyman_id: string | null =
           typeof (props as any).keyman_id === 'string' ? (props as any).keyman_id : null;
 
+        const event = normalizeEvent(p.event);
+
+        // if event becomes empty after normalization, drop it
+        if (!event) return null as any;
+
         return {
-          event: p.event,
+          event,
           props: JSON.stringify(props),
           keyman_id,
           uid,
@@ -103,15 +99,12 @@ export async function POST(req: NextRequest) {
           geo_source: 'vercel' as const,
           country: null as string | null, // reserved for page-target country later
         };
-      });
+      })
+      .filter(Boolean);
 
-    if (rows.length === 0) {
-      return NextResponse.json({ ok: true, inserted: 0 });
-    }
+    if (rows.length === 0) return NextResponse.json({ ok: true, inserted: 0 });
 
     await run(pool, async (c) => {
-      await c.query('BEGIN');
-
       const text = `
         INSERT INTO public.events
           (event, props, keyman_id, uid, ua, ip, ref, path,
@@ -123,7 +116,7 @@ export async function POST(req: NextRequest) {
            $12, $13, $14, $15, $16, $17, $18, $19)
         ON CONFLICT (event, dedupe_key) DO NOTHING
       `;
-
+      // no explicit BEGIN/COMMIT: single-statement idempotent inserts
       for (const r of rows) {
         await c.query(text, [
           r.event, r.props, r.keyman_id, r.uid, r.ua, r.ip, r.ref, r.path,
@@ -131,14 +124,12 @@ export async function POST(req: NextRequest) {
           r.ip_country, r.region_code, r.city, r.postal_code, r.lat, r.lon, r.geo_source, r.country,
         ]);
       }
-
-      await c.query('COMMIT');
     });
 
     return NextResponse.json({ ok: true, inserted: rows.length });
   } catch (e: any) {
     console.error('[track] error', e);
-    // Never explode the page due to analytics
+    // Never break the page due to analytics
     return NextResponse.json({ ok: false }, { status: 200 });
   }
 }

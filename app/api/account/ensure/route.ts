@@ -1,4 +1,3 @@
-// app/api/account/ensure/route.ts
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '../../server/db/pool';

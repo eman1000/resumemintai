@@ -1,4 +1,3 @@
-// app/api/billing/activate/route.ts
 import { adminAuth } from '@/lib/firebaseAdmin';
 import Stripe from 'stripe';
 

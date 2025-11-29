@@ -3,7 +3,6 @@ import * as React from "react";
 import { Box, pourSectionsPaged, R } from "@/lib/render-utils";
 
 
-/* ========= minimal types (align with your other templates) ========= */
 export type RecordItem = {
   header?: string;
   subheader?: string;

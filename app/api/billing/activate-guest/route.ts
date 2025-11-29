@@ -1,4 +1,3 @@
-// app/api/billing/activate-guest/route.ts
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import pool from '../../server/db/pool';
@@ -19,13 +18,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'missing_params' }, { status: 400 });
     }
 
-    // 1) Retrieve SetupIntent
+  //Retrieve SetupIntent
     const si = await stripe.setupIntents.retrieve(setupIntentId);
     if (si.status !== 'succeeded' && si.status !== 'processing') {
       return NextResponse.json({ error: 'setup_incomplete', status: si.status }, { status: 400 });
     }
 
-    // 2) Resolve customer + accountId from metadata (no email)
+    // Resolve customer + accountId from metadata (no email)
     const customerId =
       typeof si.customer === 'string' ? si.customer : (si.customer as any)?.id;
     if (!customerId) return NextResponse.json({ error: 'no_customer' }, { status: 400 });
@@ -40,7 +39,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'no_account_id' }, { status: 400 });
     }
 
-    // 3) Grab the confirmed payment method
+    // Grab the confirmed payment method
     const pm =
       typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id;
     if (!pm) return NextResponse.json({ error: 'no_payment_method' }, { status: 400 });
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
       metadata: { accountId },
     });
 
-    // 5) Create subscription
+    //  Create subscription
     const trialDays = Number(process.env.STRIPE_TRIAL_DAYS ?? 0);
     const idem = `activate-guest:${customerId}:${setupIntentId}:${priceId}`;
 

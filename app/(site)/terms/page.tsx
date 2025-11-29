@@ -13,7 +13,7 @@ export default function Terms() {
         <p>
           ResumeMint is operated by <strong>Plenqor LLC</strong> (dba “ResumeMint”), registered in Wyoming, USA
           (“we”, “us”, “our”). Contact: <a href="mailto:support@plenqor.com">support@plenqor.com</a>. Address:
-          [Mailing Address], Wyoming, USA.
+          1309 Coffeen Avenue STE 1200, Sheridan, Wyoming 82801, USA.
         </p>
 
         <h2>Service</h2>
@@ -25,7 +25,7 @@ export default function Terms() {
         <h2>Pricing, Trial & Billing</h2>
         <ul>
           <li><strong>Trial:</strong> €0.00 for 1 day.</li>
-          <li><strong>After trial:</strong> €49.99 every 28 days (auto-renew) until canceled.</li>
+          <li><strong>After trial:</strong> €19.99 every 28 days (auto-renew) until canceled.</li>
           <li>Prices shown in EUR; your issuer may apply FX fees. Taxes may apply where required.</li>
           <li>Charges appear as <strong>RESUMEMINT</strong> (Plenqor LLC).</li>
         </ul>

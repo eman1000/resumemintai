@@ -1,5 +1,3 @@
-// app/api/server/db/users.ts
-import type { Pool } from 'pg';
 import { run } from '../db';
 import pool from './pool';
 
@@ -24,7 +22,7 @@ export const mkGuestEmail = (accountId: string) =>
   `guest+${accountId}@${GUEST_EMAIL_DOMAIN}`;
 
 /** Create a users row for a guest, satisfying the CHECK (email OR firebase_uid). */
-export async function ensureGuestAccount(pool: Pool, accountId: string) {
+export async function ensureGuestAccount(pool: any, accountId: string) {
   await run(pool, (c) =>
     c.query(
       `
@@ -40,7 +38,7 @@ export async function ensureGuestAccount(pool: Pool, accountId: string) {
 
 /** Replace placeholder guest email (or NULL) with a real email on claim */
 export async function setUserEmailIfGuestOrEmpty(
-  pool: Pool,
+  pool: any,
   userId: string,
   email?: string | null
 ) {
@@ -63,7 +61,7 @@ export async function setUserEmailIfGuestOrEmpty(
 
 const normEmail = (e: string) => e.trim().toLowerCase();
 
-export async function getUserByEmail(pool: Pool, email: string) {
+export async function getUserByEmail(pool: any, email: string) {
   const { rows } = await run(pool, (c) =>
     c.query<{ id: string; email: string | null; firebase_uid: string | null; stripe_customer_id: string | null }>(
       `SELECT id, email, firebase_uid, stripe_customer_id
@@ -90,7 +88,7 @@ export async function getUserByFirebaseUid(uid: string): Promise<DbUser | null> 
 
 
 /** store/reuse Stripe customer id */
-export async function setStripeCustomerId(pool: Pool, userId: string, customerId: string) {
+export async function setStripeCustomerId(pool: any, userId: string, customerId: string) {
   await run(pool, (c) =>
     c.query(
       `UPDATE public.users SET stripe_customer_id = $2 WHERE id = $1`,
@@ -100,7 +98,7 @@ export async function setStripeCustomerId(pool: Pool, userId: string, customerId
 }
 
 
-export async function ensureUserByEmail(pool: Pool, email: string) {
+export async function ensureUserByEmail(pool: any, email: string) {
   const norm = email.trim().toLowerCase();
   const { rows } = await run(pool, (c) =>
     c.query<{ id: string }>(
@@ -117,7 +115,7 @@ export async function ensureUserByEmail(pool: Pool, email: string) {
   return rows[0].id;
 }
 
-export async function getOrCreateUserId(pool: Pool, firebaseUid: string, email?: string | null) {
+export async function getOrCreateUserId(pool: any, firebaseUid: string, email?: string | null) {
   const { rows } = await run(pool, (c) =>
     c.query<{ id: string }>(
       `
@@ -134,7 +132,7 @@ export async function getOrCreateUserId(pool: Pool, firebaseUid: string, email?:
 }
 
 /** When a guest later signs in with Firebase, link their UID without breaking uniqueness */
-export async function linkFirebaseUid(pool: Pool, userId: string, firebaseUid: string) {
+export async function linkFirebaseUid(pool: any, userId: string, firebaseUid: string) {
   await run(pool, (c) =>
     c.query(
       `
@@ -224,7 +222,7 @@ export async function ensureDbUserByFirebaseUid(
 }
 
 /** Look up internal user id (no upsert) */
-export async function getUserIdByFirebaseUid(pool: Pool, firebaseUid: string) {
+export async function getUserIdByFirebaseUid(pool: any, firebaseUid: string) {
   const { rows } = await run(pool, (c) =>
     c.query<{ id: string }>(
       `select id from public.users where firebase_uid = $1 limit 1`,
@@ -237,7 +235,7 @@ export async function getUserIdByFirebaseUid(pool: Pool, firebaseUid: string) {
 
 /** Get Stripe customer id by accountId (= users.id) */
 export async function getStripeCustomerIdByAccountId(
-  pool: Pool,
+  pool: any,
   accountId: string
 ): Promise<string | null> {
   const { rows } = await run(pool, (c) =>
@@ -256,7 +254,7 @@ export async function getStripeCustomerIdByAccountId(
 
 /** Upsert Stripe customer id on the users row (by accountId) */
 export async function setStripeCustomerIdByAccountId(
-  pool: Pool,
+  pool: any,
   accountId: string,
   customerId: string
 ): Promise<void> {
@@ -278,7 +276,7 @@ export async function setStripeCustomerIdByAccountId(
  * If already linked to another UID, throws an error with status=409.
  */
 export async function linkAuthUserToAccount(
-  pool: Pool,
+  pool: any,
   uid: string,
   accountId: string
 ): Promise<{ id: string; firebase_uid: string | null }> {
@@ -339,7 +337,7 @@ async function getUserById(c: any, id: string): Promise<UserRow | null> {
  * - Deletes the guest row
  */
 export async function mergeGuestAccountIntoUser(
-  pool: Pool,
+  pool: any,
   guestAccountId: string,
   survivorUserId: string
 ): Promise<{ userId: string; adoptedCustomerId: string | null }> {

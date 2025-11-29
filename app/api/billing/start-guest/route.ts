@@ -1,4 +1,3 @@
-// app/api/billing/start-guest/route.ts
 // @ts-nocheck
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
@@ -13,7 +12,7 @@ export const dynamic = 'force-dynamic';
 // @ts-ignore
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
 
-/** Build a truly-unique idempotency key (log it so you can verify in Stripe logs) */
+/** Build a truly-unique idempotency key*/
 function newIdemKey(userId: string, email: string) {
   return `si2:${userId}:${email}:${Date.now()}:${crypto.randomUUID()}`;
 }
@@ -28,16 +27,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'invalid_email' }, { status: 400 });
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // 1) Upsert your app user by email (Postgres)
-    // ────────────────────────────────────────────────────────────────────────────
+    // Upsert your app user by email (Postgres)
     const existing = await getUserByEmail(pool, norm);
     const userId = existing?.id ?? (await ensureUserByEmail(pool, norm));
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // 2) Find or create the Stripe customer by email/metadata
+    //  Find or create the Stripe customer by email/metadata
     //    (search requires Customer Search enabled in Stripe)
-    // ────────────────────────────────────────────────────────────────────────────
     let customer: Stripe.Customer | null = null;
 
     try {
@@ -75,10 +70,8 @@ export async function POST(req: Request) {
       await setStripeCustomerId(pool, userId, customer.id);
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
-    // 3) Create a SetupIntent (off_session) to collect a payment method now.
+    // Create a SetupIntent (off_session) to collect a payment method now.
     //    Use a truly-unique idempotency key (and retry if Stripe complains).
-    // ────────────────────────────────────────────────────────────────────────────
     const payload: Stripe.SetupIntentCreateParams = {
       customer: customer.id,
       usage: 'off_session',
@@ -103,9 +96,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // ────────────────────────────────────────────────────────────────────────────
     // 4) Return clientSecret to the client; they’ll confirm & then call activate
-    // ────────────────────────────────────────────────────────────────────────────
     return NextResponse.json({
       clientSecret: si.client_secret!,
       customerId: customer.id,

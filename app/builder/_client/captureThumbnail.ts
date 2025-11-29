@@ -1,4 +1,3 @@
-// app/builder/_client/captureThumbnail.ts
 
 export async function captureThumbnailFromPreview(
   wrapEl: HTMLElement,

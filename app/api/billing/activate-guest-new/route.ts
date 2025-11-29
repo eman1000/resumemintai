@@ -1,4 +1,3 @@
-// app/api/billing/activate-guest/route.ts
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { getUserByEmail, ensureUserByEmail, setStripeCustomerId } from '../../server/db/user';

@@ -1,12 +1,7 @@
-// app/api/templates/auto-import/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import * as mammoth from 'mammoth';
 import DOMPurify from 'isomorphic-dompurify';
 import { parseHTML } from 'linkedom';
-
-// Optional Firestore save:
-// import { db } from '@/app/firebase';
-// import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export const runtime = 'nodejs';
 
@@ -17,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'file missing' }, { status: 400 });
 
-  // 1) DOCX → HTML
+  // DOCX → HTML
   const buf = Buffer.from(await file.arrayBuffer());
   const { value: rawHtml } = await mammoth.convertToHtml({ buffer: buf }, {
     styleMap: [
@@ -27,7 +22,7 @@ export async function POST(req: NextRequest) {
     ],
   });
 
-  // 2) Sanitize & tag
+  // Sanitize & tag
   const clean = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
   const tagged = autoTagTemplate(clean);
 

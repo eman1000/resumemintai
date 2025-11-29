@@ -1,10 +1,9 @@
-// app/api/webhooks/stripe/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { run } from "../../server/db";
 import pool from "../../server/db/pool";
 
-export const runtime = "nodejs";            // required for raw body access
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";     // webhooks shouldn't be cached
 
 // Initialize Stripe
@@ -64,7 +63,6 @@ async function upsertFromSubscription(sub: Stripe.Subscription) {
 export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
-  // 1) Verify signature with RAW body
   let rawBody: string;
   try {
     rawBody = await req.text(); // IMPORTANT: raw body, not parsed JSON

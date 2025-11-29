@@ -1,4 +1,3 @@
-// app/api/server/auth/firebase-admin.ts  (server-only file)
 import { App, cert, getApp, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 

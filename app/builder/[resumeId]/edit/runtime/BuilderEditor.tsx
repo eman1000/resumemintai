@@ -1,4 +1,3 @@
-// BuilderEditor.tsx
 "use client";
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
@@ -31,11 +30,8 @@ import LinkedInIcon from "@/app/builder/components/LinkedInIcon";
 import toast from "react-hot-toast";
 import FullscreenLoader from "@/app/builder/components/FullscreenLoader";
 import ConfirmDialog from "@/components/ConfirmDialog";
-/* =======================
-   Field catalog (PD)
-======================= */
 
-// --- AI Suggestion types ---
+
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
 type AISuggestEmploymentBullets = { kind: "employment_bullets"; recordKey?: string; bullets: string[] };
 type AISuggestSkills = { kind: "skills"; items: Array<{ name: string; level?: string }> };
@@ -51,7 +47,6 @@ type AISuggestResponse =
   | AISuggestHobbies
   | AISuggestGeneric;
 
-// Fallback suggestion if API isn't available or returns nothing
 function fallbackSuggestionFor(section: CVSection): AISuggestResponse {
   switch (section.key) {
     case "profile":
@@ -106,9 +101,7 @@ const PD_FIELD_CATALOG: PDFieldDef[] = [
   { key: "linkedin", label: "LinkedIn", type: "text" },
 ];
 
-/* =======================
-   Types (editor side)
-======================= */
+
 export type CVSectionKey =
   | "personalDetails"
   | "profile"
@@ -149,9 +142,7 @@ export interface CVDocument {
   sections: CVSection[];
 }
 
-/* ==========================================================
-   Templates
-========================================================== */
+
 export const SAMPLE_TEMPLATES = [
   {
     id: "33c3ab26-06bb-466f-82f9-1a72c6fed814",
@@ -601,12 +592,9 @@ const DEFAULT_SECTIONS: CVSection[] = [
   },
 ];
 
-/* =================================================
-   Converter: editor doc -> template data payload
-================================================= */
+
 type TemplateData = any;
 
-// keep this helper near your other utils
 
 
 function isMeaningful(v: any) {
