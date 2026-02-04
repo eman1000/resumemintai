@@ -30,6 +30,7 @@ import LinkedInIcon from "@/app/builder/components/LinkedInIcon";
 import toast from "react-hot-toast";
 import FullscreenLoader from "@/app/builder/components/FullscreenLoader";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { MobilePreviewOverlay } from "@/app/builder/components/MobilePreviewOverlay";
 
 
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
@@ -595,6 +596,29 @@ const DEFAULT_SECTIONS: CVSection[] = [
 
 type TemplateData = any;
 
+function FloatingPreviewButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="
+        lg:hidden
+        fixed bottom-4 right-4 z-40
+        rounded-full
+        px-5 py-3
+        shadow-lg
+        bg-blue-600 text-white
+        border border-blue-700
+        active:scale-[0.98]
+      "
+      style={{
+        paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+      }}
+    >
+      👀 Preview
+    </button>
+  );
+}
 
 
 function isMeaningful(v: any) {
@@ -927,12 +951,12 @@ const DateRangeInputs: React.FC<{
   const yearPh = t("label.year", "Year");
 
   return (
-    <div className="grid grid-cols-2 gap-3 items-end">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
       <div>
         <label className="block text-xs text-gray-500">{t("label.startDate")}</label>
         <div className="flex gap-2">
           <select
-            className="rounded border px-2 py-2 w-28"
+            className="rounded border px-2 py-2 w-full sm:w-28"
             value={start.month || ""}
             onChange={(e) => setStart({ month: e.target.value })}
           >
@@ -941,7 +965,7 @@ const DateRangeInputs: React.FC<{
             ))}
           </select>
           <input
-            className="rounded border px-2 py-2 w-24"
+            className="rounded border px-2 py-2 w-full sm:w-28"
             placeholder={yearPh}
             value={start.year || ""}
             onChange={(e) => setStart({ year: e.target.value })}
@@ -953,7 +977,7 @@ const DateRangeInputs: React.FC<{
         <div className="flex gap-2 items-center">
           <select
             disabled={present}
-            className="rounded border px-2 py-2 w-28"
+            className="rounded border px-2 py-2 w-full sm:w-28"
             value={end.month || ""}
             onChange={(e) => setEnd({ month: e.target.value })}
           >
@@ -963,7 +987,7 @@ const DateRangeInputs: React.FC<{
           </select>
           <input
             disabled={present}
-            className="rounded border px-2 py-2 w-24"
+            className="rounded border px-2 py-2 w-full sm:w-28"
             placeholder={yearPh}
             value={end.year || ""}
             onChange={(e) => setEnd({ year: e.target.value })}
@@ -992,7 +1016,7 @@ const RecordHeaderLine: React.FC<{ title?: string; subtitle?: string }> = ({
   title,
   subtitle,
 }) => (
-  <div className="w-full p-3 border rounded-lg flex items-center justify-between bg-white">
+  <div className="w-full p-3 border rounded-lg flex items-center justify-between bg-white gap-3">
     <div className="min-w-0">
       <div className="font-semibold truncate">{title || "—"}</div>
       {subtitle ? (
@@ -1098,7 +1122,7 @@ const PersonalDetailsEditor: React.FC<{
   return (
     <div className="space-y-4">
       {/* Photo row */}
-      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-4 items-start">
         <div className="flex flex-col items-start">
           <label className="block text-sm text-gray-700 mb-1">{t("pd.photo")}</label>
 
@@ -1131,7 +1155,7 @@ const PersonalDetailsEditor: React.FC<{
         </div>
 
         {/* First row fields */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
             <label className="block text-sm text-gray-700">{t("pd.givenName")}</label>
             <input
@@ -1170,36 +1194,38 @@ const PersonalDetailsEditor: React.FC<{
           const val = values[key] ?? "";
           const label = tl(def.key, def.label);
           return (
-            <div key={key} className="flex gap-2 items-center">
-              <label className="w-44 text-sm text-gray-700">{label}</label>
-              {def.type === "date" ? (
-                <input
-                  type="date"
-                  className="flex-1 rounded border px-3 py-2"
-                  value={val || ""}
-                  onChange={(e) => set(key, e.target.value)}
-                />
-              ) : def.type === "textarea" ? (
-                <textarea
-                  className="flex-1 rounded border px-3 py-2"
-                  value={val || ""}
-                  onChange={(e) => set(key, e.target.value)}
-                />
-              ) : (
-                <input
-                  className="flex-1 rounded border px-3 py-2"
-                  value={val || ""}
-                  onChange={(e) => set(key, e.target.value)}
-                />
-              )}
-              <button
-                type="button"
-                className="px-2 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200"
-                onClick={() => removeField(key)}
-                title={t("pd.removeField")}
-              >
-                ✕
-              </button>
+            <div key={key} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <label className="w-full sm:w-44 text-sm text-gray-700">{label}</label>
+              <div className="flex w-full gap-2">
+                {def.type === "date" ? (
+                  <input
+                    type="date"
+                    className="flex-1 rounded border px-3 py-2"
+                    value={val || ""}
+                    onChange={(e) => set(key, e.target.value)}
+                  />
+                ) : def.type === "textarea" ? (
+                  <textarea
+                    className="flex-1 rounded border px-3 py-2"
+                    value={val || ""}
+                    onChange={(e) => set(key, e.target.value)}
+                  />
+                ) : (
+                  <input
+                    className="flex-1 rounded border px-3 py-2"
+                    value={val || ""}
+                    onChange={(e) => set(key, e.target.value)}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="px-2 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200"
+                  onClick={() => removeField(key)}
+                  title={t("pd.removeField")}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           );
         })}
@@ -1330,7 +1356,7 @@ const EmploymentLikeEditor: React.FC<{
 
         return (
           <details key={r.key} className="rounded-lg border open:shadow-sm">
-            <summary className="list-none cursor-pointer">
+            <summary className="list-none cursor-pointer block">
               <RecordHeaderLine
                 title={header || t("ui.untitled", "(untitled)")}
                 subtitle={[
@@ -1345,8 +1371,9 @@ const EmploymentLikeEditor: React.FC<{
               />
             </summary>
 
-            <div className="p-3 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 pt-2 space-y-3">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500">{posLabel}</label>
                   <input
@@ -1495,13 +1522,15 @@ const EducationEditor: React.FC<{
         const subtitle = [school, city].filter(Boolean).join(", ");
 
         return (
-          <details key={r.key} className="rounded-lg border open:shadow-sm" open>
-            <summary className="list-none cursor-pointer">
+          <details key={r.key} className="rounded-lg border open:shadow-sm" open={i === 0}>
+            <summary className="list-none cursor-pointer block">
               <RecordHeaderLine title={degree || t("ui.untitled","(untitled)")} subtitle={subtitle} />
             </summary>
 
-            <div className="p-3 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 pt-2 space-y-3">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
                 <div>
                   <label className="block text-xs text-gray-500">{t("label.education","Education")}</label>
 
@@ -1526,7 +1555,8 @@ const EducationEditor: React.FC<{
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
                 <div>
                   <label className="block text-xs text-gray-500">{t("label.city","City")}</label>
 
@@ -1536,7 +1566,6 @@ const EducationEditor: React.FC<{
                     onChange={(e) => setRec(i, setByRole(section, r, "city", e.target.value, 2))}
                   />
                 </div>
-                <div />
               </div>
 
               <DateRangeInputs
@@ -1633,10 +1662,10 @@ const SkillsEditor: React.FC<{
         const level = String(getByRole(s, r, "level", 1) || "");
         return (
           <details key={r.key} className="rounded-lg border open:shadow-sm">
-            <summary className="list-none cursor-pointer">
+            <summary className="list-none cursor-pointer block">
               <RecordHeaderLine title={name || untitledSkill} subtitle={level} />
             </summary>
-            <div className="p-3 grid grid-cols-2 gap-3">
+            <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-gray-500">{skillLabel}</label>
                 <input
@@ -1733,7 +1762,7 @@ const LanguagesEditor: React.FC<{
         const level = String(getByRole(section, r, "level") || "");
         return (
           <details key={r.key} className="rounded-lg border open:shadow-sm">
-            <summary className="list-none cursor-pointer">
+            <summary className="list-none cursor-pointer block">
               <RecordHeaderLine title={name || untitledLanguage} subtitle={level} />
             </summary>
             <div className="p-3 grid grid-cols-2 gap-3">
@@ -1832,7 +1861,7 @@ const HobbiesEditor: React.FC<{
         const name = String(getByRole(section, r, "header") || "");
         return (
           <details key={r.key} className="rounded-lg border open:shadow-sm">
-            <summary className="list-none cursor-pointer">
+            <summary className="list-none cursor-pointer block">
               <RecordHeaderLine title={name || untitledHobby} />
             </summary>
             <div className="p-3 grid grid-cols-2 gap-3">
@@ -1920,10 +1949,11 @@ const CoursesEditor: React.FC<{
 
         return (
           <details key={r.key} className="rounded-lg border open:shadow-sm">
-            <summary className="list-none cursor-pointer">
+            <summary className="list-none cursor-pointer block">
               <RecordHeaderLine title={title || untitledCourse} />
             </summary>
-            <div className="p-3 space-y-3">
+            <div className="p-3 pt-2 space-y-3">
+
               <div>
                 <label className="block text-xs text-gray-500">{courseLabel}</label>
                 <input
@@ -2240,8 +2270,8 @@ const SectionCardPatched: React.FC<{
 
 
   return (
-    <div data-testid={section.key} className="w-full border-b border-gray-200 collapsible-section">
-      <div className="flex items-stretch w-full">
+    <div data-testid={section.key} className="w-full border-b border-gray-200 collapsible-section px-3">
+      <div className="flex items-start justify-between gap-2 w-full">
         <button
           type="button"
           onClick={() => setOpen(!open)}
@@ -2251,28 +2281,28 @@ const SectionCardPatched: React.FC<{
             {section.title}
           </h3>
         </button>
-        <div className="py-3 flex whitespace-nowrap items-start gap-2">
+        <div className="py-3 flex flex-wrap items-start gap-2 flex-none">
           <button
-            className="inline-flex border justify-center rounded relative overflow-hidden max-w-full focus-visible:ring-4 ring-blue-200 items-center bg-transparent text-gray-700 border-gray-400 hover:bg-blue-50 hover:border-blue-400 font-medium py-1 px-2"
+            className="inline-flex shrink max-w-full border justify-center rounded relative overflow-hidden max-w-full focus-visible:ring-4 ring-blue-200 items-center bg-transparent text-gray-700 border-gray-400 hover:bg-blue-50 hover:border-blue-400 font-medium py-1 px-2 text-sm"
             type="button"
             onClick={() => onAISuggest?.(section)}
           >
-            ✨  {t?.("action.aiSuggestions")}
+            ✨ <span className="hidden sm:inline"> {t?.("action.aiSuggestions")} </span>
           </button>
 
            <button
-            className="inline-flex border justify-center rounded focus-visible:ring-4 ring-red-200 items-center bg-transparent text-red-700 border-red-400 hover:bg-red-50 hover:border-red-500 font-medium py-1 px-2"
+            className="inline-flex shrink max-w-full border justify-center rounded focus-visible:ring-4 ring-red-200 items-center bg-transparent text-red-700 border-red-400 hover:bg-red-50 hover:border-red-500 font-medium py-1 px-2 text-sm"
             type="button"
             onClick={() => onRequestRemove?.(section.key)}
             title={t?.("action.removeSection")}
           >
-            🗑 {t?.("action.removeSection")}
+            🗑 <span className="hidden sm:inline"> {t?.("action.removeSection")} </span>
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="pb-4 space-y-4">
+        <div className="pb-4 pt-1 space-y-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t?.("label.sectionTitle")}</label>
             <input
@@ -2683,6 +2713,8 @@ export default function BuilderEditor({
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string>("");
   const [linkedinOpen, setLinkedinOpen] = useState(false);
+
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
 // === ATS/JD state ===
 const [jdOpen, setJdOpen] = useState(false);
@@ -3098,9 +3130,9 @@ async function handleAISuggest(section: CVSection) {
       <main className="min-h-screen bg-white text-gray-800">
         <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* LEFT: Controls + Sections */}
-          <div>
+          <div className="pb-24 lg:pb-0">
 
-            <div className="mb-4 flex gap-2 flex-wrap items-center">
+            <div className="mb-4 flex flex-col sm:flex-row sm:flex-wrap gap-2 items-stretch sm:items-center">
               <button
                 className="border rounded px-3 py-2 disabled:opacity-60"
                 onClick={handleUploadClick}
@@ -3126,7 +3158,7 @@ async function handleAISuggest(section: CVSection) {
 
 
 
-              <div className="ms-auto flex gap-3 items-center">
+              <div className="sm:ms-auto flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
                 <label className="flex items-center gap-2 text-sm">
                   Primary color
                   <input
@@ -3221,18 +3253,18 @@ async function handleAISuggest(section: CVSection) {
                           <div
                             ref={dProvided.innerRef}
                             {...dProvided.draggableProps}
-                            className={`flex w-full items-center relative bg-white rounded-lg mb-1 draggable-section ${
+                            className={`flex w-full items-start bg-white rounded-lg mb-1 ${
                               snapshot.isDragging ? "ring-2 ring-blue-300" : ""
                             }`}
                           >
                             <div
                               {...dProvided.dragHandleProps}
-                              className="p-3 cursor-grab select-none"
+                              className="p-3 cursor-grab select-none flex-none"
                               aria-label="Drag section"
                             >
                               ☰
                             </div>
-                            <div className="w-full flex relative flex-col">
+                            <div className="flex-1 min-w-0 pr-3" style={{ paddingRight: "calc(0.75rem + env(safe-area-inset-right))" }}>
                               <SectionCardPatched
                                 section={s}
                                 setDoc={setDoc}
@@ -3287,12 +3319,12 @@ async function handleAISuggest(section: CVSection) {
               </Droppable>
             </DragDropContext>
 
-{/* chips palette to add back / add new */}
-<AddSectionChips doc={doc} setDoc={setDoc} t={t} />
+            {/* chips palette to add back / add new */}
+            <AddSectionChips doc={doc} setDoc={setDoc} t={t} />
           </div>
 
           {/* RIGHT: Sticky A4 Live Preview */}
-          <div className="lg:sticky lg:top-4 h-fit">
+          <div className="hidden lg:block lg:sticky lg:top-4 h-fit">
             <A4Preview
               // key={`preview-${dateFormat}`} 
               props={previewProps}
@@ -3375,6 +3407,23 @@ async function handleAISuggest(section: CVSection) {
           onCancel={cancelRemoveSection}
           onConfirm={actuallyRemoveSection}
         />
+
+        {/* Mobile: floating button to open preview */}
+        <FloatingPreviewButton onClick={() => setMobilePreviewOpen(true)} />
+
+        {/* Mobile: full-screen preview overlay */}
+        <MobilePreviewOverlay
+          open={mobilePreviewOpen}
+          onClose={() => setMobilePreviewOpen(false)}
+        >
+          <A4Preview
+            props={previewProps}
+            selectedTemplate={tpl}
+            wrapRef={wrapRef}
+            // @ts-ignore
+            handleDownload={handleDownload}
+          />
+        </MobilePreviewOverlay>
       </main>
     </>
   );

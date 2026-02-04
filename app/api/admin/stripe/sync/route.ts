@@ -68,6 +68,7 @@ async function syncOneCustomer(customerId: string) {
       stripeCustomerId: typeof s.customer === "string" ? s.customer : (s.customer as any)?.id,
       status: s.status,
       priceId: s.items.data[0]?.price?.id ?? null,
+      // @ts-ignore
       currentPeriodEnd: s.current_period_end ?? null,
       cancelAtPeriodEnd: s.cancel_at_period_end ?? null,
     });
