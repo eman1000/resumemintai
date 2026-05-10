@@ -31,6 +31,7 @@ import toast from "react-hot-toast";
 import FullscreenLoader from "@/app/builder/components/FullscreenLoader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { MobilePreviewOverlay } from "@/app/builder/components/MobilePreviewOverlay";
+import BottomToolbar from "@/app/builder/components/BottomToolbar";
 
 
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
@@ -151,7 +152,7 @@ export const SAMPLE_TEMPLATES = [
     documentType: "resume",
     renderer: "circular",
     isNew: false,
-    isFree: false,
+    isFree: true,
     isATSFriendly: false,
     defaultOptions: {
       colors: {
@@ -227,7 +228,7 @@ export const SAMPLE_TEMPLATES = [
     documentType: "resume",
     renderer: "professional",
     isNew: true,
-    isFree: false,
+    isFree: true,
     isATSFriendly: false,
     defaultOptions: {
       colors: {
@@ -486,6 +487,306 @@ export const SAMPLE_TEMPLATES = [
       sectionSpacingFactor: "m",
     },
     createdAt: "2023-04-21T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-1111-4000-8000-000000000005",
+    name: "modern",
+    documentType: "resume",
+    renderer: "modern",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: false,
+    defaultOptions: {
+      colors: {
+        primary: "#2a72d7",
+        secondary: "#64748b",
+        textColor: "black",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "title",
+      colorSets: [
+        { primary: "#2a72d7", secondary: "#64748b", textColor: "black", backgroundColor: "white" },
+        { primary: "#0d9488", secondary: "#475569", textColor: "black", backgroundColor: "white" },
+        { primary: "#dc2626", secondary: "#6b7280", textColor: "black", backgroundColor: "#fafafa" },
+        { primary: "#7c3aed", secondary: "#4b5563", textColor: "black", backgroundColor: "white" },
+        { primary: "#ea580c", secondary: "#57534e", textColor: "black", backgroundColor: "white" },
+        { primary: "#0284c7", secondary: "#334155", textColor: "black", backgroundColor: "#f8fafc" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 14 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        headerTextColor: { type: "copy", color: "secondary" },
+      },
+      lineHeightFactor: 1.25,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-2222-4000-8000-000000000006",
+    name: "minimal",
+    documentType: "resume",
+    renderer: "minimal",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: true,
+    defaultOptions: {
+      colors: {
+        primary: "#111827",
+        textColor: "#1f2937",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "title",
+      colorSets: [
+        { primary: "#111827", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#1e3a5f", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#374151", textColor: "#374151", backgroundColor: "#fafafa" },
+        { primary: "#065f46", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#7c2d12", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#4c1d95", textColor: "#1f2937", backgroundColor: "white" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 13 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+      },
+      lineHeightFactor: 1.3,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-3333-4000-8000-000000000007",
+    name: "creative",
+    documentType: "resume",
+    renderer: "creative",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: false,
+    defaultOptions: {
+      colors: {
+        primary: "#6366f1",
+        secondary: "#818cf8",
+        textColor: "black",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "both",
+      colorSets: [
+        { primary: "#6366f1", secondary: "#818cf8", textColor: "black", backgroundColor: "white" },
+        { primary: "#f43f5e", secondary: "#fb7185", textColor: "black", backgroundColor: "white" },
+        { primary: "#0891b2", secondary: "#22d3ee", textColor: "black", backgroundColor: "white" },
+        { primary: "#d97706", secondary: "#fbbf24", textColor: "black", backgroundColor: "white" },
+        { primary: "#059669", secondary: "#34d399", textColor: "black", backgroundColor: "white" },
+        { primary: "#7c3aed", secondary: "#a78bfa", textColor: "black", backgroundColor: "#faf5ff" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 15 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        headerTextColor: {
+          type: "constrast",
+          color: "primary",
+          defaultColor: "white",
+          fallbackColor: "black",
+          readabilityThreshold: 2.2,
+        },
+      },
+      lineHeightFactor: 1.25,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-4444-4000-8000-000000000008",
+    name: "compact",
+    documentType: "resume",
+    renderer: "compact",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: true,
+    defaultOptions: {
+      colors: {
+        primary: "#1e40af",
+        secondary: "#6b7280",
+        textColor: "black",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "title",
+      colorSets: [
+        { primary: "#1e40af", secondary: "#6b7280", textColor: "black", backgroundColor: "white" },
+        { primary: "#15803d", secondary: "#6b7280", textColor: "black", backgroundColor: "white" },
+        { primary: "#b91c1c", secondary: "#6b7280", textColor: "black", backgroundColor: "white" },
+        { primary: "#6d28d9", secondary: "#6b7280", textColor: "black", backgroundColor: "white" },
+        { primary: "#0e7490", secondary: "#6b7280", textColor: "black", backgroundColor: "#f9fafb" },
+        { primary: "#374151", secondary: "#9ca3af", textColor: "black", backgroundColor: "white" },
+      ],
+      fontSizes: { text: 9, footer: 7, sectionHeader: 12 },
+      fontSizeFactor: "s",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        headerTextColor: { type: "copy", color: "secondary" },
+      },
+      lineHeightFactor: 1.2,
+      pageMarginsFactor: "s",
+      sectionSpacingFactor: "s",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-5555-4000-8000-000000000009",
+    name: "executive",
+    documentType: "resume",
+    renderer: "executive",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: false,
+    defaultOptions: {
+      colors: {
+        primary: "#1a1a2e",
+        secondary: "#8b7355",
+        textColor: "black",
+        backgroundColor: "white",
+      },
+      fontName: "Georgia",
+      showName: "title",
+      colorSets: [
+        { primary: "#1a1a2e", secondary: "#8b7355", textColor: "black", backgroundColor: "white" },
+        { primary: "#1b3a4b", secondary: "#8b7355", textColor: "black", backgroundColor: "#fefdfb" },
+        { primary: "#2d2d2d", secondary: "#b8860b", textColor: "black", backgroundColor: "white" },
+        { primary: "#1a1a2e", secondary: "#4a6741", textColor: "black", backgroundColor: "white" },
+        { primary: "#3d0c11", secondary: "#8b4513", textColor: "black", backgroundColor: "#fffef9" },
+        { primary: "#1a1a2e", secondary: "#555555", textColor: "black", backgroundColor: "white" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 14 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        accentColor: { type: "copy", color: "secondary" },
+      },
+      lineHeightFactor: 1.3,
+      pageMarginsFactor: "l",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-6666-4000-8000-000000000010",
+    name: "chrono",
+    documentType: "resume",
+    renderer: "chrono",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: false,
+    defaultOptions: {
+      colors: {
+        primary: "#2563eb",
+        secondary: "#94a3b8",
+        textColor: "black",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "title",
+      colorSets: [
+        { primary: "#2563eb", secondary: "#94a3b8", textColor: "black", backgroundColor: "white" },
+        { primary: "#059669", secondary: "#94a3b8", textColor: "black", backgroundColor: "white" },
+        { primary: "#dc2626", secondary: "#94a3b8", textColor: "black", backgroundColor: "white" },
+        { primary: "#7c3aed", secondary: "#94a3b8", textColor: "black", backgroundColor: "#faf5ff" },
+        { primary: "#0891b2", secondary: "#94a3b8", textColor: "black", backgroundColor: "white" },
+        { primary: "#374151", secondary: "#d1d5db", textColor: "black", backgroundColor: "white" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 13 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        timelineColor: { type: "copy", color: "secondary" },
+      },
+      lineHeightFactor: 1.25,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-7777-4000-8000-000000000011",
+    name: "horizontal",
+    documentType: "resume",
+    renderer: "horizontal",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: true,
+    defaultOptions: {
+      colors: {
+        primary: "#334155",
+        secondary: "#64748b",
+        textColor: "black",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "title",
+      colorSets: [
+        { primary: "#334155", secondary: "#64748b", textColor: "black", backgroundColor: "white" },
+        { primary: "#1e3a5f", secondary: "#3b82f6", textColor: "black", backgroundColor: "white" },
+        { primary: "#14532d", secondary: "#22c55e", textColor: "black", backgroundColor: "white" },
+        { primary: "#581c87", secondary: "#a855f7", textColor: "black", backgroundColor: "white" },
+        { primary: "#7c2d12", secondary: "#f97316", textColor: "black", backgroundColor: "white" },
+        { primary: "#1e293b", secondary: "#475569", textColor: "black", backgroundColor: "#f8fafc" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 13 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        barColor: { type: "copy", color: "secondary" },
+      },
+      lineHeightFactor: 1.25,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
+  },
+  {
+    id: "a1b2c3d4-8888-4000-8000-000000000012",
+    name: "casual",
+    documentType: "resume",
+    renderer: "casual",
+    isNew: true,
+    isFree: false,
+    isATSFriendly: false,
+    defaultOptions: {
+      colors: {
+        primary: "#10b981",
+        secondary: "#6ee7b7",
+        textColor: "#1f2937",
+        backgroundColor: "white",
+      },
+      fontName: "Arial",
+      showName: "both",
+      colorSets: [
+        { primary: "#10b981", secondary: "#6ee7b7", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#3b82f6", secondary: "#93c5fd", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#f59e0b", secondary: "#fcd34d", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#ef4444", secondary: "#fca5a5", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#8b5cf6", secondary: "#c4b5fd", textColor: "#1f2937", backgroundColor: "white" },
+        { primary: "#06b6d4", secondary: "#67e8f9", textColor: "#1f2937", backgroundColor: "white" },
+      ],
+      fontSizes: { text: 10, footer: 8, sectionHeader: 14 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+        cardColor: { type: "copy", color: "secondary" },
+      },
+      lineHeightFactor: 1.3,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2024-01-15T00:00:00.000Z",
   },
 ];
 
@@ -2672,9 +2973,11 @@ export default function BuilderEditor({
   i18n,
   lang,
   renderer,
-  onChangeRenderer,  
-  dateFormat
-  
+  onChangeRenderer,
+  dateFormat,
+  isSubscribed = false,
+  onAuthGate,
+
 }: {
   initialData: any;
   onChangeData: (data: any) => void;
@@ -2685,6 +2988,8 @@ export default function BuilderEditor({
   renderer?: string;
   dateFormat: "MMM YYYY" | "MM/YYYY";
   onChangeRenderer?: (r: string) => void;
+  isSubscribed?: boolean;
+  onAuthGate?: () => void;
 
 }) {
   const [confirmRemoveKey, setConfirmRemoveKey] = useState<CVSectionKey | null>(null);
@@ -3158,42 +3463,6 @@ async function handleAISuggest(section: CVSection) {
 
 
 
-              <div className="sm:ms-auto flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
-                <label className="flex items-center gap-2 text-sm">
-                  Primary color
-                  <input
-                    type="color"
-                    value={(options as any)?.colors?.primary || "#303846"}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setOptions((prev: any) => ({
-                        ...prev,
-                        colors: {
-                          ...(prev?.colors || {}),
-                          primary: val,
-                        },
-                      }));
-                    }}
-                  />
-                </label>
-
-                <select
-                  className="border rounded px-2 py-1 text-sm"
-                  value={activeTemplateId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setActiveTemplateId(id);
-                    const tpl = SAMPLE_TEMPLATES.find(t => t.id === id)!;
-                    onChangeRenderer?.(tpl.renderer);  // ⬅️ this updates EditPageInner.renderer
-                  }}
-                >
-                  {SAMPLE_TEMPLATES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {(t.documentType?.toUpperCase?.() || "TEMPLATE") + " – " + t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <div className="w-full border rounded-lg p-3 bg-white">
@@ -3326,12 +3595,57 @@ async function handleAISuggest(section: CVSection) {
           {/* RIGHT: Sticky A4 Live Preview */}
           <div className="hidden lg:block lg:sticky lg:top-4 h-fit">
             <A4Preview
-              // key={`preview-${dateFormat}`} 
+              // key={`preview-${dateFormat}`}
               props={previewProps}
               selectedTemplate={tpl}
               wrapRef={wrapRef}
               // @ts-ignore
               handleDownload={handleDownload}
+            />
+            <BottomToolbar
+              templates={SAMPLE_TEMPLATES}
+              activeTemplateId={activeTemplateId}
+              onSelectTemplate={(id) => {
+                const selected = SAMPLE_TEMPLATES.find((t) => t.id === id);
+                if (!selected) return;
+                if (!selected.isFree && !isSubscribed) {
+                  onAuthGate?.();
+                  return;
+                }
+                setActiveTemplateId(id);
+                onChangeRenderer?.(selected.renderer);
+                setOptions(selected.defaultOptions);
+              }}
+              isSubscribed={isSubscribed}
+              onAuthGate={onAuthGate}
+              fontName={(options as any)?.fontName || "Arial"}
+              onChangeFontName={(name) =>
+                setOptions((prev: any) => ({ ...prev, fontName: name }))
+              }
+              fontSizeKey={((options as any)?.fontSizeFactor || "m") as "s" | "m" | "l"}
+              onChangeFontSize={(k) => {
+                const map = {
+                  s: { text: 9, sectionHeader: 14, footer: 7 },
+                  m: { text: 10, sectionHeader: 16, footer: 8 },
+                  l: { text: 11, sectionHeader: 18, footer: 9 },
+                } as const;
+                setOptions((prev: any) => ({
+                  ...prev,
+                  fontSizeFactor: k,
+                  fontSizes: { ...(prev?.fontSizes || {}), ...map[k] },
+                }));
+              }}
+              lineHeight={(options as any)?.lineHeightFactor ?? 1.25}
+              onChangeLineHeight={(v) =>
+                setOptions((prev: any) => ({ ...prev, lineHeightFactor: v }))
+              }
+              primaryColor={(options as any)?.colors?.primary || "#303846"}
+              onChangePrimaryColor={(hex) =>
+                setOptions((prev: any) => ({
+                  ...prev,
+                  colors: { ...(prev?.colors || {}), primary: hex },
+                }))
+              }
             />
           </div>
         </div>
@@ -3422,6 +3736,51 @@ async function handleAISuggest(section: CVSection) {
             wrapRef={wrapRef}
             // @ts-ignore
             handleDownload={handleDownload}
+          />
+          <BottomToolbar
+            templates={SAMPLE_TEMPLATES}
+            activeTemplateId={activeTemplateId}
+            onSelectTemplate={(id) => {
+              const selected = SAMPLE_TEMPLATES.find((t) => t.id === id);
+              if (!selected) return;
+              if (!selected.isFree && !isSubscribed) {
+                onAuthGate?.();
+                return;
+              }
+              setActiveTemplateId(id);
+              onChangeRenderer?.(selected.renderer);
+              setOptions(selected.defaultOptions);
+            }}
+            isSubscribed={isSubscribed}
+            onAuthGate={onAuthGate}
+            fontName={(options as any)?.fontName || "Arial"}
+            onChangeFontName={(name) =>
+              setOptions((prev: any) => ({ ...prev, fontName: name }))
+            }
+            fontSizeKey={((options as any)?.fontSizeFactor || "m") as "s" | "m" | "l"}
+            onChangeFontSize={(k) => {
+              const map = {
+                s: { text: 9, sectionHeader: 14, footer: 7 },
+                m: { text: 10, sectionHeader: 16, footer: 8 },
+                l: { text: 11, sectionHeader: 18, footer: 9 },
+              } as const;
+              setOptions((prev: any) => ({
+                ...prev,
+                fontSizeFactor: k,
+                fontSizes: { ...(prev?.fontSizes || {}), ...map[k] },
+              }));
+            }}
+            lineHeight={(options as any)?.lineHeightFactor ?? 1.25}
+            onChangeLineHeight={(v) =>
+              setOptions((prev: any) => ({ ...prev, lineHeightFactor: v }))
+            }
+            primaryColor={(options as any)?.colors?.primary || "#303846"}
+            onChangePrimaryColor={(hex) =>
+              setOptions((prev: any) => ({
+                ...prev,
+                colors: { ...(prev?.colors || {}), primary: hex },
+              }))
+            }
           />
         </MobilePreviewOverlay>
       </main>

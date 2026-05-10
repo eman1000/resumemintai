@@ -3,6 +3,14 @@ import { CircularTemplate } from "../CircularTemplate";
 import ProfessionalTemplate from "../ProfessionalTemplate";
 import ElegantTemplate from "../ElegantTemplate";
 import { ClassicTemplate } from "../ClassicTemplate";
+import { ModernTemplate } from "../ModernTemplate";
+import { MinimalTemplate } from "../MinimalTemplate";
+import { CreativeTemplate } from "../CreativeTemplate";
+import { CompactTemplate } from "../CompactTemplate";
+import { ExecutiveTemplate } from "../ExecutiveTemplate";
+import { ChronoTemplate } from "../ChronoTemplate";
+import { HorizontalTemplate } from "../HorizontalTemplate";
+import { CasualTemplate } from "../CasualTemplate";
 
 type Props = {
   filename?: string;
@@ -10,6 +18,21 @@ type Props = {
   selectedTemplate: any;
   wrapRef: React.RefObject<HTMLDivElement>;
   handleDownload: () => Promise<void>;
+};
+
+const RENDERERS: Record<string, React.ComponentType<any>> = {
+  circular: CircularTemplate,
+  professional: ProfessionalTemplate,
+  elegant: ElegantTemplate,
+  classic: ClassicTemplate,
+  modern: ModernTemplate,
+  minimal: MinimalTemplate,
+  creative: CreativeTemplate,
+  compact: CompactTemplate,
+  executive: ExecutiveTemplate,
+  chrono: ChronoTemplate,
+  horizontal: HorizontalTemplate,
+  casual: CasualTemplate,
 };
 
 // IMPORTANT: set this to your real fixed resume width in px.
@@ -46,6 +69,10 @@ export const A4Preview: React.FC<Props> = ({
     return () => ro.disconnect();
   }, []);
 
+  const Tpl =
+    (selectedTemplate?.renderer && RENDERERS[selectedTemplate.renderer]) ||
+    CircularTemplate;
+
   return (
     <div
       ref={scrollRef}
@@ -69,10 +96,7 @@ export const A4Preview: React.FC<Props> = ({
           }}
         >
           <div ref={wrapRef} className="flex flex-col items-center gap-4">
-            {selectedTemplate?.renderer === "circular" && <CircularTemplate {...props} />}
-            {selectedTemplate?.renderer === "professional" && <ProfessionalTemplate {...props} />}
-            {selectedTemplate?.renderer === "elegant" && <ElegantTemplate {...props} />}
-            {selectedTemplate?.renderer === "classic" && <ClassicTemplate {...props} />}
+            <Tpl {...props} />
           </div>
         </div>
       </div>

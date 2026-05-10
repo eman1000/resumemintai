@@ -16,6 +16,9 @@ import { withAuth } from "../../_client/withAuth";
 import { LanguageProvider, useI18n } from "@/app/context/LanguageContext";
 import { LanguageCode, localizeDocTitles } from "@/lib/i18n";
 import FullscreenLoader from "../../components/FullscreenLoader";
+import LoginSlidePanel from "@/components/LoginSlidePanel";
+import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 type LoadedResume = {
   id?: string;
@@ -29,22 +32,26 @@ type LoadedResume = {
 // EditPageWithProvider
 export default function EditPageWithProvider() {
   const { resumeId } = useParams<{ resumeId: string }>();
+  const isLocal = String(resumeId).startsWith("local-");
   const [bootLang, setBootLang] = React.useState<LanguageCode | null>(null);
 
   React.useEffect(() => {
+    if (isLocal) {
+      setBootLang("en");
+      return;
+    }
     (async () => {
       try {
         const r = await fetch(`/api/resumes/${resumeId}`, await withAuth());
         const j = await r.json().catch(() => ({}));
-        console.log("Boot language:", j?.language);
-        setBootLang((j?.language as LanguageCode) || "en"); // or fallback you prefer
+        setBootLang((j?.language as LanguageCode) || "en");
       } catch {
         setBootLang("en");
       }
     })();
-  }, [resumeId]);
+  }, [resumeId, isLocal]);
 
-  if (!bootLang) return null; // small skeleton if you want
+  if (!bootLang) return null;
 
   return (
     <LanguageProvider initial={bootLang}>
@@ -57,6 +64,20 @@ export default function EditPageWithProvider() {
 function EditPageInner() {
   const { resumeId } = useParams<{ resumeId: string }>();
   const router = useRouter();
+  const { isAuthenticated, isSubscribed, loading: authLoading } = useAuthStatus();
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [subscribeOpen, setSubscribeOpen] = React.useState(false);
+  // True when the login panel was opened by a pro-feature gate; once login
+  // completes we should chain into the subscribe panel without making the user
+  // click the gated feature again.
+  const [pendingProAfterLogin, setPendingProAfterLogin] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!pendingProAfterLogin) return;
+    if (!isAuthenticated || authLoading) return;
+    setPendingProAfterLogin(false);
+    if (!isSubscribed) setSubscribeOpen(true);
+  }, [pendingProAfterLogin, isAuthenticated, authLoading, isSubscribed]);
 
   const [loaded, setLoaded] = React.useState<LoadedResume | null>(null);
   const [title, setTitle] = React.useState<string>("Untitled CV");
@@ -94,8 +115,28 @@ const handleChangeLanguage = (next: LanguageCode) => {
     onDeleted: () => router.push("/builder"),
   });
 
+  const isLocal = String(resumeId).startsWith("local-");
+
   // Load once
   React.useEffect(() => {
+    if (isLocal) {
+      // Load from localStorage for anonymous users
+      try {
+        const stored = localStorage.getItem(`resume:${resumeId}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setLoaded({ id: String(resumeId), title: parsed.title || "Untitled CV", renderer: parsed.renderer || "professional", data: parsed.data });
+          setTitle(parsed.title || "Untitled CV");
+          setRenderer(parsed.renderer || "professional");
+          setData(parsed.data ?? { id: "local", sections: [] });
+        } else {
+          setLoaded({ id: String(resumeId), title: "Untitled CV", renderer: "professional", data: { id: "local", sections: [] } });
+        }
+      } catch {
+        setLoaded({ id: String(resumeId), title: "Untitled CV", renderer: "professional", data: { id: "local", sections: [] } });
+      }
+      return;
+    }
     (async () => {
       const res = await fetch(`/api/resumes/${resumeId}`, await withAuth());
       if (res.status === 404) { router.replace("/builder"); return; }
@@ -112,11 +153,26 @@ const handleChangeLanguage = (next: LanguageCode) => {
      prevLangRef.current = loadedLang;
    }
     })().catch(() => router.replace("/builder"));
-  }, [resumeId, router]);
+  }, [resumeId, router, isLocal]);
 
   // Save used by autosave
   const save = React.useCallback(
     async (payload: { title?: string; renderer?: string; data?: any; language?: string }) => {
+      // For local resumes, save to localStorage only
+      if (isLocal) {
+        setSavingState("saving");
+        try {
+          const existing = JSON.parse(localStorage.getItem(`resume:${resumeId}`) || "{}");
+          localStorage.setItem(`resume:${resumeId}`, JSON.stringify({ ...existing, ...payload }));
+          setSavingState("saved");
+          setTimeout(() => setSavingState("idle"), 1200);
+        } catch {
+          setSavingState("error");
+          setTimeout(() => setSavingState("idle"), 1500);
+        }
+        return;
+      }
+
       setSavingState("saving");
       try {
         await fetch(`/api/resumes/${resumeId}`, await withAuth({
@@ -154,7 +210,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
         throw e;
       }
     },
-    [resumeId]
+    [resumeId, isLocal]
   );
 
   // Autosave (title, renderer, data)
@@ -168,6 +224,14 @@ const handleChangeLanguage = (next: LanguageCode) => {
   });
 
   const handleDownload = async () => {
+    if (!isAuthenticated) {
+      setLoginOpen(true);
+      return;
+    }
+    if (!isSubscribed) {
+      router.push('/landing/vtdft');
+      return;
+    }
     if (!wrapRef.current) return;
     await exportSvgContainerToPdf(wrapRef.current, {
       filename: `resume-${new Date().toISOString().slice(0, 10)}.pdf`,
@@ -189,6 +253,21 @@ const handleChangeLanguage = (next: LanguageCode) => {
 
   return (
     <div className="min-h-screen bg-white">
+      <LoginSlidePanel
+        open={loginOpen}
+        onClose={() => {
+          setLoginOpen(false);
+          setPendingProAfterLogin(false);
+        }}
+        onSuccess={() => setLoginOpen(false)}
+        reason={pendingProAfterLogin
+          ? "Sign in to unlock premium templates and features."
+          : "Sign in to download your resume."}
+      />
+      <SubscribeSlidePanel
+        open={subscribeOpen}
+        onClose={() => setSubscribeOpen(false)}
+      />
       <TopBar
       // key={`topbar-${lang}`}
         title={title}
@@ -234,8 +313,17 @@ const handleChangeLanguage = (next: LanguageCode) => {
         i18n={{ t, lang, months, skillLevels }}
         renderer={renderer}
         lang={lang}
-        dateFormat={dateFormat} 
+        dateFormat={dateFormat}
         onChangeRenderer={setRenderer}
+        isSubscribed={isSubscribed}
+        onAuthGate={() => {
+          if (!isAuthenticated) {
+            setPendingProAfterLogin(true);
+            setLoginOpen(true);
+            return;
+          }
+          if (!isSubscribed) { setSubscribeOpen(true); }
+        }}
       />
 
       {/* Rename dialog (from menu) */}
