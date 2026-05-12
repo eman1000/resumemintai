@@ -1,4 +1,4 @@
-// app/api/resumes/[id]/route.ts
+// app/api/cover-letters/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
 import prisma from '@/lib/prisma';
@@ -7,10 +7,7 @@ import { BASE_LANG_LABELS, LanguageCode } from '@/lib/i18n';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_RENDERERS = new Set([
-  'circular','professional','elegant','classic','modern','minimal',
-  'creative','compact','executive','chrono','horizontal','casual',
-]);
+const ALLOWED_RENDERERS = new Set(['circular', 'professional', 'elegant', 'classic']);
 
 async function getDbUserIdByFirebaseUid(firebaseUid: string) {
   const u = await prisma.user.findUnique({
@@ -26,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     const userId = await getDbUserIdByFirebaseUid(fb.uid);
     if (!userId) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-    const r = await prisma.resume.findFirst({
+    const r = await prisma.coverLetter.findFirst({
       where: { id: params.id, userId },
       select: {
         id: true,
@@ -35,6 +32,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         data: true,
         updatedAt: true,
         language: true,
+        resumeId: true,
       },
     });
 
@@ -42,17 +40,18 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
     return NextResponse.json({
       id: r.id,
-      title: r.title ?? 'Untitled CV',
+      title: r.title ?? 'Untitled Cover Letter',
       renderer: r.renderer ?? 'professional',
       data: r.data ?? null,
       language: r.language,
+      resumeId: r.resumeId || null,
       updatedAt: r.updatedAt ? r.updatedAt.toISOString() : null,
     });
   } catch (e: any) {
     if (e?.name === 'UNAUTHORIZED') {
       return NextResponse.json({ error: e.message || 'unauthorized' }, { status: 401 });
     }
-    console.error('[GET /api/resumes/:id]', e);
+    console.error('[GET /api/cover-letters/:id]', e);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
 }
@@ -67,7 +66,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const title: string | undefined = body.title?.toString();
     const renderer: string | undefined = body.renderer?.toString();
     const data = body.data;
-    const language: LanguageCode | undefined = body.language?.toString();
+    const language: LanguageCode | undefined = body.language?.toString() as LanguageCode | undefined;
 
     if (renderer && !ALLOWED_RENDERERS.has(renderer)) {
       return NextResponse.json({ error: 'invalid_renderer' }, { status: 400 });
@@ -90,7 +89,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ ok: true });
     }
 
-    const result = await prisma.resume.updateMany({
+    const result = await prisma.coverLetter.updateMany({
       where: { id: params.id, userId },
       data: updateData,
     });
@@ -101,7 +100,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (e?.name === 'UNAUTHORIZED') {
       return NextResponse.json({ error: e.message || 'unauthorized' }, { status: 401 });
     }
-    console.error('[PATCH /api/resumes/:id]', e);
+    console.error('[PATCH /api/cover-letters/:id]', e);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
 }
@@ -112,7 +111,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     const userId = await getDbUserIdByFirebaseUid(fb.uid);
     if (!userId) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-    const result = await prisma.resume.deleteMany({
+    const result = await prisma.coverLetter.deleteMany({
       where: { id: params.id, userId },
     });
     if (!result.count) return NextResponse.json({ error: 'not_found' }, { status: 404 });
@@ -121,7 +120,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     if (e?.name === 'UNAUTHORIZED') {
       return NextResponse.json({ error: e.message || 'unauthorized' }, { status: 401 });
     }
-    console.error('[DELETE /api/resumes/:id]', e);
+    console.error('[DELETE /api/cover-letters/:id]', e);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
+// app/api/account/claim/route.ts
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import pool from '../../server/db/pool';
 import { adminAuth } from '@/app/api/server/auth/firebase-admin';
 import {
   ensureGuestAccount,
@@ -45,14 +45,12 @@ export async function POST(req: Request) {
     const { accountId } = (await req.json()) as { accountId?: string };
     if (!accountId) return NextResponse.json({ error: 'missing_account_id' }, { status: 400 });
 
-    // ensure guest row (with guest email) exists
-    await ensureGuestAccount(pool, accountId);
+    await ensureGuestAccount(null, accountId);
 
-    // DB mapping → fallback to Stripe search
-    let customerId = await getStripeCustomerIdByAccountId(pool, accountId);
+    let customerId = await getStripeCustomerIdByAccountId(null, accountId);
     if (!customerId) {
       customerId = await findStripeCustomerIdByAccountIdViaStripe(accountId);
-      if (customerId) await setStripeCustomerIdByAccountId(pool, accountId, customerId);
+      if (customerId) await setStripeCustomerIdByAccountId(null, accountId, customerId);
     }
     if (!customerId) return NextResponse.json({ error: 'no_stripe_customer' }, { status: 400 });
 
@@ -66,40 +64,38 @@ export async function POST(req: Request) {
     });
 
     try {
-  await linkAuthUserToAccount(pool, uid, accountId);
-} catch (err: any) {
-  // UID already bound elsewhere → merge guest into existing (survivor)
-  const existingUserId = await getUserIdByFirebaseUid(pool, uid);
-  if (!existingUserId) throw err;
+      await linkAuthUserToAccount(null, uid, accountId);
+    } catch (err: any) {
+      // UID already bound elsewhere → merge guest into existing (survivor)
+      const existingUserId = await getUserIdByFirebaseUid(null, uid);
+      if (!existingUserId) throw err;
 
-  const { adoptedCustomerId } = await mergeGuestAccountIntoUser(pool, accountId, existingUserId);
+      const { adoptedCustomerId } = await mergeGuestAccountIntoUser(null, accountId, existingUserId);
 
-  // Determine the survivor's customerId after merge
-  const customerId =
-    adoptedCustomerId || (await getStripeCustomerIdByAccountId(pool, existingUserId));
+      const survivorCustomerId =
+        adoptedCustomerId || (await getStripeCustomerIdByAccountId(null, existingUserId));
 
-  // Sync Stripe metadata/email to survivor
-  if (customerId) {
-    const cust = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
-    await stripe.customers.update(customerId, {
-      email: email || cust.email || undefined,
-      metadata: { ...(cust.metadata || {}), accountId: existingUserId, uid },
-    });
-  }
+      if (survivorCustomerId) {
+        const survivorCust = (await stripe.customers.retrieve(survivorCustomerId)) as Stripe.Customer;
+        await stripe.customers.update(survivorCustomerId, {
+          email: email || survivorCust.email || undefined,
+          metadata: { ...(survivorCust.metadata || {}), accountId: existingUserId, uid },
+        });
+      }
 
-  if (email) await setUserEmailIfGuestOrEmpty(pool, existingUserId, email);
+      if (email) await setUserEmailIfGuestOrEmpty(null, existingUserId, email);
 
-  return NextResponse.json({
-    ok: true,
-    accountId: existingUserId,
-    customerId: customerId || null,
-    uid,
-    email: email || null,
-    merged: true,
-  });
-}
+      return NextResponse.json({
+        ok: true,
+        accountId: existingUserId,
+        customerId: survivorCustomerId || null,
+        uid,
+        email: email || null,
+        merged: true,
+      });
+    }
 
-    if (email) await setUserEmailIfGuestOrEmpty(pool, accountId, email);
+    if (email) await setUserEmailIfGuestOrEmpty(null, accountId, email);
 
     return NextResponse.json({ ok: true, accountId, customerId, uid, email: email || cust.email || null });
   } catch (e: any) {

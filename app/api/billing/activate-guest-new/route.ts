@@ -1,7 +1,7 @@
+// app/api/billing/activate-guest-new/route.ts
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { getUserByEmail, ensureUserByEmail, setStripeCustomerId } from '../../server/db/user';
-import pool from '../../server/db/pool';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,6 @@ export async function POST(req: Request) {
     const customerId = typeof si.customer === 'string' ? si.customer : (si.customer as any)?.id;
     if (!customerId) return NextResponse.json({ error: 'no_customer' }, { status: 400 });
 
-    // Email priority: SI.metadata.email → Stripe customer.email
     let email = (si as any)?.metadata?.email as string | undefined;
     if (!email) {
       const cust = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
@@ -32,11 +31,11 @@ export async function POST(req: Request) {
     if (!email) return NextResponse.json({ error: 'no_email' }, { status: 400 });
     const norm = email.trim().toLowerCase();
 
-    const existing = await getUserByEmail(pool, norm);
-    const userId = existing?.id ?? (await ensureUserByEmail(pool, norm));
+    const existing = await getUserByEmail(null, norm);
+    const userId = existing?.id ?? (await ensureUserByEmail(null, norm));
 
     if (!existing?.stripe_customer_id) {
-      await setStripeCustomerId(pool, userId, customerId);
+      await setStripeCustomerId(null, userId, customerId);
     }
 
     const pm = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id;

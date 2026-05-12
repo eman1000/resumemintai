@@ -1,12 +1,13 @@
-// app/api/billing/start-guest/route.ts
+// app/api/billing/start-guest-new/route.ts
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
 
-import pool from '../../server/db/pool';
-import { ensureGuestAccount, getStripeCustomerIdByAccountId, setStripeCustomerIdByAccountId } from '../../server/db/user';
-
-
+import {
+  ensureGuestAccount,
+  getStripeCustomerIdByAccountId,
+  setStripeCustomerIdByAccountId,
+} from '../../server/db/user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,12 +26,10 @@ export async function POST(req: Request) {
       templateId?: string;
     };
 
-    // 1) Resolve accountId and ENSURE the users row exists with a guest email
     const accountId = body.accountId ?? crypto.randomUUID();
-    await ensureGuestAccount(pool, accountId);        // ✅ prevents CHECK failure
+    await ensureGuestAccount(null, accountId);
 
-    // 2) Reuse or create Stripe customer
-    let customerId = await getStripeCustomerIdByAccountId(pool, accountId);
+    let customerId = await getStripeCustomerIdByAccountId(null, accountId);
     if (!customerId) {
       const customer = await stripe.customers.create({
         metadata: {
@@ -39,10 +38,9 @@ export async function POST(req: Request) {
         },
       });
       customerId = customer.id;
-      await setStripeCustomerIdByAccountId(pool, accountId, customerId);
+      await setStripeCustomerIdByAccountId(null, accountId, customerId);
     }
 
-    // 3) Create SetupIntent tagged with accountId
     const payload: Stripe.SetupIntentCreateParams = {
       customer: customerId,
       usage: 'off_session',
@@ -63,7 +61,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4) Return identifiers for the client
     return NextResponse.json({
       clientSecret: si.client_secret!,
       customerId,

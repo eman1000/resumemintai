@@ -1,22 +1,20 @@
+// app/api/account/ensure/route.ts
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '../../server/db/pool';
+import prisma from '@/lib/prisma';
 import { ensureDbUserByFirebaseUid } from '../../server/db/user';
-import { run } from '../../server/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ACTIVE = ['active','trialing','past_due'] as const;
+const ACTIVE = ['active', 'trialing', 'past_due'];
 
 async function hasActiveSubByUserId(userId: string) {
-  const { rows } = await run(pool, (c) =>
-    c.query(
-      `select 1 from public.subscriptions where user_id = $1 and status = any($2::text[]) limit 1`,
-      [userId, ACTIVE]
-    ),
-  );
-  return !!rows[0];
+  const sub = await prisma.subscription.findFirst({
+    where: { userId, status: { in: ACTIVE } },
+    select: { id: true },
+  });
+  return !!sub;
 }
 
 export async function POST(req: NextRequest) {

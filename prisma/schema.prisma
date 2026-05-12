@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                     String   @id @default(uuid()) @db.Uuid
+  email                  String?  @unique
+  firebaseUid            String?  @unique @map("firebase_uid")
+  stripeCustomerId       String?  @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?  @map("stripe_subscription_id")
+  plan                   String   @default("free")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  resumes       Resume[]
+  coverLetters  CoverLetter[]
+  subscriptions Subscription[]
+  jobResults    JobResult[]
+
+  @@map("users")
+}
+
+model Resume {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  title        String   @default("Untitled CV")
+  renderer     String   @default("professional")
+  data         Json     @default("{}")
+  language     String?
+  thumbnailUrl String?  @map("thumbnail_url")
+  archived     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coverLetters CoverLetter[]
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model CoverLetter {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  resumeId     String?  @map("resume_id") @db.Uuid
+  title        String   @default("Untitled Cover Letter")
+  renderer     String   @default("professional")
+  data         Json     @default("{}")
+  language     String?
+  thumbnailUrl String?  @map("thumbnail_url")
+  archived     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume? @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([resumeId])
+  @@map("cover_letters")
+}
+
+model Subscription {
+  id                  String    @id // Stripe subscription id
+  userId              String    @map("user_id") @db.Uuid
+  status              String
+  priceId             String?   @map("price_id")
+  currentPeriodEnd    DateTime? @map("current_period_end") @db.Timestamptz
+  cancelAtPeriodEnd   Boolean   @default(false) @map("cancel_at_period_end")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model JobResult {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  requestedRole String   @map("requested_role")
+  location      String?
+  country       String?
+  results       Json     @default("[]")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("job_results")
+}
+
+model Event {
+  id          String   @id @default(uuid()) @db.Uuid
+  event       String
+  props       Json     @default("{}")
+  keymanId    String?  @map("keyman_id")
+  uid         String?
+  ua          String?
+  ip          String?
+  ref         String?
+  path        String?
+  tsClient    DateTime @map("ts_client") @db.Timestamptz
+  tsServer    DateTime @default(now()) @map("ts_server") @db.Timestamptz
+  dedupeKey   String?  @map("dedupe_key")
+  ipCountry   String?  @map("ip_country")
+  regionCode  String?  @map("region_code")
+  city        String?
+  postalCode  String?  @map("postal_code")
+  lat         Float?
+  lon         Float?
+  geoSource   String?  @map("geo_source")
+  country     String?
+
+  @@unique([event, dedupeKey])
+  @@index([tsServer])
+  @@map("events")
+}
+
+model Contact {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String
+  subject   String?
+  message   String
+  keymanId  String?  @map("keyman_id")
+  path      String?
+  ref       String?
+  ua        String?
+  ip        String?
+  ipCountry String?  @map("ip_country")
+  ipRegion  String?  @map("ip_region")
+  ipCity    String?  @map("ip_city")
+  ipPostal  String?  @map("ip_postal")
+  ipLat     Float?   @map("ip_lat")
+  ipLon     Float?   @map("ip_lon")
+  country   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([createdAt])
+  @@map("contacts")
+}

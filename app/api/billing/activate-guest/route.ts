@@ -1,7 +1,7 @@
+// app/api/billing/activate-guest/route.ts
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
-import pool from '../../server/db/pool';
-import { setStripeCustomerId } from '../../server/db/user'; // upsert mapping (accountId -> stripe customer)
+import { setStripeCustomerId } from '../../server/db/user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,18 +18,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'missing_params' }, { status: 400 });
     }
 
-  //Retrieve SetupIntent
     const si = await stripe.setupIntents.retrieve(setupIntentId);
     if (si.status !== 'succeeded' && si.status !== 'processing') {
       return NextResponse.json({ error: 'setup_incomplete', status: si.status }, { status: 400 });
     }
 
-    // Resolve customer + accountId from metadata (no email)
     const customerId =
       typeof si.customer === 'string' ? si.customer : (si.customer as any)?.id;
     if (!customerId) return NextResponse.json({ error: 'no_customer' }, { status: 400 });
 
-    // Prefer SI metadata; fallback to customer metadata
     let accountId = (si.metadata as any)?.accountId as string | undefined;
     if (!accountId) {
       const cust = (await stripe.customers.retrieve(customerId)) as Stripe.Customer;
@@ -39,26 +36,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'no_account_id' }, { status: 400 });
     }
 
-    // Grab the confirmed payment method
     const pm =
       typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id;
     if (!pm) return NextResponse.json({ error: 'no_payment_method' }, { status: 400 });
 
-    // 4) Persist mapping locally (best-effort upsert)
     try {
-      await setStripeCustomerId(pool, accountId, customerId);
+      await setStripeCustomerId(null, accountId, customerId);
     } catch (e) {
-      // non-fatal; continue (Stripe is source-of-truth for billing)
       console.warn('[activate-guest] setStripeCustomerId failed', e);
     }
 
-    // Also set default PM on the customer (helps invoices)
     await stripe.customers.update(customerId, {
       invoice_settings: { default_payment_method: pm },
       metadata: { accountId },
     });
 
-    //  Create subscription
     const trialDays = Number(process.env.STRIPE_TRIAL_DAYS ?? 0);
     const idem = `activate-guest:${customerId}:${setupIntentId}:${priceId}`;
 
@@ -73,11 +65,11 @@ export async function POST(req: Request) {
           trialDays > 0
             ? { end_behavior: { missing_payment_method: 'cancel' } }
             : undefined,
-        payment_behavior: 'allow_incomplete', // let invoice finalize/attempt off-session
+        payment_behavior: 'allow_incomplete',
         metadata: { accountId },
         expand: ['latest_invoice.payment_intent'],
       },
-      { idempotencyKey: idem }
+      { idempotencyKey: idem },
     );
 
     return NextResponse.json({
@@ -86,7 +78,7 @@ export async function POST(req: Request) {
       cancelAtPeriodEnd: !!subscription.cancel_at_period_end,
       // @ts-ignore
       currentPeriodEnd: subscription.current_period_end
-      // @ts-ignore
+        // @ts-ignore
         ? new Date(subscription.current_period_end * 1000).toISOString()
         : null,
       customerId,
@@ -96,7 +88,7 @@ export async function POST(req: Request) {
     console.error('[activate-guest] error', e);
     return NextResponse.json(
       { error: 'activate_failed', detail: e?.message || 'unexpected_error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
