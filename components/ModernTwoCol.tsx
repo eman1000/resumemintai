@@ -4,7 +4,7 @@ import type { Resume } from '@/types/resume';
 export default function ModernTwoCol({ data, accent = '#f43f5e' }: { data: Resume; accent?: string }) {
   const c = data.contact || {};
   return (
-    <div className="bg-white text-neutral-900 rounded-2xl p-8 print:rounded-none print:p-6"
+    <div className="bg-white text-[#1d1d20] rounded-2xl p-8 print:rounded-none print:p-6"
          style={{ fontFamily: 'Inter, ui-sans-serif', fontSize: 11 }}>
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -17,13 +17,13 @@ export default function ModernTwoCol({ data, accent = '#f43f5e' }: { data: Resum
         <aside className="col-span-1">
           {data.summary && (
             <section className="mb-4">
-              <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-neutral-500">Profile</h3>
+              <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-[#52525a]">Profile</h3>
               <p className="mt-1 leading-[1.45]">{data.summary}</p>
             </section>
           )}
 
           <section className="mb-4">
-            <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-neutral-500">Skills</h3>
+            <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-[#52525a]">Skills</h3>
             <div className="mt-1">
               <p><span className="font-semibold">Core:</span> {data.skills.core.join(', ')}</p>
               <p><span className="font-semibold">Tools:</span> {data.skills.tools.join(', ')}</p>
@@ -33,7 +33,7 @@ export default function ModernTwoCol({ data, accent = '#f43f5e' }: { data: Resum
 
           {!!data.education?.length && (
             <section className="mb-4">
-              <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-neutral-500">Education</h3>
+              <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-[#52525a]">Education</h3>
               <div className="mt-1 space-y-2">
                 {data.education.map((ed, i) => (
                   <div key={i}>
@@ -50,7 +50,7 @@ export default function ModernTwoCol({ data, accent = '#f43f5e' }: { data: Resum
         <main className="col-span-2">
           <section>
             <div className="h-1 w-16 rounded-full mb-2" style={{ background: accent, opacity: .25 }} />
-            <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-neutral-500">Experience</h3>
+            <h3 className="text-[12px] font-semibold uppercase tracking-[.12em] text-[#52525a]">Experience</h3>
             <div className="mt-1 space-y-3">
               {data.experience.map((e, i) => (
                 <div key={i}>

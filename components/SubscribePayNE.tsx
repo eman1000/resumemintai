@@ -202,7 +202,7 @@ function WalletAutoFlow({
         </button>
       ) : (
         // Optional lightweight placeholder while waiting
-        <div className="text-sm text-neutral-400">Loading…</div>
+        <div className="text-sm text-[#a1a1aa]">Loading…</div>
       )}
 
      

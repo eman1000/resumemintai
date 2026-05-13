@@ -181,7 +181,7 @@ export default function BillingReturn() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-neutral-100 flex items-center justify-center px-4 py-16">
+    <main className="min-h-screen bg-[#f8fbfc] text-[#1d1d20] flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-lg">
         {/* Header / status */}
         <div className="text-center mb-6">
@@ -209,16 +209,16 @@ export default function BillingReturn() {
           <h1 className="text-2xl font-semibold tracking-tight">
             {phase === 'finalizing' ? 'Finalizing your setup…' : 'Payment method saved'}
           </h1>
-          <p className="mt-2 text-sm text-neutral-400">{msg}</p>
+          <p className="mt-2 text-sm text-[#52525a]">{msg}</p>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-xl p-6 space-y-6">
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-xl p-6 space-y-6">
           {/* Google button */}
           <button
             onClick={continueWithGoogle}
             disabled={googleBusy || phase !== 'ready'}
-            className="group w-full flex items-center justify-center gap-3 rounded-xl bg-white text-neutral-900 font-semibold py-3 transition hover:-translate-y-0.5 disabled:opacity-60"
+            className="group w-full flex items-center justify-center gap-3 rounded-xl bg-brand text-white font-semibold py-3 transition hover:bg-brand-700 hover:-translate-y-0.5 disabled:opacity-60"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
               <path
@@ -231,20 +231,20 @@ export default function BillingReturn() {
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <div className="text-xs uppercase tracking-wider text-white/50">or</div>
-            <div className="h-px flex-1 bg-white/10" />
+            <div className="h-px flex-1 bg-gray-200" />
+            <div className="text-xs uppercase tracking-wider text-[#a1a1aa]">or</div>
+            <div className="h-px flex-1 bg-gray-200" />
           </div>
 
           {/* Email claim */}
           <div className="space-y-3">
-            <label htmlFor="email" className="block text-sm text-white/80 text-left">
+            <label htmlFor="email" className="block text-sm text-[#52525a] text-left">
               Sign in with a magic link
             </label>
             <input
               id="email"
               placeholder="you@domain.com"
-              className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 outline-none ring-0 focus:border-violet-400/50"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 outline-none ring-0 focus:border-brand focus:ring-1 focus:ring-brand"
               value={emailForClaim}
               onChange={(e) => setEmailForClaim(e.target.value)}
               type="email"
@@ -253,23 +253,23 @@ export default function BillingReturn() {
             <button
               onClick={sendLink}
               disabled={sending || phase !== 'ready'}
-              className="w-full rounded-xl bg-violet-500 text-white font-semibold py-3 transition hover:bg-violet-500/90 disabled:opacity-60"
+              className="w-full rounded-xl bg-brand text-white font-semibold py-3 transition hover:bg-brand-700 disabled:opacity-60"
             >
               {sending ? 'Sending link…' : 'Email me a sign-in link'}
             </button>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-[#a1a1aa]">
               We’ll link your purchase to this email. You can change it later in Settings.
             </p>
           </div>
 
           {/* Support hint */}
-          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-400">
-            Need help? <a href="/contact" className="underline">Contact support</a>.
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-[#52525a]">
+            Need help? <a href="/contact" className="underline text-brand">Contact support</a>.
           </div>
         </div>
 
         {/* Subtle footer */}
-        <p className="mt-6 text-center text-xs text-neutral-500">
+        <p className="mt-6 text-center text-xs text-[#a1a1aa]">
           Your details are encrypted and never shared without consent.
         </p>
       </div>

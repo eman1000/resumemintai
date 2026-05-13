@@ -25,7 +25,7 @@ function RenameDialog({
         <div className="mt-3">
           <input
             autoFocus
-            className="w-full rounded-lg border px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-[#1d1d20] focus:outline-none focus:ring-2 focus:ring-brand"
             placeholder="Untitled CV"
             value={val}
             onChange={(e) => setVal(e.target.value)}
@@ -39,7 +39,7 @@ function RenameDialog({
             Cancel
           </button>
           <button
-            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+            className="px-3 py-1.5 rounded-lg bg-brand text-white hover:bg-brand-700 disabled:opacity-60"
             onClick={() => onSubmit(val.trim())}
             disabled={!val.trim()}
           >

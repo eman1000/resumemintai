@@ -75,15 +75,15 @@ export default function ForceLinkAccount() {
       aria-modal="true"
       role="dialog"
     >
-      <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-950 p-6 shadow-2xl">
-        <h2 className="text-xl font-semibold mb-2">Save your account</h2>
-        <p className="text-sm text-neutral-400 mb-4">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
+        <h2 className="text-xl font-semibold text-[#1d1d20] mb-2">Save your account</h2>
+        <p className="text-sm text-[#52525a] mb-4">
           You’re currently using a temporary (anonymous) account. Link it to Google to keep your
           resume, settings and subscription across devices.
         </p>
 
         {!!errMsg && (
-          <div className="mb-4 rounded-lg border border-red-900/50 bg-red-900/10 px-3 py-2 text-sm text-red-300">
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-600">
             {errMsg}
           </div>
         )}
@@ -91,12 +91,12 @@ export default function ForceLinkAccount() {
         <button
           onClick={linkGoogle}
           disabled={busy}
-          className="w-full rounded-xl bg-white px-4 py-2 font-semibold text-black disabled:opacity-60"
+          className="w-full rounded-xl bg-brand px-4 py-2 font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
         >
-          {busy ? 'Linking…' : 'Continue with Google'}
+          {busy ? ‘Linking…’ : ‘Continue with Google’}
         </button>
 
-        <div className="mt-3 text-xs text-neutral-500">
+        <div className="mt-3 text-xs text-[#a1a1aa]">
           This step takes ~5 seconds. Once linked, you can sign in on any device.
         </div>
       </div>

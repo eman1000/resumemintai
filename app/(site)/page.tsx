@@ -1,136 +1,178 @@
 import Link from 'next/link';
-import { CheckCircle2, Wand2, Sparkles, ShieldCheck, Clock, FileText, Star } from 'lucide-react';
+import { CheckCircle2, Wand2, ShieldCheck, Clock, FileText, Star, ChevronDown, Briefcase, PenLine, LayoutTemplate } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
-const tiers = [
-  {
-    name: 'Starter',
-    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€19.99/month'],
-    desc: 'Perfect for users exploring AI resume improvement for the first time.',
-    featuresYes: [
-      '1 resume template (basic layout)',
-      '10 resume optimizations per job description',
-      'Tech & Soft Skills keyword generation',
-    ],
-    featuresNo: ['No AI summary generation', 'No experience-level rewrite'],
-    cta: '/login?return=/builder',
-  },
-  {
-    name: 'Pro',
-    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€29.99/month'],
-    desc: 'Designed for serious applicants targeting multiple roles.',
-    featuresYes: [
-      'Access to 3 resume templates',
-      '20 resume optimizations per job description',
-      'AI-generated summary',
-      'Tech & Soft Skills keyword generation',
-      'Rewrite for up to 2 company experiences',
-    ],
-    badge: 'Most Popular',
-    cta: '/login?return=/builder',
-  },
-  {
-    name: 'Elite',
-    topNote: ['Starting today', '€0.01 trial', 'Starting tomorrow', '€19.99/month'],
-    desc: 'For professionals and power users who want it all.',
-    featuresYes: [
-      'All templates unlocked (10+ modern styles)',
-      '100+ resume optimizations per job description',
-      'Full AI suite: summary + keyword generation',
-      'Rewrite for all companies in the resume',
-      'Priority customer support',
-    ],
-    cta: '/login?return=/builder',
-  },
+
+const features = [
+  { icon: Wand2, t: 'AI-Powered Writing', d: 'Get intelligent suggestions for every section of your resume.' },
+  { icon: ShieldCheck, t: 'ATS Compatible', d: 'Clean structure that parsing systems read perfectly.' },
+  { icon: Clock, t: 'Ready in Minutes', d: 'Create a polished resume in under 5 minutes.' },
+  { icon: FileText, t: 'Keyword Optimization', d: 'Surface and include critical keywords from job descriptions.' },
+  { icon: Star, t: '12 Professional Templates', d: 'Choose from modern, elegant, and classic designs.' },
+  { icon: CheckCircle2, t: 'PDF Export', d: 'Download your resume as a professional PDF instantly.' },
+];
+
+const tools = [
+  { icon: FileText, t: 'Resume Builder', d: 'Create professional resumes with AI assistance and 12 templates.', href: '/templates' },
+  { icon: PenLine, t: 'Cover Letters', d: 'Write compelling cover letters matched to each application.', href: '/cover-letter-templates' },
+  { icon: LayoutTemplate, t: 'Templates', d: 'Browse all resume and cover letter templates.', href: '/templates' },
+  { icon: Briefcase, t: 'Job Tracker', d: 'Search and track job opportunities in one place.', href: '/login?return=/jobs' },
+];
+
+const steps = [
+  { n: '1', t: 'Fill in your details', d: 'Add your work experience, education, and skills — or import from LinkedIn.' },
+  { n: '2', t: 'Choose a template', d: 'Pick from 12 professionally designed templates that suit your style.' },
+  { n: '3', t: 'Download & apply', d: 'Export as PDF and start applying to jobs with confidence.' },
+];
+
+const reviews = [
+  { name: 'Sarah C.', role: 'Software Engineer', text: 'Got 5 interviews in 2 weeks — the AI suggestions made my bullets show real impact.', stars: 5 },
+  { name: 'Marcus J.', role: 'Product Manager', text: 'Identified gaps in my resume and helped me tailor it for PM roles perfectly.', stars: 5 },
+  { name: 'Emily R.', role: 'Data Scientist', text: 'Saved me hours of work. The keyword optimization alone boosted my response rate.', stars: 5 },
+];
+
+const faqs = [
+  { q: 'Is there a free trial?', a: 'Yes! You get a 14-day free trial with full access to all features, templates, and AI tools. No commitment required.' },
+  { q: 'Can I cancel anytime?', a: 'Absolutely. You can cancel your subscription at any time from your account settings. No questions asked.' },
+  { q: 'What file formats can I export?', a: 'You can export your resume and cover letters as PDF files, optimized for both digital submission and printing.' },
+  { q: 'Is my data secure?', a: 'Yes. We use industry-standard encryption and never share your personal information with third parties.' },
+  { q: 'Can I create multiple resumes?', a: 'Yes! Create as many resumes and cover letters as you need, each tailored to different job applications.' },
 ];
 
 export default function LandingPage() {
   return (
     <>
       <SiteNav />
-      <header className="relative overflow-hidden">
-        <div className="blob blob-1" />
-        <div className="blob blob-2" />
-        <div className="section text-center relative">
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-            AI‑Powered <span className="bg-gradient-to-r from-blue-400 via-fuchsia-400 to-rose-400 bg-clip-text text-transparent">Resume Optimization</span>
+
+      {/* Hero */}
+      <header className="bg-white">
+        <div className="max-w-site mx-auto px-4 py-20 text-center">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#1d1d20] leading-tight">
+            Create your professional resume
           </h1>
-          <p className="mt-4 text-neutral-400 text-lg max-w-2xl mx-auto">
-            Upload your resume, paste any job description, and get an ATS‑optimized resume in under 2 minutes.
+          <p className="mt-4 text-[#52525a] text-lg max-w-2xl mx-auto">
+            Build a job-winning resume in minutes with AI-powered suggestions, professional templates, and one-click PDF export.
           </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <Link href="/login?return=/builder" className="btn-gradient">Start Optimizing Now</Link>
-            {/* <a href="#pricing" className="px-5 py-3 rounded-xl bg-neutral-900 border border-neutral-800">See Pricing</a> */}
+          <div className="mt-8 flex justify-center gap-3">
+            <Link href="/builder" className="btn-primary text-base">
+              Get started
+            </Link>
           </div>
-          <div className="mt-6 flex justify-center gap-4 text-sm text-neutral-400">
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Multiple templates</span>
-            <span className="flex items-center gap-2"><Wand2 className="w-4 h-4" /> AI optimization</span>
-            <span className="flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> ATS compatible</span>
-            <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> 2‑minute process</span>
+          <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
+            <span className="flex items-center gap-1.5"><Star className="w-4 h-4 text-[#00b67a]" fill="#00b67a" /> 4.5/5 from 10,000+ users</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> 14-day free trial</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand" /> Cancel anytime</span>
           </div>
         </div>
       </header>
 
-      {/* Features */}
-      <section id="features" className="section">
-        <h2 className="text-3xl font-bold text-center mb-8">Why Choose <span className="text-neutral-200">YourBrand</span>?</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            { icon: Sparkles, t: '3x More Interviews', d: 'Stand out with quantified, tailored bullets.' },
-            { icon: Clock, t: 'Lightning Fast', d: 'Optimized resume in minutes, not hours.' },
-            { icon: ShieldCheck, t: 'ATS Compatible', d: 'Clean structure that parsing systems can read.' },
-            { icon: FileText, t: 'Keyword Optimization', d: 'Surface and include critical keywords from JDs.' },
-            { icon: Star, t: 'Flexible Plans', d: 'Start free, upgrade only if you love it.' },
-            { icon: CheckCircle2, t: 'Modern Templates', d: 'Designed for readability and impact.' },
-          ].map((i,idx)=>(
-            <div key={idx} className="card">
-              <div className="flex items-center gap-3">
-                <i.icon className="w-5 h-5 text-neutral-200" />
-                <h3 className="font-semibold">{i.t}</h3>
+      {/* How it Works */}
+      <section className="bg-[#f8fbfc]">
+        <div className="max-w-site mx-auto px-4 py-16">
+          <h2 className="text-3xl font-bold text-center text-[#1d1d20] mb-10">How it works</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {steps.map((s) => (
+              <div key={s.n} className="card text-center">
+                <div className="w-12 h-12 rounded-full bg-brand-50 text-brand font-bold text-xl flex items-center justify-center mx-auto">
+                  {s.n}
+                </div>
+                <h3 className="mt-4 font-semibold text-[#1d1d20]">{s.t}</h3>
+                <p className="mt-2 text-sm text-[#52525a]">{s.d}</p>
               </div>
-              <p className="text-sm text-neutral-400 mt-1">{i.d}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* How it Works */}
-      <section id="how" className="section">
-        <h2 className="text-3xl font-bold text-center mb-8">How it Works</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            { n: '01', t: 'Upload or Paste', d: 'Add your current resume or work history.' },
-            { n: '02', t: 'Paste the Job Post', d: 'We tailor content and keywords to match.' },
-            { n: '03', t: 'Review & Export', d: 'Switch templates and print to PDF.' },
-          ].map((s,idx)=>(
-            <div key={idx} className="card text-center">
-              <div className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 to-fuchsia-400 bg-clip-text text-transparent">{s.n}</div>
-              <h3 className="mt-2 font-semibold">{s.t}</h3>
-              <p className="text-sm text-neutral-400">{s.d}</p>
-            </div>
-          ))}
+      {/* Tools */}
+      <section className="bg-white">
+        <div className="max-w-site mx-auto px-4 py-16">
+          <h2 className="text-3xl font-bold text-center text-[#1d1d20] mb-10">Our tools</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {tools.map((t) => (
+              <Link key={t.t} href={t.href} className="card group hover:shadow-lg transition-shadow">
+                <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center mb-3">
+                  <t.icon className="w-5 h-5 text-brand" />
+                </div>
+                <h3 className="font-semibold text-[#1d1d20] group-hover:text-brand transition-colors">{t.t}</h3>
+                <p className="mt-1 text-sm text-[#52525a]">{t.d}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="bg-[#f8fbfc]">
+        <div className="max-w-site mx-auto px-4 py-16">
+          <h2 className="text-3xl font-bold text-center text-[#1d1d20] mb-10">Why choose ResumeMint?</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((f, idx) => (
+              <div key={idx} className="card">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                    <f.icon className="w-4 h-4 text-brand" />
+                  </div>
+                  <h3 className="font-semibold text-[#1d1d20]">{f.t}</h3>
+                </div>
+                <p className="text-sm text-[#52525a] mt-2">{f.d}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Reviews */}
-      <section id="reviews" className="section">
-        <h2 className="text-3xl font-bold text-center mb-8">Success Stories</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            { name: 'Sarah C.', role: 'Software Engineer', text: 'Got 5 interviews in 2 weeks—the bullets finally show impact.' },
-            { name: 'Marcus J.', role: 'Product Manager', text: 'Identified gaps and helped me land PM interviews.' },
-            { name: 'Emily R.', role: 'Data Scientist', text: 'Saved hours—keywords alone boosted responses.' },
-          ].map((r, i)=>(
-            <div key={i} className="card">
-              <p className="text-sm text-neutral-400">{r.role}</p>
-              <p className="mt-2">“{r.text}”</p>
-              <p className="mt-2 text-neutral-500 text-sm">— {r.name}</p>
-            </div>
-          ))}
+      <section id="reviews" className="bg-white">
+        <div className="max-w-site mx-auto px-4 py-16">
+          <h2 className="text-3xl font-bold text-center text-[#1d1d20] mb-10">What our users say</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {reviews.map((r, i) => (
+              <div key={i} className="card">
+                <div className="flex gap-0.5 mb-2">
+                  {Array.from({ length: r.stars }).map((_, j) => (
+                    <Star key={j} className="w-4 h-4 text-[#00b67a]" fill="#00b67a" />
+                  ))}
+                </div>
+                <p className="text-[#1d1d20]">&ldquo;{r.text}&rdquo;</p>
+                <div className="mt-3">
+                  <p className="font-medium text-[#1d1d20]">{r.name}</p>
+                  <p className="text-sm text-[#52525a]">{r.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* FAQ */}
+      <section className="bg-[#f8fbfc]">
+        <div className="max-w-site mx-auto px-4 py-16">
+          <h2 className="text-3xl font-bold text-center text-[#1d1d20] mb-10">Frequently asked questions</h2>
+          <div className="max-w-2xl mx-auto divide-y divide-gray-200">
+            {faqs.map((faq, i) => (
+              <details key={i} className="group py-4">
+                <summary className="flex items-center justify-between cursor-pointer list-none font-medium text-[#1d1d20]">
+                  {faq.q}
+                  <ChevronDown className="w-5 h-5 text-[#a1a1aa] group-open:rotate-180 transition-transform" />
+                </summary>
+                <p className="mt-3 text-sm text-[#52525a] leading-relaxed">{faq.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="bg-brand-50">
+        <div className="max-w-site mx-auto px-4 py-16 text-center">
+          <h2 className="text-3xl font-bold text-[#1d1d20]">Ready to build your resume?</h2>
+          <p className="mt-3 text-[#52525a]">Join thousands of professionals who landed their dream jobs with ResumeMint.</p>
+          <Link href="/builder" className="btn-primary mt-6 inline-flex text-base">
+            Get started — it&apos;s free
+          </Link>
+        </div>
+      </section>
 
       <SiteFooter />
     </>

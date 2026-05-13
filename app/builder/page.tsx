@@ -3,7 +3,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import AuthGate from "@/components/AuthGate";
+import LoginSlidePanel from "@/components/LoginSlidePanel";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEllipsisVertical,
@@ -35,6 +36,11 @@ type CardItem = {
 
 export default function BuilderHome() {
   const router = useRouter();
+  const { user, isAuthenticated, isSubscribed, loading: authLoading } = useAuthStatus();
+
+  // Login slide panel
+  const [loginOpen, setLoginOpen] = React.useState(false);
+
   // NEW: sidebar state
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -60,6 +66,10 @@ export default function BuilderHome() {
   });
 
   const load = React.useCallback(async () => {
+    if (!isAuthenticated) {
+      setItems([]);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/resumes", await withAuth());
@@ -71,9 +81,9 @@ export default function BuilderHome() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!authLoading) load(); }, [load, authLoading]);
 
   // close menu on outside click / ESC
   React.useEffect(() => {
@@ -97,6 +107,17 @@ export default function BuilderHome() {
   }, [menuAnchor]);
 
   const create = async () => {
+    if (!isAuthenticated) {
+      // Allow anonymous users to start editing with a local-only resume
+      const localId = "local-" + crypto.randomUUID();
+      // Store empty resume data in localStorage for the editor to pick up
+      localStorage.setItem(
+        `resume:${localId}`,
+        JSON.stringify({ title: "Untitled CV", renderer: "professional", data: { id: "local", sections: [] } })
+      );
+      router.push(`/builder/${localId}/edit`);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(
@@ -138,9 +159,18 @@ export default function BuilderHome() {
   }, []);
 
   return (
-    <AuthGate>
+    <>
+      <LoginSlidePanel
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={() => {
+          setLoginOpen(false);
+          load();
+        }}
+        reason="Sign in to create and manage your resumes."
+      />
       {/* Sidebar layout */}
-      <div className="min-h-screen bg-[#0f0f10] text-white flex">
+      <div className="min-h-screen bg-[#f8fbfc] text-[#1d1d20] flex">
           {/* Sidebar */}
         <DashboardSidebar
           userName={auth?.currentUser?.displayName || auth?.currentUser?.email || "Account"}
@@ -153,9 +183,9 @@ export default function BuilderHome() {
 
 
         {/* Main area */}
-        <main className="flex-1 bg-[#f3f4f6] text-black">
+        <main className="flex-1 bg-[#f8fbfc] text-[#1d1d20]">
           {/* Top bar with hamburger (mobile only) */}
-          <div className="sm:hidden sticky top-0 z-10 bg-[#f3f4f6] border-b">
+          <div className="sm:hidden sticky top-0 z-10 bg-white border-b border-gray-200">
             <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
               <button
                 className="grid place-items-center w-9 h-9 rounded-md hover:bg-black/5"
@@ -308,7 +338,7 @@ export default function BuilderHome() {
           remove(r);
         }}
       />
-    </AuthGate>
+    </>
   );
 }
 

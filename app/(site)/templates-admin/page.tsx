@@ -259,8 +259,8 @@ export default function TemplatesAdmin() {
 
       <div className="flex gap-2 flex-wrap">
         <button onClick={seed} className="rounded-lg bg-white text-black px-3 py-2 font-semibold">Seed sample templates</button>
-        <button onClick={insertSkeleton} className="rounded-lg bg-neutral-100 text-black px-3 py-2 font-semibold">Insert minimal skeleton</button>
-        <button onClick={load} className="rounded-lg bg-neutral-800 px-3 py-2">Refresh</button>
+        <button onClick={insertSkeleton} className="rounded-lg bg-gray-100 text-black px-3 py-2 font-semibold">Insert minimal skeleton</button>
+        <button onClick={load} className="rounded-lg bg-gray-200 px-3 py-2 hover:bg-gray-300">Refresh</button>
       </div>
 
       <div className="grid gap-3">
@@ -269,12 +269,12 @@ export default function TemplatesAdmin() {
             value={name}
             onChange={e=>setName(e.target.value)}
             placeholder="Template name"
-            className="flex-1 rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2"
+            className="flex-1 rounded-lg bg-white border border-gray-300 px-3 py-2"
           />
           {validBadge}
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-400">
+        <label className="flex items-center gap-2 text-sm text-[#52525a]">
           <input type="checkbox" checked={isPublic} onChange={e=>setIsPublic(e.target.checked)} />
           Public
         </label>
@@ -284,7 +284,7 @@ export default function TemplatesAdmin() {
           onChange={e=>setHtml(e.target.value)}
           rows={16}
           placeholder="Paste Mustache/HTML template that follows the contract…"
-          className="rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 font-mono text-xs"
+          className="rounded-lg bg-white border border-gray-300 px-3 py-2 font-mono text-xs"
         />
 
         {!validation.ok && (
@@ -307,19 +307,19 @@ export default function TemplatesAdmin() {
         </div>
       </div>
 
-      <div className="divide-y divide-neutral-800 rounded-xl border border-neutral-800">
+      <div className="divide-y divide-gray-200 rounded-xl border border-gray-200">
         {items.map(t => (
           <div key={t.id} className="p-4 flex items-start justify-between gap-4">
             <div>
               <div className="font-semibold">{t.name}</div>
-              <div className="text-xs text-neutral-500">id: {t.id}</div>
-              {t.version != null && <div className="text-[10px] text-neutral-500 mt-1">version: {t.version}</div>}
-              <div className="text-xs text-neutral-400 mt-2 line-clamp-2">{t.html.slice(0, 200)}...</div>
+              <div className="text-xs text-[#a1a1aa]">id: {t.id}</div>
+              {t.version != null && <div className="text-[10px] text-[#a1a1aa] mt-1">version: {t.version}</div>}
+              <div className="text-xs text-[#52525a] mt-2 line-clamp-2">{t.html.slice(0, 200)}...</div>
             </div>
-            <button onClick={()=>remove(t.id!)} className="text-sm text-red-400 hover:underline">Delete</button>
+            <button onClick={()=>remove(t.id!)} className="text-sm text-red-500 hover:underline">Delete</button>
           </div>
         ))}
-        {!items.length && <div className="p-4 text-sm text-neutral-400">No templates yet.</div>}
+        {!items.length && <div className="p-4 text-sm text-[#a1a1aa]">No templates yet.</div>}
       </div>
     </main>
   );

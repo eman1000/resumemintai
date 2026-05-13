@@ -382,6 +382,9 @@ export function renderFAIcon(icon: IconDefinition, x: number, y: number, targetW
   );
 }
 
+const titleCase = (s: string) =>
+  String(s || "").replace(/[-_]/g, " ").replace(/\b\w/g, m => m.toUpperCase());
+
 export function pourSectionsPaged(
   firstBox: Box,
   followBox: Box,

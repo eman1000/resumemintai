@@ -3,40 +3,36 @@
 @tailwind utilities;
 
 :root {
-  --bg: 10 10 14;
-  --fg: 244 244 248;
+  --bg: 248 251 252;
+  --fg: 29 29 32;
 }
 
 html, body, #__next { height: 100%; }
-body { @apply bg-neutral-950 text-neutral-100 antialiased;
-  font-size: 20px;
-
+body { @apply bg-[#f8fbfc] text-[#1d1d20] antialiased;
+  font-size: 16px;
 }
 
-/* fancy gradient button */
+/* primary CTA button */
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-pill px-6 py-3 font-semibold text-white shadow-sm;
+  background-color: #2a72d7;
+  transition: background-color 200ms ease;
+}
+.btn-primary:hover { background-color: #165b9c; }
+
+/* keep .btn-gradient as alias for backward compat during migration */
 .btn-gradient {
-  @apply inline-flex items-center justify-center rounded-xl px-5 py-3 font-semibold text-white shadow-lg;
-  background: linear-gradient(90deg, #5b8cff, #a855f7, #ef4444);
-  background-size: 200% 200%;
-  transition: background-position 300ms ease;
+  @apply inline-flex items-center justify-center rounded-pill px-5 py-3 font-semibold text-white shadow-sm;
+  background-color: #2a72d7;
+  transition: background-color 200ms ease;
 }
-.btn-gradient:hover { background-position: 100% 0; }
-
-/* hero gradient blobs */
-.blob {
-  position: absolute;
-  filter: blur(60px);
-  opacity: 0.45;
-  pointer-events: none;
-}
-.blob-1 { width: 420px; height: 420px; left: -80px; top: -120px; background: radial-gradient(circle at center, #5b8cff 0%, transparent 60%); }
-.blob-2 { width: 520px; height: 520px; right: -120px; top: 0px; background: radial-gradient(circle at center, #a855f7 0%, transparent 60%); }
+.btn-gradient:hover { background-color: #165b9c; }
 
 .card {
-  @apply rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur p-5;
+  @apply rounded-lg border border-gray-200 bg-white shadow-md p-5;
 }
 
-.section { @apply max-w-6xl mx-auto px-4 py-16; }
+.section { @apply max-w-site mx-auto px-4 py-16; }
 
 /* Print-friendly */
 @media print {
@@ -58,8 +54,7 @@ body { @apply bg-neutral-950 text-neutral-100 antialiased;
   }
   .a4-preview-wrap {
     padding: 1.25rem;
-    background: radial-gradient(1200px 600px at 50% -10%, rgba(124,58,237,.20), transparent 65%),
-                radial-gradient(900px 500px at 90% 20%, rgba(59,130,246,.12), transparent 55%);
+    background: #f3f4f6;
   }
 }
 

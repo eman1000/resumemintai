@@ -157,11 +157,11 @@ function CheckoutInner({
       <button
         onClick={confirmAndActivate}
         disabled={!stripe || !elements || submitting}
-        className="w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60"
+        className="w-full rounded-full bg-[#2a72d7] text-white px-4 py-2 font-semibold disabled:opacity-60"
       >
         {submitting ? 'Processing…' : 'Start subscription'}
       </button>
-      <div className="text-xs text-neutral-500">
+      <div className="text-xs text-[#a1a1aa]">
         We’ll securely save your payment method, then start your subscription.
       </div>
     </div>
@@ -213,7 +213,7 @@ export default function SubscribePay() {
       >
         <input
           placeholder="Email to receive your receipt & account link"
-          className="w-full rounded-lg border border-white/20 bg-transparent px-3 py-2"
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           type="email"
@@ -226,11 +226,11 @@ export default function SubscribePay() {
         <button
           type="submit"
           disabled={starting || !emailValid}
-          className="w-full rounded-xl bg-white text-black px-4 py-2 font-semibold disabled:opacity-60"
+          className="w-full rounded-full bg-[#2a72d7] text-white px-4 py-2 font-semibold disabled:opacity-60"
         >
           {starting ? 'Preparing…' : 'Continue'}
         </button>
-        <div className="text-xs text-neutral-500">
+        <div className="text-xs text-[#a1a1aa]">
           We’ll save your payment method first; the subscription is created after this step.
         </div>
       </form>
@@ -238,7 +238,7 @@ export default function SubscribePay() {
   }
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night' } }}>
+    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
       <CheckoutInner
         setupIntentClientSecret={clientSecret}
         setupIntentMeta={{ email: emailTrimmed }}

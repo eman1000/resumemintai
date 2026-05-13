@@ -68,7 +68,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="p-6 text-sm text-neutral-400">
+      <div className="p-6 text-sm text-[#a1a1aa]">
         Checking access…
       </div>
     );

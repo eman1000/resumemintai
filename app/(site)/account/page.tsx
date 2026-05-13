@@ -105,17 +105,17 @@ export default function AccountBillingPage() {
       <main className="max-w-2xl mx-auto p-6 space-y-6">
         <h1 className="text-2xl font-semibold">Billing</h1>
 
-        {loading && <div className="text-sm text-neutral-400">Loading…</div>}
+        {loading && <div className="text-sm text-[#a1a1aa]">Loading…</div>}
 
         {!loading && error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">
+          <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-600">
             {error}
           </div>
         )}
 
         {!loading && ensure && (
-          <section className="rounded-2xl border border-neutral-200 p-4 space-y-2">
-            <div className="text-sm text-neutral-700">
+          <section className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4 space-y-2">
+            <div className="text-sm text-[#52525a]">
               <div>Account ID: <code>{ensure.accountId}</code></div>
               <div>Email: <code>{ensure.primaryEmail || "(none)"} </code></div>
               <div>
@@ -131,28 +131,28 @@ export default function AccountBillingPage() {
                 <button
                   onClick={cancelAtPeriodEnd}
                   disabled={working !== null}
-                  className="rounded-xl bg-neutral-900 text-white px-4 py-2 disabled:opacity-60"
+                  className="rounded-xl bg-brand text-white px-4 py-2 hover:bg-brand-700 disabled:opacity-60"
                 >
                   {working === "at_end" ? "Cancelling…" : "Cancel at period end"}
                 </button>
                 <button
                   onClick={cancelImmediately}
                   disabled={working !== null}
-                  className="rounded-xl border border-neutral-300 px-4 py-2 disabled:opacity-60"
+                  className="rounded-xl border border-gray-300 px-4 py-2 hover:bg-gray-100 disabled:opacity-60"
                 >
                   {working === "now" ? "Cancelling…" : "Cancel immediately (prorated)"}
                 </button>
               </div>
             ) : (
-              <div className="text-sm text-neutral-500">No active subscription found.</div>
+              <div className="text-sm text-[#a1a1aa]">No active subscription found.</div>
             )}
           </section>
         )}
 
         {lastCancel && (
-          <section className="rounded-2xl border border-neutral-200 p-4">
+          <section className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4">
             <h2 className="text-lg font-medium mb-2">Latest action</h2>
-            <div className="text-sm text-neutral-700 space-y-1">
+            <div className="text-sm text-[#52525a] space-y-1">
               <div>Subscription: <code>{lastCancel.subscriptionId}</code></div>
               <div>Status: <code>{lastCancel.status}</code></div>
               <div>Cancel at period end: <code>{String(lastCancel.cancel_at_period_end)}</code></div>

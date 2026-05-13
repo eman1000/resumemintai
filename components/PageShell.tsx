@@ -5,12 +5,12 @@ export default function PageShell({ title, subtitle, children }: { title: string
   return (
     <>
       <SiteNav />
-      <main className="max-w-6xl mx-auto px-4 py-12">
+      <main className="max-w-site mx-auto px-4 py-12">
         <header className="text-center mb-8">
-          <h1 className="text-4xl font-extrabold">{title}</h1>
-          {subtitle ? <p className="text-neutral-400 mt-2">{subtitle}</p> : null}
+          <h1 className="text-4xl font-bold text-[#1d1d20]">{title}</h1>
+          {subtitle ? <p className="text-[#52525a] mt-2">{subtitle}</p> : null}
         </header>
-        <section className="rounded-3xl border border-neutral-800 p-6 bg-neutral-900">
+        <section className="rounded-lg border border-gray-200 bg-white shadow-md p-6">
           {children}
         </section>
       </main>

@@ -23,9 +23,9 @@ export default function ImportTemplatePage() {
   return (
     <main className="max-w-2xl mx-auto px-4 py-12">
       <h1 className="text-2xl font-bold">Import Word Template</h1>
-      <p className="text-sm text-neutral-400 mt-1">Upload a .docx with Mustache placeholders (see below).</p>
+      <p className="text-sm text-[#a1a1aa] mt-1">Upload a .docx with Mustache placeholders (see below).</p>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
-        <input type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2" placeholder="Template name" />
+        <input type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-3 py-2" placeholder="Template name" />
         <input type="file" accept=".docx" onChange={e=>setFile(e.target.files?.[0] || null)} className="w-full" />
         <button disabled={!file || loading} className="rounded-xl bg-white text-black font-semibold px-4 py-2 disabled:opacity-60">
           {loading ? 'Importing…' : 'Import'}
@@ -34,14 +34,14 @@ export default function ImportTemplatePage() {
 
       {result && (
         <div className="mt-6">
-          <p className="text-sm text-neutral-400">Saved template id: <code>{result.id}</code></p>
-          <div className="mt-3 rounded-xl border border-neutral-800 p-3 bg-white text-black" dangerouslySetInnerHTML={{ __html: result.html }} />
+          <p className="text-sm text-[#a1a1aa]">Saved template id: <code>{result.id}</code></p>
+          <div className="mt-3 rounded-xl border border-gray-200 p-3 bg-white text-black" dangerouslySetInnerHTML={{ __html: result.html }} />
         </div>
       )}
 
       <section className="mt-8">
         <h2 className="text-lg font-semibold">Placeholders to use in Word</h2>
-        <pre className="mt-2 bg-neutral-900 border border-neutral-800 rounded-lg p-3 text-xs overflow-auto">
+        <pre className="mt-2 bg-white border border-gray-300 rounded-lg p-3 text-xs overflow-auto">
 {`{{name}}
 {{contact}}  (or use {{email}}, {{phone}}, {{location}} separately)
 
@@ -64,7 +64,7 @@ Achievements:
 {{#achievements}}• {{.}}
 {{/achievements}}`}
         </pre>
-        <p className="text-sm text-neutral-400 mt-2">You can paste these tags into your Word doc, save as .docx, then import.</p>
+        <p className="text-sm text-[#a1a1aa] mt-2">You can paste these tags into your Word doc, save as .docx, then import.</p>
       </section>
     </main>
   );

@@ -18,12 +18,11 @@ export default function SiteNavAuth() {
     }
   };
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur bg-neutral-950/70 border-b border-neutral-900">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-extrabold tracking-tight">ResumeMint</Link>
-        <div className=" items-center gap-6 text-md">
-
-          <button onClick={onLogout} className="px-3 py-1.5 rounded-lg border border-neutral-800">Logout</button>
+    <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
+      <div className="max-w-site mx-auto px-4 h-14 flex items-center justify-between">
+        <Link href="/" className="font-extrabold tracking-tight text-[#1d1d20]">ResumeMint</Link>
+        <div className="items-center gap-6 text-md">
+          <button onClick={onLogout} className="px-3 py-1.5 rounded-lg border border-gray-300 text-[#52525a] hover:bg-gray-100">Logout</button>
         </div>
       </div>
     </nav>

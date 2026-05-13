@@ -11,7 +11,7 @@ export default function DcbSubscribeClient() {
   const [pin, setPin] = useState("");
 
   return (
-    <main className="min-h-screen bg-white text-neutral-900 flex justify-center">
+    <main className="min-h-screen bg-white text-[#1d1d20] flex justify-center">
       <div className="w-full max-w-md px-4 py-6 flex flex-col">
         {/* Header */}
         <header className="flex items-center justify-between mb-4">
@@ -29,17 +29,17 @@ export default function DcbSubscribeClient() {
             <img
                 src="/images/creative.png"        // or "/creative.gif" if you must use the GIF
                 alt="Illustration: mobile with verified check"
-                className="max-h-[15vh] h-auto w-auto rounded-xl border border-neutral-200 p-3 shadow-sm"
+                className="max-h-[15vh] h-auto w-auto rounded-xl border border-gray-200 p-3 shadow-sm"
             />
             </div>
         {/* SUBSCRIBE */}
 {view === "subscribe" && (
   <section aria-labelledby="heading-subscribe">
-    <div className="rounded-2xl border border-neutral-200 shadow-lg bg-white p-5">
+    <div className="rounded-2xl border border-gray-200 shadow-lg bg-white p-5">
       <h1 id="heading-subscribe" className="text-lg font-semibold text-center">
         Create ATS-friendly resumes
       </h1>
-      <p className="text-sm text-neutral-700 mt-1 text-center">
+      <p className="text-sm text-[#52525a] mt-1 text-center">
         Unlimited resumes &amp; revisions while your plan is active.
       </p>
 
@@ -72,16 +72,16 @@ export default function DcbSubscribeClient() {
           required
           value={msisdn}
           onChange={(e) => setMsisdn(e.target.value)}
-          className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-base outline-none focus:ring-2 focus:ring-neutral-900"
+          className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-base outline-none focus:ring-2 focus:ring-brand"
           aria-describedby="pin-help"
         />
-        <p id="pin-help" className="mt-2 text-xs text-neutral-600">
+        <p id="pin-help" className="mt-2 text-xs text-[#52525a]">
           You’ll receive a PIN to confirm your subscription.
         </p>
 
         <button
           type="submit"
-          className="mt-4 w-full rounded-lg bg-neutral-900 text-white py-3 text-base font-semibold hover:opacity-90"
+          className="mt-4 w-full rounded-lg bg-brand text-white py-3 text-base font-semibold hover:bg-brand-700"
         >
           Subscribe now
         </button>
@@ -94,11 +94,11 @@ export default function DcbSubscribeClient() {
       {/* PIN */}
 {view === "pin" && (
   <section aria-labelledby="heading-pin">
-    <div className="rounded-2xl border border-neutral-200 shadow-lg bg-white p-5">
+    <div className="rounded-2xl border border-gray-200 shadow-lg bg-white p-5">
       <h1 id="heading-pin" className="text-lg font-semibold">
         Enter your PIN to confirm
       </h1>
-      <p className="text-sm text-neutral-700 mt-1">
+      <p className="text-sm text-[#52525a] mt-1">
         For: <span className="font-medium">{msisdn || "07XXXXXXXXX"}</span>
       </p>
 
@@ -131,12 +131,12 @@ export default function DcbSubscribeClient() {
           required
           value={pin}
           onChange={(e) => setPin(e.target.value)}
-          className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-base tracking-widest text-center outline-none focus:ring-2 focus:ring-neutral-900"
+          className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-base tracking-widest text-center outline-none focus:ring-2 focus:ring-brand"
         />
 
         <button
           type="submit"
-          className="mt-4 w-full rounded-lg bg-neutral-900 text-white py-3 text-base font-semibold hover:opacity-90"
+          className="mt-4 w-full rounded-lg bg-brand text-white py-3 text-base font-semibold hover:bg-brand-700"
         >
           Confirm
         </button>
@@ -144,7 +144,7 @@ export default function DcbSubscribeClient() {
         <button
           type="button"
           onClick={() => setView("subscribe")}
-          className="mt-3 w-full rounded-lg border border-neutral-300 py-2 text-sm"
+          className="mt-3 w-full rounded-lg border border-gray-300 py-2 text-sm hover:bg-gray-50"
         >
           Cancel payment
         </button>
@@ -162,7 +162,7 @@ export default function DcbSubscribeClient() {
             <Link href="/app" className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-pink-600 text-white py-3 text-base font-semibold hover:opacity-90">
               Continue
             </Link>
-            <p className="mt-4 text-xs text-neutral-600">
+            <p className="mt-4 text-xs text-[#52525a]">
               If you did not intend to subscribe, contact Customer Care for a refund review. You can cancel any time via the Unsubscribe page.
             </p>
           </section>
@@ -176,7 +176,7 @@ export default function DcbSubscribeClient() {
           </div>
           <p className="mt-2">support@resumemintai.com (Mon–Fri 09:00–18:00 UK)</p>
           <p className="mt-1">Service Provided By: Plenqor LLC</p>
-          <p className="mt-1 text-xs text-neutral-600">Cancel anytime via the Unsubscribe page or Customer Care.</p>
+          <p className="mt-1 text-xs text-[#52525a]">Cancel anytime via the Unsubscribe page or Customer Care.</p>
         </div>
       </div>
     </main>

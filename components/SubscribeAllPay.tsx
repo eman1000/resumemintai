@@ -195,7 +195,7 @@ function WalletAutoFlow({
           {submitting ? 'Processing…' : 'Continue with Apple/Google Pay'}
         </button>
       ) : (
-        <div className="text-sm text-neutral-400">Checking wallet…</div>
+        <div className="text-sm text-[#a1a1aa]">Checking wallet…</div>
       )}
     </div>
   );
@@ -361,9 +361,9 @@ export default function SubscribeAllPay(props: SubscribeAllPayProps) {
 
         {/* Divider */}
         <div className="flex items-center gap-3">
-          <div className="h-px bg-neutral-700 flex-1" />
-          <span className="text-xs uppercase tracking-wide text-neutral-400">or</span>
-          <div className="h-px bg-neutral-700 flex-1" />
+          <div className="h-px bg-gray-200 flex-1" />
+          <span className="text-xs uppercase tracking-wide text-[#a1a1aa]">or</span>
+          <div className="h-px bg-gray-200 flex-1" />
         </div>
 
         {/* Card fallback (always rendered, safe in parallel) */}
