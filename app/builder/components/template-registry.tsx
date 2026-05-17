@@ -1,8 +1,8 @@
 // template-registry.tsx
 import React from "react";
 import { CircularTemplate } from "./CircularTemplate";
-import { ProfessionalTemplate } from "./ProfessionalTemplate";
-import { ElegantTemplate } from "./ElegantTemplate";
+import ProfessionalTemplate from "./ProfessionalTemplate";
+import ElegantTemplate from "./ElegantTemplate";
 import { ClassicTemplate } from "./ClassicTemplate";
 import { ModernTemplate } from "./ModernTemplate";
 import { MinimalTemplate } from "./MinimalTemplate";

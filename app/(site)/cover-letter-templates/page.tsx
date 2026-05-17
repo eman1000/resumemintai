@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { PenLine, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 
@@ -19,9 +19,9 @@ export const metadata: Metadata = {
 
 const templates = [
   { name: 'Professional', renderer: 'professional', desc: 'Clean, structured layout perfect for corporate applications.' },
-  { name: 'Circular', renderer: 'circular', desc: 'Modern design with a sidebar for your contact details.' },
-  { name: 'Elegant', renderer: 'elegant', desc: 'Sophisticated style with accent colors and refined typography.' },
-  { name: 'Classic', renderer: 'classic', desc: 'Traditional layout that focuses on your words and professionalism.' },
+  { name: 'Classic', renderer: 'classic', desc: 'Traditional business letter format with serif type.' },
+  { name: 'Elegant', renderer: 'elegant', desc: 'Two-column sidebar with contact strip and accent colors.' },
+  { name: 'Creative', renderer: 'creative', desc: 'Bold colour header with tag chips for skills.' },
 ];
 
 const faqs = [
@@ -45,27 +45,35 @@ export default function CoverLetterTemplatesPage() {
       </div>
 
       <section className="bg-[#f8fbfc]">
-        <div className="max-w-site mx-auto px-4 py-12">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="max-w-5xl mx-auto px-4 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             {templates.map((t) => (
-              <div key={t.renderer} className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="aspect-[3/4] bg-gray-50 flex items-center justify-center">
-                  <div className="text-center text-[#a1a1aa]">
-                    <PenLine className="w-12 h-12 mx-auto mb-2" />
-                    <span className="text-sm font-medium">{t.name}</span>
+              <Link
+                key={t.renderer}
+                href="/login?return=/builder/cover-letters"
+                className="group block"
+              >
+                <div className="rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
+                  <div className="relative bg-gray-100" style={{ aspectRatio: '210 / 297' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/template-previews/cover-letter/${t.renderer}.png`}
+                      alt={`${t.name} cover letter template preview`}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover object-top"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/0 via-black/0 to-black/0 group-hover:from-brand/80 group-hover:via-brand/0 group-hover:to-transparent transition-colors duration-200 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100">
+                      <span className="bg-white text-brand text-sm font-semibold px-4 py-2 rounded-full shadow-md">
+                        Use this template →
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="p-4">
+                <div className="mt-3 px-1">
                   <h3 className="font-semibold text-[#1d1d20] group-hover:text-brand transition-colors">{t.name}</h3>
-                  <p className="text-sm text-[#52525a] mt-1">{t.desc}</p>
-                  <Link
-                    href="/login?return=/builder/cover-letters"
-                    className="mt-3 inline-block text-sm text-brand font-medium hover:underline"
-                  >
-                    Use this template →
-                  </Link>
+                  <p className="text-sm text-[#52525a] mt-0.5">{t.desc}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

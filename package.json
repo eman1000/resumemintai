@@ -14,7 +14,8 @@
     "db:migrate": "DATABASE_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable DIRECT_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable prisma migrate deploy",
     "db:migrate:dev": "DATABASE_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable DIRECT_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable prisma migrate dev",
     "db:studio": "DATABASE_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable prisma studio",
-    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
+    "capture:previews": "node scripts/capture-template-previews.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
