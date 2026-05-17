@@ -1,7 +1,21 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PenLine, ChevronDown } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+
+export const metadata: Metadata = {
+  title: 'Cover Letter Templates',
+  description:
+    'Cover letter templates that match your resume — Professional, Classic, Elegant, Creative. AI-tailored to any job description.',
+  alternates: { canonical: '/cover-letter-templates' },
+  openGraph: {
+    url: '/cover-letter-templates',
+    title: 'ResumeMint Cover Letter Templates',
+    description: 'Cover letter templates that match your resume, tailored by AI to each role.',
+    images: [{ url: '/api/og?eyebrow=COVER+LETTERS&title=Cover+letter+templates+that+match+your+resume', width: 1200, height: 630 }],
+  },
+};
 
 const templates = [
   { name: 'Professional', renderer: 'professional', desc: 'Clean, structured layout perfect for corporate applications.' },

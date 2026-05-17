@@ -6,9 +6,71 @@ import Script from 'next/script';
 import Hotjar from '@/components/Hotjar';
 import TrackPageView from '@/components/TrackPageView';
 
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.resumemintai.com'
+).replace(/\/$/, '');
+
+// Defaults that cascade to every page. Per-page metadata overrides title,
+// description, OG image, etc. %s in the title template gets the page title.
 export const metadata: Metadata = {
-  title: 'AI Resume Builder',
-  description: 'Tailor your resume to any job with AI.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'ResumeMint — AI Resume Builder that beats ATS',
+    template: '%s · ResumeMint',
+  },
+  description:
+    'ResumeMint tailors your resume to any job with AI. ATS-friendly templates, AI cover letters, one-click apply on supported boards.',
+  applicationName: 'ResumeMint',
+  authors: [{ name: 'ResumeMint' }],
+  creator: 'ResumeMint',
+  publisher: 'ResumeMint',
+  keywords: [
+    'AI resume builder',
+    'ATS resume',
+    'cover letter generator',
+    'resume tailoring',
+    'CV builder',
+    'job application',
+    'resume templates',
+    'one-click apply',
+  ],
+  formatDetection: { email: false, address: false, telephone: false },
+  openGraph: {
+    type: 'website',
+    siteName: 'ResumeMint',
+    locale: 'en_US',
+    url: SITE_URL,
+    title: 'ResumeMint — AI Resume Builder that beats ATS',
+    description:
+      'Tailor your resume to any job with AI. ATS-friendly templates, AI cover letters, one-click apply on supported boards.',
+    images: [
+      { url: '/api/og', width: 1200, height: 630, alt: 'ResumeMint — AI Resume Builder' },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ResumeMint — AI Resume Builder that beats ATS',
+    description:
+      'Tailor your resume to any job with AI. ATS-friendly templates, AI cover letters, one-click apply.',
+    images: ['/api/og'],
+  },
+  icons: {
+    icon: [{ url: '/logo/resumemint-icon.svg', type: 'image/svg+xml' }],
+    shortcut: ['/logo/resumemint-icon.svg'],
+    apple: [{ url: '/logo/resumemint-icon.svg' }],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  alternates: { canonical: SITE_URL },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

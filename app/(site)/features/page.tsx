@@ -1,4 +1,18 @@
+import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
+
+export const metadata: Metadata = {
+  title: 'Features',
+  description:
+    'See how ResumeMint helps you build an ATS-friendly resume: AI-tailored bullets, 12 templates, cover letters, match scoring, one-click apply on supported boards.',
+  alternates: { canonical: '/features' },
+  openGraph: {
+    url: '/features',
+    title: 'ResumeMint features',
+    description: 'AI tailoring, 12 templates, cover letters, match scoring, one-click apply.',
+    images: [{ url: '/api/og?eyebrow=FEATURES&title=Everything+ResumeMint+can+do', width: 1200, height: 630 }],
+  },
+};
 
 export default function Page() {
   return (

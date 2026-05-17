@@ -1,7 +1,21 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FileText, ChevronDown } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+
+export const metadata: Metadata = {
+  title: 'Resume Templates',
+  description:
+    '12 ATS-friendly resume templates — Classic, Modern, Elegant, Creative, Executive, and more. Switch any time without losing content.',
+  alternates: { canonical: '/templates' },
+  openGraph: {
+    url: '/templates',
+    title: 'ResumeMint Resume Templates',
+    description: '12 ATS-friendly resume templates you can switch between any time.',
+    images: [{ url: '/api/og?eyebrow=TEMPLATES&title=12+ATS-friendly+resume+templates', width: 1200, height: 630 }],
+  },
+};
 
 const templates = [
   { name: 'Circular', renderer: 'circular', desc: 'Two-column layout with a stylish sidebar for skills and contact info.' },

@@ -1,6 +1,21 @@
+import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
 import '../../policies.scss';
 const LAST_UPDATED = '05 Oct 2025';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description:
+    'How ResumeMint (Plenqor LLC) collects, uses, and protects your data — account info, payments, content, and analytics.',
+  alternates: { canonical: '/privacy' },
+  robots: { index: true, follow: true },
+  openGraph: {
+    url: '/privacy',
+    title: 'ResumeMint Privacy Policy',
+    description: 'How ResumeMint collects, uses, and protects your data.',
+    images: [{ url: '/api/og?eyebrow=PRIVACY&title=Privacy+Policy', width: 1200, height: 630 }],
+  },
+};
 
 export default function Privacy() {
   return (

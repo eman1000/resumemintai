@@ -1,7 +1,22 @@
+import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
 import '../../policies.scss';
 
 const LAST_UPDATED = '05 Oct 2025';
+
+export const metadata: Metadata = {
+  title: 'Refund Policy',
+  description:
+    'ResumeMint refund policy: how trials, renewals, and cancellations work, and how to request a refund.',
+  alternates: { canonical: '/refund' },
+  robots: { index: true, follow: true },
+  openGraph: {
+    url: '/refund',
+    title: 'ResumeMint Refund Policy',
+    description: 'How trials, renewals, cancellations, and refunds work.',
+    images: [{ url: '/api/og?eyebrow=REFUND&title=Refund+Policy', width: 1200, height: 630 }],
+  },
+};
 
 export default function Refund() {
   return (

@@ -1,7 +1,22 @@
+import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
 import '../../policies.scss';
 
 const LAST_UPDATED = '05 Oct 2025';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description:
+    'The terms that govern your use of ResumeMint — subscriptions, acceptable use, content ownership, and Plenqor LLC company details.',
+  alternates: { canonical: '/terms' },
+  robots: { index: true, follow: true },
+  openGraph: {
+    url: '/terms',
+    title: 'ResumeMint Terms of Service',
+    description: 'The terms that govern your use of ResumeMint.',
+    images: [{ url: '/api/og?eyebrow=TERMS&title=Terms+of+Service', width: 1200, height: 630 }],
+  },
+};
 
 export default function Terms() {
   return (

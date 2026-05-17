@@ -1,7 +1,29 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CheckCircle2, Wand2, ShieldCheck, Clock, FileText, Star, ChevronDown, Briefcase, PenLine, LayoutTemplate } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import {
+  organizationLd,
+  webSiteLd,
+  softwareApplicationLd,
+  faqPageLd,
+  jsonLdScript,
+} from '@/lib/seo-ld';
+
+export const metadata: Metadata = {
+  title: 'AI Resume Builder that beats ATS',
+  description:
+    'Build an ATS-friendly resume in minutes. Tailor it to any job with AI, generate a matching cover letter, and apply with one click on supported boards.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    url: '/',
+    title: 'ResumeMint — AI Resume Builder that beats ATS',
+    description:
+      'Build an ATS-friendly resume in minutes. Tailor it to any job with AI, generate a matching cover letter, and apply with one click.',
+    images: [{ url: '/api/og?eyebrow=RESUMEMINT&title=AI+Resume+Builder+that+beats+ATS', width: 1200, height: 630 }],
+  },
+};
 
 const features = [
   { icon: Wand2, t: 'AI-Powered Writing', d: 'Get intelligent suggestions for every section of your resume.' },
@@ -42,6 +64,10 @@ const faqs = [
 export default function LandingPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(organizationLd())} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(webSiteLd())} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(softwareApplicationLd())} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(faqPageLd(faqs))} />
       <SiteNav />
 
       {/* Hero */}
