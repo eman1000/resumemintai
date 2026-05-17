@@ -750,6 +750,8 @@ function JobDetailsPane({
   onApplyWithKit,
   onResetApplyMode,
   onGoToBuilder,
+  quota,
+  blockedResetAt,
 }: {
   job: JobCard;
   match?: JobMatch;
