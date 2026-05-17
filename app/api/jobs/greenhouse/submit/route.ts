@@ -25,6 +25,8 @@ import {
   fetchGreenhouseSchema,
   greenhouseSubmitUrl,
 } from '@/lib/greenhouse';
+import { signPrintToken } from '@/lib/printToken';
+import { renderResumePdfFromId } from '@/lib/resumePdf';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
 
   const url = String(form.get('url') || '').trim();
   const answersRaw = String(form.get('answers') || '{}');
-  const resumeBlob = form.get('resume');
+  const uploadedResume = form.get('resume');
   const coverLetterBlob = form.get('cover_letter');
   const resumeIdRef = (form.get('resumeId') as string) || null;
   const coverLetterIdRef = (form.get('coverLetterId') as string) || null;
@@ -107,11 +109,46 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!(resumeBlob instanceof Blob) || resumeBlob.size === 0) {
-    return NextResponse.json({ error: 'missing_resume', detail: 'A resume PDF is required.' }, { status: 400 });
-  }
-  if (resumeBlob.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: 'resume_too_large', detail: 'Resume PDF must be under 5 MB.' }, { status: 413 });
+  // Resume source: either an uploaded file OR auto-generated from `resumeId`.
+  // If neither, that's a 400.
+  let resumePdf: { bytes: Buffer; filename: string };
+  if (uploadedResume instanceof Blob && uploadedResume.size > 0) {
+    if (uploadedResume.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'resume_too_large', detail: 'Resume PDF must be under 5 MB.' }, { status: 413 });
+    }
+    resumePdf = {
+      bytes: Buffer.from(await uploadedResume.arrayBuffer()),
+      filename: (uploadedResume as any).name || 'resume.pdf',
+    };
+  } else if (resumeIdRef) {
+    // Confirm ownership before signing a print token.
+    const owned = await prisma.resume.findFirst({
+      where: { id: resumeIdRef, userId },
+      select: { id: true, title: true },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: 'resume_not_found', detail: 'Resume does not belong to this user.' }, { status: 404 });
+    }
+    const token = signPrintToken(owned.id, 120);
+    const origin = process.env.NEXT_PUBLIC_SITE_URL ||
+      (req.headers.get('x-forwarded-proto') && req.headers.get('host')
+        ? `${req.headers.get('x-forwarded-proto')}://${req.headers.get('host')}`
+        : 'http://localhost:3000');
+    try {
+      const bytes = await renderResumePdfFromId({ resumeId: owned.id, token, origin });
+      const safeTitle = (owned.title || 'resume').replace(/[^a-zA-Z0-9-_]+/g, '-').slice(0, 60) || 'resume';
+      resumePdf = { bytes, filename: `${safeTitle}.pdf` };
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: 'auto_pdf_failed', detail: e?.message || 'Could not render the resume to PDF.' },
+        { status: 500 },
+      );
+    }
+  } else {
+    return NextResponse.json(
+      { error: 'missing_resume', detail: 'A resume PDF or saved resume ID is required.' },
+      { status: 400 },
+    );
   }
 
   let answers: Record<string, any>;
@@ -158,7 +195,7 @@ export async function POST(req: NextRequest) {
     }
   }
   // Always attach the resume; cover letter when present.
-  out.append('resume', resumeBlob, (resumeBlob as any).name || 'resume.pdf');
+  out.append('resume', new Blob([resumePdf.bytes], { type: 'application/pdf' }), resumePdf.filename);
   if (coverLetterBlob instanceof Blob && coverLetterBlob.size > 0) {
     out.append('cover_letter', coverLetterBlob, (coverLetterBlob as any).name || 'cover-letter.pdf');
   }

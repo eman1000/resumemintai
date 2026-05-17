@@ -63,6 +63,9 @@ export default function GreenhouseSubmitPanel({
   const [values, setValues] = React.useState<Record<string, string | string[]>>({});
   const [resumeFile, setResumeFile] = React.useState<File | null>(null);
   const [coverLetterFile, setCoverLetterFile] = React.useState<File | null>(null);
+  // Source for the resume: 'saved' uses the suggested resumeId and lets the
+  // server auto-generate the PDF; 'upload' uses a user-picked file.
+  const [resumeSource, setResumeSource] = React.useState<'saved' | 'upload'>('saved');
   const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
@@ -110,7 +113,8 @@ export default function GreenhouseSubmitPanel({
   async function submit() {
     if (!schema) return;
     if (!isSubscribed) { onUnsubscribed(); return; }
-    if (!resumeFile) {
+    const useSavedResume = resumeSource === 'saved' && !!schema.resumeIdSuggested;
+    if (!useSavedResume && !resumeFile) {
       toast.error("Attach your resume PDF first.");
       return;
     }
@@ -134,9 +138,14 @@ export default function GreenhouseSubmitPanel({
       const form = new FormData();
       form.append("url", jobUrl);
       form.append("answers", JSON.stringify(values));
-      form.append("resume", resumeFile, resumeFile.name || "resume.pdf");
+      if (useSavedResume) {
+        // Server auto-generates the resume PDF from the saved row.
+        form.append("resumeId", schema.resumeIdSuggested!);
+      } else if (resumeFile) {
+        form.append("resume", resumeFile, resumeFile.name || "resume.pdf");
+        if (schema.resumeIdSuggested) form.append("resumeId", schema.resumeIdSuggested);
+      }
       if (coverLetterFile) form.append("cover_letter", coverLetterFile, coverLetterFile.name || "cover-letter.pdf");
-      if (schema.resumeIdSuggested) form.append("resumeId", schema.resumeIdSuggested);
       if (schema.coverLetterIdSuggested) form.append("coverLetterId", schema.coverLetterIdSuggested);
 
       const init = await withAuth({ method: "POST", body: form });
@@ -213,15 +222,52 @@ export default function GreenhouseSubmitPanel({
           <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
             Resume (PDF) <span className="text-red-500">*</span>
           </div>
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-xs file:mr-3 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-brand file:text-white file:cursor-pointer"
-          />
-          <p className="mt-1 text-[10px] text-gray-500">
-            Tip: open your tailored resume in the builder, click Download, then upload the PDF here.
-          </p>
+          {schema.resumeIdSuggested ? (
+            <div className="space-y-2">
+              <label className={`flex items-start gap-2 rounded-md border px-3 py-2 cursor-pointer ${resumeSource === 'saved' ? 'border-brand bg-brand-50' : 'border-gray-200'}`}>
+                <input
+                  type="radio"
+                  name="resumeSource"
+                  checked={resumeSource === 'saved'}
+                  onChange={() => setResumeSource('saved')}
+                  className="mt-0.5"
+                />
+                <div className="text-xs">
+                  <div className="font-medium text-gray-900">Use my tailored resume</div>
+                  <div className="text-[11px] text-gray-500">
+                    We&rsquo;ll auto-generate the PDF from your saved resume — no upload needed.
+                  </div>
+                </div>
+              </label>
+              <label className={`flex items-start gap-2 rounded-md border px-3 py-2 cursor-pointer ${resumeSource === 'upload' ? 'border-brand bg-brand-50' : 'border-gray-200'}`}>
+                <input
+                  type="radio"
+                  name="resumeSource"
+                  checked={resumeSource === 'upload'}
+                  onChange={() => setResumeSource('upload')}
+                  className="mt-0.5"
+                />
+                <div className="text-xs flex-1">
+                  <div className="font-medium text-gray-900">Upload my own PDF</div>
+                  {resumeSource === 'upload' && (
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
+                      className="mt-1 block w-full text-xs file:mr-3 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-brand file:text-white file:cursor-pointer"
+                    />
+                  )}
+                </div>
+              </label>
+            </div>
+          ) : (
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-xs file:mr-3 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-brand file:text-white file:cursor-pointer"
+            />
+          )}
         </div>
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
