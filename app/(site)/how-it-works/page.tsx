@@ -3,14 +3,14 @@ import Link from 'next/link';
 import PageShell from '@/components/PageShell';
 
 export const metadata: Metadata = {
-  title: 'How it works',
+  title: 'Create Tailored Resumes with AI in 3 Easy Steps',
   description:
-    'Three steps to a tailored resume: pick a template, paste a job description, let ResumeMint AI rewrite your bullets and generate a matching cover letter.',
+    'Discover how ResumeMint AI crafts your perfect resume: paste your work history, drop in a job description, and export a polished, ATS-friendly PDF.',
   alternates: { canonical: '/how-it-works' },
   openGraph: {
     url: '/how-it-works',
-    title: 'How ResumeMint works',
-    description: 'Three steps to a tailored, ATS-friendly resume.',
+    title: 'Effortless AI-Powered Resume Creation in 3 Steps',
+    description: 'Create a tailored resume effortlessly with ResumeMint AI in three steps.',
     images: [
       { url: '/api/og?eyebrow=HOW+IT+WORKS&title=Tailor+your+resume+in+three+steps', width: 1200, height: 630 },
     ],

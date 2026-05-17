@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Contact',
+  title: 'Contact: Quick Support & Inquiries',
   description:
-    'Get in touch with ResumeMint — questions about the product, billing, or your account. We typically reply within one business day.',
+    'Reach out to ResumeMint for product inquiries, billing issues, or account support. Expect a response within one business day.',
   alternates: { canonical: '/contact' },
   openGraph: {
     url: '/contact',
-    title: 'Contact ResumeMint',
-    description: 'Questions about the product, billing, or your account.',
+    title: 'Contact ResumeMint | Quick Support & Inquiries',
+    description: 'Product, billing, and account support — typically a one-business-day reply.',
     images: [{ url: '/api/og?eyebrow=CONTACT&title=Get+in+touch', width: 1200, height: 630 }],
   },
 };

@@ -2,14 +2,14 @@ import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
 
 export const metadata: Metadata = {
-  title: 'Reviews',
+  title: 'AI Reviews: Success Stories & Testimonials',
   description:
-    'What job-seekers say about ResumeMint — the AI resume builder that beats ATS and tailors every application in seconds.',
+    "Discover how ResumeMint's AI resume builder helps job-seekers beat ATS, tailor applications, and secure interviews effortlessly.",
   alternates: { canonical: '/reviews' },
   openGraph: {
     url: '/reviews',
-    title: 'ResumeMint reviews',
-    description: 'What job-seekers say about ResumeMint.',
+    title: 'ResumeMint AI Reviews: Success Stories & Testimonials',
+    description: 'Testimonials from job-seekers who used ResumeMint to beat ATS and secure interviews.',
     images: [{ url: '/api/og?eyebrow=REVIEWS&title=What+job-seekers+say+about+us', width: 1200, height: 630 }],
   },
 };

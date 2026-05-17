@@ -3,13 +3,13 @@ import Link from 'next/link';
 import PageShell from '@/components/PageShell';
 
 export const metadata: Metadata = {
-  title: 'Features',
+  title: 'Enhance Your Resume with AI',
   description:
-    "See how ResumeMint helps you build an ATS-friendly resume: AI-tailored bullets, 12 templates, cover letters, match scoring, one-click apply on supported boards.",
+    "Discover ResumeMint's AI-driven features: ATS-friendly resumes, 12 templates, instant cover letters, match scoring, and one-click apply for job success.",
   alternates: { canonical: '/features' },
   openGraph: {
     url: '/features',
-    title: 'ResumeMint features',
+    title: 'Enhance Your Resume with AI: ResumeMint Features',
     description: 'AI tailoring, 12 templates, cover letters, match scoring, one-click apply.',
     images: [
       { url: '/api/og?eyebrow=FEATURES&title=Everything+ResumeMint+can+do', width: 1200, height: 630 },

@@ -12,15 +12,15 @@ import {
 } from '@/lib/seo-ld';
 
 export const metadata: Metadata = {
-  title: 'AI Resume Builder that beats ATS',
+  title: 'AI Resume Builder & ATS Optimizer',
   description:
-    'Build an ATS-friendly resume in minutes. Tailor it to any job with AI, generate a matching cover letter, and apply with one click on supported boards.',
+    'Create ATS-friendly resumes in minutes with AI. Tailor your resume to any job, generate matching cover letters, and apply with one click. Try ResumeMint today.',
   alternates: { canonical: '/' },
   openGraph: {
     url: '/',
-    title: 'ResumeMint — AI Resume Builder that beats ATS',
+    title: 'Build Your ATS-Ready Resume with AI | ResumeMint',
     description:
-      'Build an ATS-friendly resume in minutes. Tailor it to any job with AI, generate a matching cover letter, and apply with one click.',
+      'Effortlessly create and optimize resumes with AI. Tailor to any job, generate cover letters, and apply with ease.',
     images: [{ url: '/api/og?eyebrow=RESUMEMINT&title=AI+Resume+Builder+that+beats+ATS', width: 1200, height: 630 }],
   },
 };

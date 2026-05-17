@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Pricing',
+  title: 'Affordable Pricing: AI Resumes & More',
   description:
-    'Simple ResumeMint pricing — one plan with full access to AI tailoring, all 12 resume templates, cover letters, and job matching. Cancel anytime.',
+    "Discover ResumeMint's simple pricing: unlimited AI resumes, cover letters, and job matching. Start with a free trial. Cancel anytime.",
   alternates: { canonical: '/pricing' },
   openGraph: {
     url: '/pricing',
-    title: 'ResumeMint pricing',
-    description: 'One simple plan with full access to AI tailoring and every template.',
+    title: 'Affordable ResumeMint Pricing: AI Resumes & More',
+    description: 'Transparent pricing with full access to AI tools, templates, and more.',
     images: [{ url: '/api/og?eyebrow=PRICING&title=Simple+pricing.+Cancel+anytime.', width: 1200, height: 630 }],
   },
 };

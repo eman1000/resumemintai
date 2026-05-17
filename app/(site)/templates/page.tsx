@@ -5,14 +5,14 @@ import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Resume Templates',
+  title: 'ATS-Friendly Resume Templates',
   description:
-    '12 ATS-friendly resume templates — Classic, Modern, Elegant, Creative, Executive, and more. Switch any time without losing content.',
+    'Discover 12 ATS-friendly resume templates — Classic, Modern, Elegant, Creative, Executive, and more. Easily switch designs without losing content.',
   alternates: { canonical: '/templates' },
   openGraph: {
     url: '/templates',
-    title: 'ResumeMint Resume Templates',
-    description: '12 ATS-friendly resume templates you can switch between any time.',
+    title: 'Explore ATS-Compatible Resume Templates | ResumeMint',
+    description: 'Choose from 12 ATS-friendly resume templates and switch anytime without losing content.',
     images: [{ url: '/api/og?eyebrow=TEMPLATES&title=12+ATS-friendly+resume+templates', width: 1200, height: 630 }],
   },
 };

@@ -5,15 +5,15 @@ import '../../policies.scss';
 const LAST_UPDATED = '05 Oct 2025';
 
 export const metadata: Metadata = {
-  title: 'Refund Policy',
+  title: 'Refund Policy & Subscription Details',
   description:
-    'ResumeMint refund policy: how trials, renewals, and cancellations work, and how to request a refund.',
+    "Learn about ResumeMint's refund policy: trials, renewals, cancellations, and how to request a refund effectively.",
   alternates: { canonical: '/refund' },
   robots: { index: true, follow: true },
   openGraph: {
     url: '/refund',
-    title: 'ResumeMint Refund Policy',
-    description: 'How trials, renewals, cancellations, and refunds work.',
+    title: 'ResumeMint Refund Policy & Subscription Details',
+    description: 'Trials, renewals, cancellations, and how to request a refund.',
     images: [{ url: '/api/og?eyebrow=REFUND&title=Refund+Policy', width: 1200, height: 630 }],
   },
 };

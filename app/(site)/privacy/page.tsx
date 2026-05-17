@@ -4,15 +4,15 @@ import '../../policies.scss';
 const LAST_UPDATED = '05 Oct 2025';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy',
+  title: 'Privacy Policy: Data Protection',
   description:
-    'How ResumeMint (Plenqor LLC) collects, uses, and protects your data — account info, payments, content, and analytics.',
+    'Learn how ResumeMint collects, uses, and safeguards your data. Explore your rights and our security measures.',
   alternates: { canonical: '/privacy' },
   robots: { index: true, follow: true },
   openGraph: {
     url: '/privacy',
-    title: 'ResumeMint Privacy Policy',
-    description: 'How ResumeMint collects, uses, and protects your data.',
+    title: 'Privacy Policy | Secure Data Handling at ResumeMint',
+    description: "ResumeMint's approach to data collection, usage, and protection.",
     images: [{ url: '/api/og?eyebrow=PRIVACY&title=Privacy+Policy', width: 1200, height: 630 }],
   },
 };

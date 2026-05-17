@@ -5,14 +5,14 @@ import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Cover Letter Templates',
+  title: 'AI-Enhanced Cover Letter Templates',
   description:
-    'Cover letter templates that match your resume — Professional, Classic, Elegant, Creative. AI-tailored to any job description.',
+    'Discover AI-tailored cover letter templates that match your resume — Professional, Classic, Elegant, and Creative designs for any job application.',
   alternates: { canonical: '/cover-letter-templates' },
   openGraph: {
     url: '/cover-letter-templates',
-    title: 'ResumeMint Cover Letter Templates',
-    description: 'Cover letter templates that match your resume, tailored by AI to each role.',
+    title: 'AI-Enhanced Cover Letter Templates | ResumeMint',
+    description: 'AI-designed cover letter templates that complement your resume.',
     images: [{ url: '/api/og?eyebrow=COVER+LETTERS&title=Cover+letter+templates+that+match+your+resume', width: 1200, height: 630 }],
   },
 };
