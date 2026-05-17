@@ -791,10 +791,48 @@ function JobDetailsPane({
     | { applicationId: string; remainingToday: number }
     | null
   >(null);
+  // "Mark as applied" — for ATSes without auto-submit (Ashby, Workable, etc.)
+  // we still want the user to be able to record the application in the
+  // tracker without leaving the page.
+  const [markingApplied, setMarkingApplied] = React.useState(false);
+  const [markedAppliedId, setMarkedAppliedId] = React.useState<string | null>(null);
   React.useEffect(() => {
     setGhOpen(false);
     setGhSubmitted(null);
+    setMarkedAppliedId(null);
   }, [job]);
+
+  async function markApplied() {
+    if (markingApplied || markedAppliedId) return;
+    setMarkingApplied(true);
+    try {
+      const init = await withAuth({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ats: ats.id || 'manual',
+          status: 'applied',
+          jobSnapshot: {
+            source: job.source || bestApplyUrl || undefined,
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            postedAt: job.postedAt,
+          },
+          resumeId: existingKit?.resumeId ?? null,
+          coverLetterId: existingKit?.coverLetterId ?? null,
+        }),
+      });
+      const r = await fetch('/api/applications', init);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'failed');
+      setMarkedAppliedId(j.id);
+    } catch (e: any) {
+      alert(`Could not mark as applied: ${e?.message || e}`);
+    } finally {
+      setMarkingApplied(false);
+    }
+  }
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
       {/* Sticky toolbar inside the pane */}
@@ -899,7 +937,7 @@ function JobDetailsPane({
 
         {/* Secondary actions only — primary "Apply" sits inside the kit panel
             below because it should follow tailoring, not precede it. */}
-        <div className="mt-5">
+        <div className="mt-5 flex flex-wrap items-center gap-4">
           <a
             href={buildFallbackApplyUrl(job, country)}
             target="_blank"
@@ -908,6 +946,24 @@ function JobDetailsPane({
           >
             Search similar roles →
           </a>
+          {!isGreenhouse && (
+            markedAppliedId ? (
+              <a
+                href="/applications"
+                className="inline-flex items-center gap-1 text-xs text-emerald-800 font-medium"
+              >
+                ✓ Saved to Applications
+              </a>
+            ) : (
+              <button
+                onClick={markApplied}
+                disabled={markingApplied}
+                className="text-xs text-emerald-700 hover:text-emerald-900 hover:underline disabled:opacity-60"
+              >
+                {markingApplied ? 'Saving…' : 'Mark as applied'}
+              </button>
+            )
+          )}
         </div>
 
         {/* === Apply Kit panel — three states + applyMode checklist === */}
@@ -956,6 +1012,22 @@ function JobDetailsPane({
                     className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 text-gray-800 text-xs font-medium px-3 py-1.5 hover:bg-gray-50"
                   >
                     Open cover letter
+                  </button>
+                )}
+                {markedAppliedId ? (
+                  <a
+                    href="/applications"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1.5"
+                  >
+                    ✓ Saved to Applications
+                  </a>
+                ) : (
+                  <button
+                    onClick={markApplied}
+                    disabled={markingApplied}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 text-white text-xs font-medium px-3 py-1.5 hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    {markingApplied ? 'Saving…' : 'Mark as applied'}
                   </button>
                 )}
               </div>
