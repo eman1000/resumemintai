@@ -17,6 +17,7 @@ export default function SiteFooter() {
             <li><Link href="/templates" className="hover:text-brand">Resume Templates</Link></li>
             <li><Link href="/cover-letter-templates" className="hover:text-brand">Cover Letter Templates</Link></li>
             <li><Link href="/pricing" className="hover:text-brand">Pricing</Link></li>
+            <li><Link href="/faq" className="hover:text-brand">FAQ</Link></li>
           </ul>
         </div>
 
