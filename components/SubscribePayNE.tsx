@@ -107,7 +107,7 @@ function WalletAutoFlow({
               return;
             }
 
-            const r = await fetch('/api/billing/activate-guest', {
+            const r = await fetch('/api/billing/guest/subscribe', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
@@ -222,7 +222,7 @@ function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void
       try { if (auth?.currentUser) await signOut(auth); } catch {}
       track({ event: 'start_guest_request', props: { page: 'landing' } });
 
-      const r = await fetch('/api/billing/start-guest-new', {
+      const r = await fetch('/api/billing/guest/setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

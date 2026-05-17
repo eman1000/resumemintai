@@ -311,13 +311,25 @@ function resolveDerivable(key: string, tpl: any): string | undefined {
     // Some templates typo "constrast" (contrast). Make a readable fallback:
     case "constrast":
     case "contrast": {
-      // Pick between defaultColor / fallbackColor based on contrast threshold.
-      // Keep it simple: if base color looks dark, use defaultColor, else fallbackColor.
-      const bg = colorVal(spec.color, base) ?? "#ffffff";
-      const { r, g, b } = hexToRgb(bg);
-      const luminance = 0.2126*(r/255) + 0.7152*(g/255) + 0.0722*(b/255);
-      const prefer = luminance < 0.5 ? (spec.defaultColor ?? "#ffffff") : (spec.fallbackColor ?? "#000000");
-      return prefer;
+      // Semantics: of the two candidate colors (defaultColor, fallbackColor),
+      // pick whichever has higher contrast against `spec.color` (the reference).
+      // Template configs are inconsistent about which key represents the
+      // "preferred-on-light" vs "preferred-on-dark" choice — they use
+      // {default:"black", fallback:"white"} when the ref is usually light
+      // (e.g. headerTextColor vs backgroundColor) and {default:"white",
+      // fallback:"black"} when the ref is usually dark (e.g. titleColor vs
+      // highlightColor). Picking by relative contrast handles both shapes.
+      const ref = colorVal(spec.color, base) ?? "#ffffff";
+      const lum = (hex: string) => {
+        const { r, g, b } = hexToRgb(hex);
+        return 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+      };
+      const refLum = lum(ref);
+      const def = spec.defaultColor ?? "#ffffff";
+      const fall = spec.fallbackColor ?? "#000000";
+      const defContrast = Math.abs(lum(def) - refLum);
+      const fallContrast = Math.abs(lum(fall) - refLum);
+      return defContrast >= fallContrast ? def : fall;
     }
     default:
       return undefined;

@@ -100,11 +100,18 @@ export default function ElegantTemplate(props: ElegantProps) {
   const headerColor = colors?.header  ?? primary;
   const divider     = colors?.divider ?? "#e5e7eb";
 
-  // Sizes
+  // Sizes — base type sizes
   const bodySize    = sizes?.body    ?? 10;
   const line        = sizes?.line    ?? 18;
   const sectionSize = sizes?.section ?? 16;
   const nameBase    = sizes?.name    ?? 24;
+  // Full spacing prop coverage — scale rhythm with the user's size choice.
+  const paraGap        = sizes?.paraGap        ?? Math.round(bodySize * 0.8);
+  const headerGap      = sizes?.headerGap      ?? Math.round(bodySize * 0.4);
+  const titleGap       = sizes?.titleGap       ?? Math.round(bodySize * 1.2);
+  const sectionGap     = sizes?.sectionGap     ?? Math.round(bodySize * 1.8);
+  const recordGap      = sizes?.recordGap      ?? Math.round(bodySize * 0.8);
+  const beforeTitlePad = sizes?.beforeTitlePad ?? Math.round(bodySize * 0.6);
 
   // Layout
   const RAIL_W     = 200;
@@ -146,12 +153,33 @@ export default function ElegantTemplate(props: ElegantProps) {
   const railFirst : Box = { x: 40, y: BODY_TOP, w: RAIL_W - 80, h: height - BODY_TOP - PAGE_PAD };
   const railFollow: Box = { x: 40, y: PAGE_PAD,  w: RAIL_W - 80, h: height - PAGE_PAD - PAGE_PAD };
 
+  // Rail/sidebar background follows theme — adapter passes railBg
+  // (derived from leftColumnBackgroundColor or primary), then primary,
+  // then a dark default. No more pure-black-regardless-of-theme.
+  const sidebar = colors?.sidebar ?? colors?.railBg ?? colors?.primary ?? "#262630";
+
+  // Auto-pick rail text colors based on sidebar luminance so they stay readable
+  // when the user picks a light primary.
+  const railLum = (() => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(sidebar));
+    if (!m) return 0.1; // assume dark for non-hex (rgba/etc.)
+    const n = parseInt(m[1], 16);
+    const r = (n >> 16) & 0xff, g = (n >> 8) & 0xff, b = n & 0xff;
+    return 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+  })();
+  const railIsLight = railLum >= 0.5;
+  const railText    = railIsLight ? "#1a1a1a" : "#ffffff";
+  const railHeader  = railIsLight ? "#333333" : "#e6e6e6";
+  const railDivider = railIsLight ? "rgba(0,0,0,.18)" : "rgba(255,255,255,.22)";
+
   // Shared style for pourer
   const styleMain = { family: fontFamily, body: bodySize, line, section: sectionSize, primary, text, header: headerColor, divider };
-  const styleRail = { ...styleMain, text: "#ffffff", header: "#e6e6e6", divider: "rgba(255,255,255,.22)" };
+  const styleRail = { ...styleMain, text: railText, header: railHeader, divider: railDivider };
 
-  const gaps = { para: 8, header: 4, title: 12, section: 18, record: 8, beforeTitlePad: 6 };
-const sidebar    = colors?.sidebar ?? "#000000";   // <-- rail bg, default black
+  const gaps = {
+    para: paraGap, header: headerGap, title: titleGap,
+    section: sectionGap, record: recordGap, beforeTitlePad,
+  };
 
   // Pour
   const mainPourOptions: any = {

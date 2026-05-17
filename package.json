@@ -7,7 +7,14 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d db",
+    "db:migrate": "DATABASE_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable DIRECT_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable prisma migrate deploy",
+    "db:migrate:dev": "DATABASE_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable DIRECT_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable prisma migrate dev",
+    "db:studio": "DATABASE_URL=postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable prisma studio",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
@@ -32,6 +39,7 @@
     "fast-deep-equal": "^3.1.3",
     "firebase": "^10.13.1",
     "firebase-admin": "^12",
+    "form-data": "^4.0.5",
     "html-to-image": "^1.11.13",
     "html2pdf.js": "^0.12.1",
     "ip2location-nodejs": "^9.7.0",
@@ -40,6 +48,7 @@
     "linkedom": "^0.18.12",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.446.0",
+    "mailgun.js": "^13.0.1",
     "mammoth": "^1.10.0",
     "mustache": "^4.2.0",
     "next": "14.2.5",

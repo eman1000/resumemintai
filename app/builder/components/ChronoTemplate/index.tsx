@@ -393,6 +393,15 @@ export const ChronoTemplate: React.FC<ChronoProps> = (props) => {
 
   const primary = colors?.primary ?? "#2563EB"; // brand blue
   const text = colors?.text ?? "#222222";
+  // Contact bar: very light tint of primary so it harmonizes with the theme.
+  const contactBarBg = (() => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(primary));
+    if (!m) return "#f0f4f8";
+    const n = parseInt(m[1], 16);
+    const r = (n >> 16) & 0xff, g = (n >> 8) & 0xff, b = n & 0xff;
+    const mix = (c: number) => Math.round(c + (255 - c) * 0.92);
+    return `#${[mix(r), mix(g), mix(b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
+  })();
   const header = colors?.header ?? "#333333";
   const divider = colors?.divider ?? "#d8d8d8";
 
@@ -487,10 +496,11 @@ export const ChronoTemplate: React.FC<ChronoProps> = (props) => {
                   </T>
                 ) : null}
 
-                {/* Contact info bar */}
+                {/* Contact info bar — tinted toward the theme primary so it
+                    stays visually coherent across color choices. */}
                 {pdItems.length > 0 ? (
                   <>
-                    <R x={0} y={contactBarY} w={width} h={contactBarH} fill="#f0f4f8" />
+                    <R x={0} y={contactBarY} w={width} h={contactBarH} fill={contactBarBg} />
                     <T x={width / 2} y={contactBarY + 15} size={bodySize - 1} color={text} family={fontFamily} anchor="middle">
                       {pdText}
                     </T>

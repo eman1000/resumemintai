@@ -58,6 +58,17 @@ export type CasualProps = {
 };
 
 /* =================== Helpers =================== */
+/** Mix a hex color toward white by factor 0..1 (0 = unchanged, 1 = white). */
+function tintHex(hex: string, factor: number) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 0xff, g = (n >> 8) & 0xff, b = n & 0xff;
+  const t = Math.max(0, Math.min(1, factor));
+  const mix = (c: number) => Math.round(c + (255 - c) * t);
+  return `#${[mix(r), mix(g), mix(b)].map(v => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 const titleCase = (s: string) =>
   String(s || "")
     .replace(/[-_]/g, " ")
@@ -309,7 +320,10 @@ function pourCasualPaged(
       // Render skills/languages as pills
       let pillX = innerX;
       let pillY = cursor;
-      const pillBg = key === "skills" ? style.primary : "#6366f1"; // different color for languages
+      // Skills pill uses the theme primary; languages pill uses a tinted
+      // variant of the same primary so they're visually related but
+      // distinguishable across themes (no more hardcoded indigo).
+      const pillBg = key === "skills" ? style.primary : tintHex(style.primary, 0.35);
 
       for (const rec of sec.records) {
         if (!rec.header) continue;

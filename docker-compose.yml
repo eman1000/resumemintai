@@ -1,0 +1,36 @@
+# Local-only Postgres for dev/test. Not used in production.
+#
+# Usage:
+#   docker compose up -d db          # start
+#   docker compose down              # stop (keep data)
+#   docker compose down -v           # stop + wipe volume (fresh DB)
+#
+# After starting, point your local DATABASE_URL at it and run migrations:
+#   DATABASE_URL="postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable" \
+#   DIRECT_URL="postgresql://resumemint:resumemint@localhost:5433/resumemint_dev?sslmode=disable" \
+#   npx prisma migrate dev
+#
+# Port 5433 (not the default 5432) so this never collides with another local pg.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: resumemintai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: resumemint
+      POSTGRES_PASSWORD: resumemint
+      POSTGRES_DB: resumemint_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - resumemintai-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resumemint -d resumemint_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  resumemintai-pgdata:
+    name: resumemintai-pgdata

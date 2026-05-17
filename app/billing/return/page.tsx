@@ -95,10 +95,11 @@ export default function BillingReturn() {
           return;
         }
 
-        // Email-first path: already authenticated → call /api/billing/activate and done
+        // Authenticated user hit the return page directly → activate via the
+        // authed /subscribe endpoint and short-circuit the claim UI.
         if (auth.currentUser) {
           const t = await auth.currentUser.getIdToken();
-          const r = await fetch('/api/billing/activate', {
+          const r = await fetch('/api/billing/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
             body: JSON.stringify({ setupIntentId, priceId: PRICE_ID }),
@@ -112,8 +113,8 @@ export default function BillingReturn() {
           return;
         }
 
-        // Guest path: activate-guest then prompt sign-in to claim
-        const r = await fetch('/api/billing/activate-guest', {
+        // Guest path: activate via guest endpoint then prompt sign-in to claim
+        const r = await fetch('/api/billing/guest/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ setupIntentId, priceId: PRICE_ID }),

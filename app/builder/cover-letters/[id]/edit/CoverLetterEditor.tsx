@@ -3,7 +3,27 @@
 import React, { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGripVertical, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faGripVertical,
+  faPlus,
+  faTrash,
+  faWandMagicSparkles,
+  faLock,
+} from "@fortawesome/free-solid-svg-icons";
+import toast from "react-hot-toast";
+import { withAuth } from "@/app/builder/_client/withAuth";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
+import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
+import LoginSlidePanel from "@/components/LoginSlidePanel";
+import {
+  COVER_LETTER_TEMPLATES,
+  getCoverLetterTemplate,
+} from "@/components/cover-letter-templates";
+import {
+  captureHtmlThumbnailFromPreview,
+  uploadCoverLetterThumbnail,
+} from "@/app/builder/_client/captureHtmlThumbnail";
+import { useParams } from "next/navigation";
 import type { CoverLetterData } from "./page";
 
 interface Props {
@@ -31,6 +51,48 @@ export default function CoverLetterEditor({
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
+  const params = useParams();
+  const coverLetterId = (params?.id as string) || "";
+
+  // Thumbnail capture throttle — matches the resume builder's 20s cadence.
+  const previewRef = React.useRef<HTMLDivElement>(null);
+  const lastThumbUpload = React.useRef<number>(0);
+  React.useEffect(() => {
+    if (!coverLetterId) return;
+    const now = Date.now();
+    if (now - lastThumbUpload.current < 20_000) return;
+    const handle = setTimeout(async () => {
+      const el = previewRef.current;
+      if (!el) return;
+      const blob = await captureHtmlThumbnailFromPreview(el, {
+        scale: 2,
+        background: "#ffffff",
+      });
+      if (!blob) return;
+      try {
+        await uploadCoverLetterThumbnail(coverLetterId, blob, withAuth);
+        lastThumbUpload.current = Date.now();
+      } catch (e: any) {
+        console.warn("[cl-thumbnail-upload] failed:", e?.message || e);
+      }
+    }, 1500); // small debounce so we don't fire mid-typing
+    return () => clearTimeout(handle);
+    // Re-run whenever the visible content changes
+  }, [coverLetterId, data, renderer]);
+
+  const { isAuthenticated, isSubscribed } = useAuthStatus();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [pendingProAfterLogin, setPendingProAfterLogin] = useState(false);
+
+  // After successful login, chain into the subscribe panel if the user was
+  // trying to access a PRO template.
+  React.useEffect(() => {
+    if (!pendingProAfterLogin) return;
+    if (!isAuthenticated) return;
+    setPendingProAfterLogin(false);
+    if (!isSubscribed) setSubscribeOpen(true);
+  }, [pendingProAfterLogin, isAuthenticated, isSubscribed]);
 
   React.useEffect(() => setLocalTitle(title), [title]);
 
@@ -69,6 +131,69 @@ export default function CoverLetterEditor({
     next.splice(result.destination.index, 0, moved);
     onDataChange({ ...data, paragraphs: next });
   };
+
+  /* ---------------- Template selection (with PRO gate) ---------------- */
+  const selectTemplate = (tplId: string, isFree: boolean) => {
+    if (!isFree && !isSubscribed) {
+      if (!isAuthenticated) {
+        setPendingProAfterLogin(true);
+        setLoginOpen(true);
+      } else {
+        setSubscribeOpen(true);
+      }
+      return;
+    }
+    onRendererChange(tplId);
+  };
+
+  /* ---------------- AI JD tailor ---------------- */
+  const [jdOpen, setJdOpen] = useState(false);
+  const [jdText, setJdText] = useState("");
+  const [jdUrl, setJdUrl] = useState("");
+  const [tailoring, setTailoring] = useState(false);
+
+  const handleTailor = async () => {
+    const text = jdText.trim();
+    const url = jdUrl.trim();
+    if (!text && !url) {
+      toast.error("Paste the job description or its URL");
+      return;
+    }
+    setTailoring(true);
+    try {
+      const res = await fetch(
+        "/api/assist/cover-letter-tailor",
+        await withAuth({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data,
+            jdText: text || undefined,
+            jdUrl: url || undefined,
+          }),
+        })
+      );
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.detail || j?.error || "tailor_failed");
+      const next: CoverLetterData = {
+        ...data,
+        subject: j.subject || data.subject,
+        paragraphs:
+          Array.isArray(j.paragraphs) && j.paragraphs.length > 0
+            ? j.paragraphs
+            : data.paragraphs,
+      };
+      onDataChange(next);
+      toast.success("Tailored to the job");
+      setJdOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn’t tailor — try again");
+    } finally {
+      setTailoring(false);
+    }
+  };
+
+  const Template = getCoverLetterTemplate(renderer);
 
   return (
     <div className="min-h-screen bg-[#f8fbfc]">
@@ -124,7 +249,67 @@ export default function CoverLetterEditor({
       {/* Main content */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left - Form */}
-        <div className="space-y-6">
+        <div className="space-y-5">
+          {/* AI Tailor panel */}
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faWandMagicSparkles} className="w-4 h-4 text-brand" />
+                <h2 className="font-semibold text-[#1d1d20]">Tailor to a job (AI)</h2>
+              </div>
+              <button
+                onClick={() => setJdOpen((v) => !v)}
+                className="text-xs text-brand hover:underline"
+              >
+                {jdOpen ? "Hide" : "Open"}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-[#52525a]">
+              Paste a job description or URL. We&rsquo;ll rewrite the subject + paragraphs around it.
+            </p>
+            {jdOpen && (
+              <div className="mt-4 space-y-3">
+                <textarea
+                  value={jdText}
+                  onChange={(e) => setJdText(e.target.value)}
+                  rows={6}
+                  placeholder="Paste the job description here…"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-[#1d1d20] focus:border-brand focus:ring-1 focus:ring-brand outline-none resize-y"
+                />
+                <div className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                  <span className="h-px flex-1 bg-gray-200" />
+                  <span>or</span>
+                  <span className="h-px flex-1 bg-gray-200" />
+                </div>
+                <input
+                  type="url"
+                  value={jdUrl}
+                  onChange={(e) => setJdUrl(e.target.value)}
+                  placeholder="Job listing URL"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-[#1d1d20] focus:border-brand focus:ring-1 focus:ring-brand outline-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleTailor}
+                    disabled={tailoring || (!jdText.trim() && !jdUrl.trim())}
+                    className="rounded-lg bg-brand text-white text-sm px-3 py-2 font-medium disabled:opacity-60"
+                  >
+                    {tailoring ? "Tailoring…" : "✨ Tailor with AI"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!navigator.clipboard) return;
+                      navigator.clipboard.readText().then((t) => setJdText(t || "")).catch(() => {});
+                    }}
+                    className="rounded-lg border border-gray-300 text-sm px-3 py-2 hover:bg-gray-50"
+                  >
+                    Paste
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Sender */}
           <Section title="Your Details">
             <div className="grid grid-cols-2 gap-3">
@@ -216,15 +401,99 @@ export default function CoverLetterEditor({
           </Section>
         </div>
 
-        {/* Right - Preview */}
+        {/* Right - Preview + Templates */}
         <div className="hidden lg:block">
-          <div className="sticky top-20">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 aspect-[210/297] overflow-hidden">
-              <CoverLetterPreview data={data} />
+          <div className="sticky top-20 space-y-4">
+            {/* A4-ish preview at scale */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden aspect-[210/297]">
+              <div ref={previewRef} className="h-full w-full overflow-hidden">
+                <Template data={data} />
+              </div>
+            </div>
+
+            {/* Template picker */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#1d1d20]">Template</h3>
+                <span className="text-xs text-[#a1a1aa]">
+                  {COVER_LETTER_TEMPLATES.length} designs
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {COVER_LETTER_TEMPLATES.map((t) => {
+                  const isActive = renderer === t.id;
+                  const locked = !t.isFree && !isSubscribed;
+                  const PreviewTpl = getCoverLetterTemplate(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => selectTemplate(t.id, t.isFree)}
+                      className={[
+                        "group relative rounded-lg border p-2 text-left transition-all",
+                        isActive
+                          ? "border-brand ring-2 ring-brand/30 bg-brand/5"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+                      ].join(" ")}
+                    >
+                      {/* Live mini-render of the template using the user's
+                          actual data — scaled to fit the thumbnail box so
+                          users see exactly what they'd get. */}
+                      <div
+                        className={[
+                          "relative aspect-[3/4] w-full rounded-md overflow-hidden mb-2 bg-white border border-gray-200",
+                          locked ? "opacity-90" : "",
+                        ].join(" ")}
+                      >
+                        <div
+                          aria-hidden="true"
+                          style={{
+                            width: 595,           // template native A4-ish width
+                            height: 842,
+                            transformOrigin: "top left",
+                            transform: "scale(0.22)",
+                            pointerEvents: "none",
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                          }}
+                        >
+                          <PreviewTpl data={data} preview />
+                        </div>
+                        {locked && (
+                          <div className="absolute inset-0 bg-white/30 backdrop-blur-[1px] grid place-items-center">
+                            <span className="rounded-full bg-amber-500/95 text-white text-[10px] font-semibold px-2 py-0.5 inline-flex items-center gap-1">
+                              <FontAwesomeIcon icon={faLock} className="w-2 h-2" />
+                              PRO
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-medium truncate">{t.name}</span>
+                        {!t.isFree && !locked && (
+                          <span className="text-[9px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 font-medium">
+                            PRO
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[10px] text-[#a1a1aa] line-clamp-2">{t.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Login / Subscribe panels for PRO gating */}
+      <LoginSlidePanel
+        open={loginOpen}
+        onClose={() => { setLoginOpen(false); setPendingProAfterLogin(false); }}
+        onSuccess={() => setLoginOpen(false)}
+        reason={pendingProAfterLogin ? "Sign in to unlock premium templates." : undefined}
+      />
+      <SubscribeSlidePanel open={subscribeOpen} onClose={() => setSubscribeOpen(false)} />
     </div>
   );
 }
@@ -261,55 +530,6 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder || label}
       />
-    </div>
-  );
-}
-
-function CoverLetterPreview({ data }: { data: CoverLetterData }) {
-  const fontSize = "text-[10px]";
-  return (
-    <div className={`${fontSize} text-[#1d1d20] leading-relaxed h-full flex flex-col`}>
-      {/* Sender info */}
-      <div className="mb-4">
-        {data.sender.fullName && <div className="font-bold text-sm">{data.sender.fullName}</div>}
-        {data.sender.address && <div>{data.sender.address}</div>}
-        {data.sender.city && <div>{data.sender.city}</div>}
-        <div className="flex gap-3 mt-1">
-          {data.sender.email && <span>{data.sender.email}</span>}
-          {data.sender.phone && <span>{data.sender.phone}</span>}
-        </div>
-      </div>
-
-      {/* Recipient */}
-      <div className="mb-3">
-        {data.recipient.name && <div>{data.recipient.name}</div>}
-        {data.recipient.title && <div>{data.recipient.title}</div>}
-        {data.recipient.company && <div className="font-medium">{data.recipient.company}</div>}
-        {data.recipient.address && <div>{data.recipient.address}</div>}
-        {data.recipient.city && <div>{data.recipient.city}</div>}
-      </div>
-
-      {/* Date */}
-      {data.date && <div className="mb-3">{data.date}</div>}
-
-      {/* Subject */}
-      {data.subject && <div className="font-bold mb-3">{data.subject}</div>}
-
-      {/* Salutation */}
-      {data.salutation && <div className="mb-2">{data.salutation}</div>}
-
-      {/* Body paragraphs */}
-      <div className="flex-1 space-y-2">
-        {data.paragraphs.map((p, i) => (
-          <p key={i}>{p || <span className="text-gray-300 italic">Empty paragraph</span>}</p>
-        ))}
-      </div>
-
-      {/* Closing */}
-      <div className="mt-4">
-        {data.closing && <div>{data.closing}</div>}
-        {data.signatureName && <div className="mt-2 font-medium">{data.signatureName}</div>}
-      </div>
     </div>
   );
 }

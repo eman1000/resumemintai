@@ -32,6 +32,7 @@ import FullscreenLoader from "@/app/builder/components/FullscreenLoader";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { MobilePreviewOverlay } from "@/app/builder/components/MobilePreviewOverlay";
 import BottomToolbar from "@/app/builder/components/BottomToolbar";
+import { RENDERERS as RESUME_RENDERERS } from "@/app/builder/components/A4Preview";
 
 
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
@@ -3616,6 +3617,32 @@ async function handleAISuggest(section: CVSection) {
                 onChangeRenderer?.(selected.renderer);
                 setOptions(selected.defaultOptions);
               }}
+              renderTemplatePreview={(t) => {
+                const Tpl = (RESUME_RENDERERS as Record<string, React.ComponentType<any>>)[t.renderer];
+                if (!Tpl) return null;
+                // Render with this template's own defaults so each tile looks
+                // like its intended design — not whatever the user is currently editing.
+                const tplProps = toCircularProps(
+                  cvDocToTemplateData(doc, {
+                    dateFormat, months, presentLabel: i18n.t("label.present", "Present"),
+                  }),
+                  (SAMPLE_TEMPLATES.find((s) => s.id === t.id)?.defaultOptions) || options,
+                );
+                return (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      width: 595, height: 842,
+                      transformOrigin: "top left",
+                      transform: "scale(0.22)",
+                      pointerEvents: "none",
+                      position: "absolute", top: 0, left: 0,
+                    }}
+                  >
+                    <Tpl {...tplProps} />
+                  </div>
+                );
+              }}
               isSubscribed={isSubscribed}
               onAuthGate={onAuthGate}
               fontName={(options as any)?.fontName || "Arial"}
@@ -3750,6 +3777,30 @@ async function handleAISuggest(section: CVSection) {
               setActiveTemplateId(id);
               onChangeRenderer?.(selected.renderer);
               setOptions(selected.defaultOptions);
+            }}
+            renderTemplatePreview={(t) => {
+              const Tpl = (RESUME_RENDERERS as Record<string, React.ComponentType<any>>)[t.renderer];
+              if (!Tpl) return null;
+              const tplProps = toCircularProps(
+                cvDocToTemplateData(doc, {
+                  dateFormat, months, presentLabel: i18n.t("label.present", "Present"),
+                }),
+                (SAMPLE_TEMPLATES.find((s) => s.id === t.id)?.defaultOptions) || options,
+              );
+              return (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: 595, height: 842,
+                    transformOrigin: "top left",
+                    transform: "scale(0.22)",
+                    pointerEvents: "none",
+                    position: "absolute", top: 0, left: 0,
+                  }}
+                >
+                  <Tpl {...tplProps} />
+                </div>
+              );
             }}
             isSubscribed={isSubscribed}
             onAuthGate={onAuthGate}

@@ -58,6 +58,12 @@ type BottomToolbarProps = {
   onSelectTemplate: (id: string) => void;
   isSubscribed: boolean;
   onAuthGate?: () => void;
+  /**
+   * Optional renderer for the thumbnail tile of each template in the picker.
+   * The caller is responsible for laying out / scaling its render. If omitted,
+   * we fall back to a CSS-only placeholder tile.
+   */
+  renderTemplatePreview?: (template: Template) => React.ReactNode;
 
   fontName: string;
   onChangeFontName: (name: string) => void;
@@ -241,6 +247,7 @@ export function BottomToolbar(props: BottomToolbarProps) {
     onSelectTemplate,
     isSubscribed,
     onAuthGate,
+    renderTemplatePreview,
     fontName,
     onChangeFontName,
     fontSizeKey,
@@ -304,12 +311,25 @@ export function BottomToolbar(props: BottomToolbarProps) {
                     ${active ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50/40" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}
                   `}
                 >
-                  <div className="aspect-[3/4] w-full rounded-md bg-gradient-to-br from-gray-100 to-gray-200 mb-2 flex items-center justify-center text-gray-400 text-[10px] uppercase tracking-wide">
-                    {t.renderer}
+                  <div className="relative aspect-[3/4] w-full rounded-md overflow-hidden mb-2 bg-white border border-gray-200">
+                    {renderTemplatePreview ? (
+                      renderTemplatePreview(t)
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 text-[10px] uppercase tracking-wide">
+                        {t.renderer}
+                      </div>
+                    )}
+                    {locked && (
+                      <div className="absolute inset-0 bg-white/30 backdrop-blur-[1px] grid place-items-center">
+                        <span className="rounded-full bg-amber-500/95 text-white text-[10px] font-semibold px-2 py-0.5">
+                          🔒 PRO
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-between gap-1">
                     <span className="font-medium capitalize truncate">{t.name}</span>
-                    {!t.isFree && (
+                    {!t.isFree && !locked && (
                       <span className="text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 font-medium">
                         PRO
                       </span>

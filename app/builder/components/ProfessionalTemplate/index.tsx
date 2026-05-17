@@ -371,10 +371,19 @@ const headerColor = primary;          // <- follow primary by default
 const divider     = colors?.divider    ?? "#e2e2e2";
 const railDiv     = colors?.railDivider?? "#e2e2e2";
 
-  const bodySize = sizes?.body ?? 10;
-  const line = sizes?.line ?? 18;
-  const sectionSize = sizes?.section ?? 18;
-  const nameBase = sizes?.name ?? 28;
+  const bodySize       = sizes?.body    ?? 10;
+  const line           = sizes?.line    ?? 18;
+  const sectionSize    = sizes?.section ?? 18;
+  const nameBase       = sizes?.name    ?? 28;
+  // Full spacing prop coverage — these used to be hardcoded, so font-size
+  // changes only affected type and not vertical rhythm. Now they scale with
+  // the user's choice.
+  const paraGap        = sizes?.paraGap        ?? Math.round(bodySize * 0.8);
+  const headerGap      = sizes?.headerGap      ?? Math.round(bodySize * 0.4);
+  const titleGap       = sizes?.titleGap       ?? Math.round(bodySize * 1.2);
+  const sectionGap     = sizes?.sectionGap     ?? Math.round(bodySize * 1.8);
+  const recordGap      = sizes?.recordGap      ?? Math.round(bodySize * 0.6);
+  const beforeTitlePad = sizes?.beforeTitlePad ?? Math.round(bodySize * 0.6);
 
   /* Layout */
   const MARGIN   = 25;
@@ -412,8 +421,13 @@ const style = {
   header: headerColor, // titles & record headers use this
   divider,
 };
+  const gaps = {
+    para: paraGap, header: headerGap, title: titleGap,
+    section: sectionGap, record: recordGap, beforeTitlePad,
+  };
   const mainPages = pourSectionsPaged(mainFirstBox, mainFollowBox, mainSections, style,
   {
+    gaps,
     bullet: {
       indent: 12,       // space for dot + gap
       r: 2,
@@ -422,6 +436,7 @@ const style = {
   });
   const railPages = pourSectionsPaged(railFirstBox, railFollowBox, railSections, style,
   {
+    gaps,
     bullet: {
       indent: 12,
       r: 2,

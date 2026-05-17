@@ -153,15 +153,33 @@ export default function CoverLettersHome() {
 
               {(items || []).map((it) => {
                 const isOpen = openMenu === it.id;
+                // Bust the CDN cache when the cover letter was updated so the
+                // thumbnail refreshes after edits.
+                const thumbSrc = it.thumbnailUrl
+                  ? `${it.thumbnailUrl}?ts=${encodeURIComponent(it.updatedAt || "")}`
+                  : "";
                 return (
                   <div key={it.id} className="group">
                     <Link
                       href={`/builder/cover-letters/${it.id}/edit`}
                       className="relative block aspect-[3/4] rounded-xl overflow-hidden border bg-white shadow hover:shadow-md transition"
                     >
-                      <div className="absolute inset-0 grid place-items-center text-gray-400 bg-gray-50">
-                        <span className="text-sm">Cover Letter</span>
-                      </div>
+                      {thumbSrc ? (
+                        <img
+                          src={thumbSrc}
+                          alt={`${it.title || "Cover Letter"} thumbnail`}
+                          className="absolute inset-0 h-full w-full object-cover object-top"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                            (e.currentTarget.parentElement as HTMLElement)?.classList.add("bg-gray-100");
+                          }}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 grid place-items-center text-gray-400 bg-gray-50">
+                          <span className="text-sm">Cover Letter</span>
+                        </div>
+                      )}
 
                       <button
                         type="button"

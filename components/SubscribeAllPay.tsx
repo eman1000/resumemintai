@@ -29,6 +29,21 @@ type StartResponse = {
 type SubscribeAllPayProps = {
   onWalletReadyChange?: (ready: boolean) => void;
   onWalletSupportChange?: (supported: boolean) => void;
+  /**
+   * When true (default), the starter signs out the current Firebase user
+   * before creating a guest SetupIntent — appropriate for the landing-page
+   * guest checkout flow. Set to false when embedding this component for an
+   * already-authenticated user (e.g. the in-app subscribe slide panel) so
+   * we don't kick them out of their session.
+   */
+  signOutFirst?: boolean;
+  /**
+   * Called after the SetupIntent is confirmed AND the subscription has been
+   * activated. The default behavior (no callback supplied) redirects to
+   * /billing/return. Provide a callback when embedding in the in-app slide
+   * panel so we can just close the modal instead of redirecting.
+   */
+  onActivated?: (payload: any) => void;
 };
 
 /* -------------------- Wallet (Apple/Google Pay) -------------------- */
@@ -43,7 +58,8 @@ function WalletAutoFlow({
   clientSecret: string;
   merchantCountry?: string;
   priceCurrency?: string;
-  onActivated: (payload: any) => void;
+  /** Optional. If provided, replaces the default /billing/return redirect. */
+  onActivated?: (payload: any) => void;
   onWalletReadyChange?: (ready: boolean) => void;
   onWalletSupportChange?: (supported: boolean) => void;
 }) {
@@ -116,15 +132,29 @@ function WalletAutoFlow({
               return;
             }
 
-            const r = await fetch('/api/billing/activate-guest', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
-            });
-            const j = await r.json();
-            if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+            // Auth-aware: signed-in user goes through /api/billing/subscribe.
+            const currentUser = auth?.currentUser;
+            let j: any;
+            if (currentUser) {
+              const token = await currentUser.getIdToken();
+              const r = await fetch('/api/billing/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
+              });
+              j = await r.json();
+              if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+            } else {
+              const r = await fetch('/api/billing/guest/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
+              });
+              j = await r.json();
+              if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+            }
 
-            track({ event: 'payment-request-success', props: { page: 'landing', setupIntentId: siId } });
+            track({ event: 'payment-request-success', props: { page: currentUser ? 'app' : 'landing', setupIntentId: siId } });
 
             ev.complete('success');
 
@@ -138,8 +168,13 @@ function WalletAutoFlow({
             });
 
             toast.success('Subscription activated!');
-            onActivated?.(j);
-            location.href = `/billing/return?setup_intent=${encodeURIComponent(siId)}`;
+            if (onActivated) {
+              onActivated(j);
+            } else if (currentUser) {
+              location.reload();
+            } else {
+              location.href = `/billing/return?setup_intent=${encodeURIComponent(siId)}`;
+            }
           } catch (e: any) {
             ev.complete('fail');
             setSubmitting(false);
@@ -203,13 +238,70 @@ function WalletAutoFlow({
 
 /* -------------------- Card (PaymentElement) -------------------- */
 function CardSetupFlow({
+  clientSecret,
   onActivated,
 }: {
-  onActivated: (payload: any) => void;
+  clientSecret: string;
+  /** Optional. If provided, replaces the default /billing/return redirect. */
+  onActivated?: (payload: any) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
+  const [showDevTestCard, setShowDevTestCard] = useState(false);
+
+  // Compute the gate AFTER mount so we never depend on module-load timing.
+  useEffect(() => {
+    const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+    const isTest = pk.startsWith('pk_test_');
+    const host = typeof window !== 'undefined' ? location.hostname : '';
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    setShowDevTestCard(isTest && isLocal);
+    // eslint-disable-next-line no-console
+    console.log('[SubscribeAllPay] dev-test-card gate:', { isTest, isLocal, pk: pk.slice(0, 10) + '…', host });
+  }, []);
+
+  const setupIntentId = clientSecret.split('_secret')[0];
+
+  async function finalize(siId: string) {
+    // If the user is already authenticated, go through the authed activate
+    // endpoint and skip the /billing/return claim page.
+    const currentUser = auth?.currentUser;
+    if (currentUser) {
+      const token = await currentUser.getIdToken();
+      const r = await fetch('/api/billing/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+      track({ event: 'card_confirm_success', props: { page: 'app', setupIntentId: siId, authed: true } });
+      toast.success(j.alreadySubscribed ? 'You already have an active subscription.' : 'Subscription activated!');
+      if (onActivated) {
+        onActivated(j);
+      } else {
+        location.reload();
+      }
+      return;
+    }
+
+    // Guest path — landing checkout, redirect to /billing/return for claim.
+    const r = await fetch('/api/billing/guest/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
+    track({ event: 'card_confirm_success', props: { page: 'landing', setupIntentId: siId, authed: false } });
+    toast.success('Subscription activated!');
+    if (onActivated) {
+      onActivated(j);
+    } else {
+      location.href = `/billing/return?setup_intent=${encodeURIComponent(siId)}`;
+    }
+  }
 
   const onSubmit = useCallback(async () => {
     if (!stripe || !elements || submitting) return;
@@ -237,23 +329,30 @@ function CardSetupFlow({
         return;
       }
 
-      const r = await fetch('/api/billing/activate-guest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j?.detail || j?.error || 'activate_failed');
-
-      track({ event: 'card_confirm_success', props: { page: 'landing', setupIntentId: siId } });
-      toast.success('Subscription activated!');
-      onActivated?.(j);
-      location.href = `/billing/return?setup_intent=${encodeURIComponent(siId)}`;
+      await finalize(siId);
     } catch (e: any) {
       toast.error(e?.message || 'Activation failed');
       setSubmitting(false);
     }
   }, [stripe, elements, submitting, onActivated]);
+
+  const onUseTestCard = useCallback(async () => {
+    if (submitting) return;
+    try {
+      setSubmitting(true);
+      const r = await fetch('/api/dev/stripe/confirm-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setupIntentId, paymentMethod: 'pm_card_visa' }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.detail || j?.error || 'dev_confirm_failed');
+      await finalize(setupIntentId);
+    } catch (e: any) {
+      toast.error(e?.message || 'Test confirm failed');
+      setSubmitting(false);
+    }
+  }, [setupIntentId, submitting, onActivated]);
 
   useEffect(() => {
     track({ event: 'card_form_view', props: { page: 'landing' } });
@@ -265,12 +364,30 @@ function CardSetupFlow({
       <button onClick={onSubmit} disabled={!stripe || !elements || submitting} className="btn btn-creative w-full">
         {submitting ? 'Processing…' : 'Continue'}
       </button>
+
+      {showDevTestCard && (
+        <button
+          type="button"
+          onClick={onUseTestCard}
+          disabled={submitting}
+          className="w-full text-xs px-3 py-2 rounded-md border border-dashed border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+          title="Local dev only — confirms the SetupIntent with Stripe's pm_card_visa test PaymentMethod"
+        >
+          {submitting ? 'Submitting…' : '⚙︎ Use Stripe test card 4242 (dev only)'}
+        </button>
+      )}
     </div>
   );
 }
 
 /* -------------------- Starter: request SetupIntent -------------------- */
-function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void }) {
+function SubscribeStarter({
+  onStarted,
+  signOutFirst = true,
+}: {
+  onStarted: (p: StartResponse) => void;
+  signOutFirst?: boolean;
+}) {
   const [starting, setStarting] = useState(false);
   const startedRef = useRef(false);
 
@@ -278,13 +395,20 @@ function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void
     if (starting) return;
     setStarting(true);
     try {
-      try { if (auth?.currentUser) await signOut(auth); } catch {}
+      if (signOutFirst) {
+        try { if (auth?.currentUser) await signOut(auth); } catch {}
+      }
       track({ event: 'start_guest_request', props: { page: 'landing' } });
 
-      const r = await fetch('/api/billing/start-guest-new', {
+      // Reuse the existing guest accountId from a prior visit if we have one,
+      // so we don't create a brand-new users row + Stripe customer on every open.
+      let cachedAccountId: string | null = null;
+      try { cachedAccountId = localStorage.getItem('resumemint_account_id'); } catch {}
+
+      const r = await fetch('/api/billing/guest/setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(cachedAccountId ? { accountId: cachedAccountId } : {}),
       });
       const j: StartResponse = await r.json();
       if (!r.ok) throw new Error((j as any)?.error || (j as any)?.detail || 'start_failed');
@@ -304,7 +428,7 @@ function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void
       toast.error(e?.message || 'Could not start checkout');
       setStarting(false);
     }
-  }, [starting, onStarted]);
+  }, [starting, onStarted, signOutFirst]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -315,9 +439,31 @@ function SubscribeStarter({ onStarted }: { onStarted: (p: StartResponse) => void
   return null;
 }
 
+function SubscribeLoading() {
+  return (
+    <div className="space-y-4 animate-pulse" aria-live="polite" aria-busy="true">
+      <div className="flex items-center gap-2 text-sm text-[#52525a]">
+        <svg className="animate-spin h-4 w-4 text-brand" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+          <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+        <span>Preparing secure checkout…</span>
+      </div>
+      <div className="h-10 rounded-lg bg-gray-100" />
+      <div className="h-px bg-gray-100" />
+      <div className="h-10 rounded-lg bg-gray-100" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-10 rounded-lg bg-gray-100" />
+        <div className="h-10 rounded-lg bg-gray-100" />
+      </div>
+      <div className="h-11 rounded-lg bg-gray-200" />
+    </div>
+  );
+}
+
 /* -------------------- Unified Component: Wallet + Card -------------------- */
 export default function SubscribeAllPay(props: SubscribeAllPayProps) {
-  const { onWalletReadyChange, onWalletSupportChange } = props;
+  const { onWalletReadyChange, onWalletSupportChange, signOutFirst = true, onActivated } = props;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [merchantCountry, setMerchantCountry] = useState<string>('US');
   const [priceCurrency, setPriceCurrency] = useState<string>('usd');
@@ -328,15 +474,19 @@ export default function SubscribeAllPay(props: SubscribeAllPayProps) {
 
   if (!clientSecret) {
     return (
-      <SubscribeStarter
-        onStarted={(j) => {
-          setClientSecret(j.clientSecret);
-          if (j.merchantCountry) setMerchantCountry(j.merchantCountry);
-          if (j.priceCurrency) setPriceCurrency(j.priceCurrency);
-          onWalletReadyChange?.(false);
-          onWalletSupportChange?.(false);
-        }}
-      />
+      <>
+        <SubscribeStarter
+          signOutFirst={signOutFirst}
+          onStarted={(j) => {
+            setClientSecret(j.clientSecret);
+            if (j.merchantCountry) setMerchantCountry(j.merchantCountry);
+            if (j.priceCurrency) setPriceCurrency(j.priceCurrency);
+            onWalletReadyChange?.(false);
+            onWalletSupportChange?.(false);
+          }}
+        />
+        <SubscribeLoading />
+      </>
     );
   }
 
@@ -354,7 +504,7 @@ export default function SubscribeAllPay(props: SubscribeAllPayProps) {
           clientSecret={clientSecret}
           merchantCountry={merchantCountry}
           priceCurrency={priceCurrency}
-          onActivated={() => {}}
+          onActivated={onActivated}
           onWalletReadyChange={onWalletReadyChange}
           onWalletSupportChange={onWalletSupportChange}
         />
@@ -367,7 +517,7 @@ export default function SubscribeAllPay(props: SubscribeAllPayProps) {
         </div>
 
         {/* Card fallback (always rendered, safe in parallel) */}
-        <CardSetupFlow onActivated={() => {}} />
+        <CardSetupFlow clientSecret={clientSecret} onActivated={onActivated} />
       </div>
     </Elements>
   );

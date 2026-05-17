@@ -466,8 +466,8 @@ export const ExecutiveTemplate: React.FC<ExecutiveProps> = (props) => {
                   </T>
                 ) : null}
 
-                {/* Horizontal rule below name/headline */}
-                <line x1={marginX} y1={hrY1} x2={width - marginX} y2={hrY1} stroke="#333333" strokeWidth="1.5" />
+                {/* Horizontal rule below name/headline (theme primary). */}
+                <line x1={marginX} y1={hrY1} x2={width - marginX} y2={hrY1} stroke={primary} strokeWidth="1.5" />
 
                 {/* Personal details in a single line */}
                 {pdText ? (
@@ -476,8 +476,8 @@ export const ExecutiveTemplate: React.FC<ExecutiveProps> = (props) => {
                   </T>
                 ) : null}
 
-                {/* Second horizontal rule */}
-                <line x1={marginX} y1={hrY2} x2={width - marginX} y2={hrY2} stroke="#999999" strokeWidth="0.75" />
+                {/* Second horizontal rule (theme divider, thinner). */}
+                <line x1={marginX} y1={hrY2} x2={width - marginX} y2={hrY2} stroke={divider} strokeWidth="0.75" />
               </>
             ) : null}
 

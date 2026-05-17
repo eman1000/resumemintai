@@ -107,7 +107,10 @@ export async function uploadThumbnail(
   const res = await fetch(`/api/resumes/${resumeId}/thumbnail`, init);
   if (!res.ok) {
     const j = await res.json().catch(() => ({}));
-    throw new Error(j?.error || 'thumbnail_upload_failed');
+    // Bubble the server's `detail` so the caller can show or log the real
+    // reason (Firebase bucket, IAM, CORS, etc.) instead of a generic message.
+    const msg = j?.detail || j?.error || `thumbnail_upload_failed (HTTP ${res.status})`;
+    throw new Error(msg);
   }
   return res.json() as Promise<{ url: string }>;
 }

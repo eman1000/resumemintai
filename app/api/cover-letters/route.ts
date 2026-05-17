@@ -6,7 +6,10 @@ import prisma from '@/lib/prisma';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_RENDERERS = new Set(['circular', 'professional', 'elegant', 'classic']);
+const ALLOWED_RENDERERS = new Set([
+  'professional', 'classic',  // free
+  'elegant', 'creative',      // PRO
+]);
 
 async function getDbUserIdByFirebaseUid(firebaseUid: string) {
   const u = await prisma.user.findUnique({

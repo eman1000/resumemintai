@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import prisma from '@/lib/prisma';
 import type { Prisma, PrismaClient } from '@prisma/client';
 
@@ -146,6 +147,9 @@ export async function ensureDbUserByFirebaseUid(
   email?: string | null,
 ): Promise<string> {
   const norm = (email || '').trim().toLowerCase() || null;
+  // The Prisma schema declares `id String @default(uuid())` — that's a
+  // client-side default, so $queryRaw INSERTs must supply an id explicitly.
+  const newId = randomUUID();
 
   const rows = await prisma.$queryRaw<Array<{ id: string }>>`
     WITH
@@ -177,8 +181,8 @@ export async function ensureDbUserByFirebaseUid(
        LIMIT 1
     ),
     ins AS (
-      INSERT INTO public.users (firebase_uid, email, created_at, updated_at)
-      SELECT ${firebaseUid}, ${norm}, now(), now()
+      INSERT INTO public.users (id, firebase_uid, email, created_at, updated_at)
+      SELECT ${newId}::uuid, ${firebaseUid}, ${norm}, now(), now()
        WHERE (SELECT COUNT(*) FROM by_uid) = 0
          AND (SELECT COUNT(*) FROM claim_email) = 0
          AND (SELECT COUNT(*) FROM bound_email) = 0

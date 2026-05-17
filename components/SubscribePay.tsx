@@ -34,7 +34,7 @@ function CheckoutInner({
       const retrieved = await stripe.retrieveSetupIntent(setupIntentClientSecret);
       const pre = retrieved?.setupIntent;
       if (pre?.status === 'succeeded' && pre.id) {
-        const r = await fetch('/api/billing/activate-guest', {
+        const r = await fetch('/api/billing/guest/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ setupIntentId: pre.id, priceId: PRICE_ID }),
@@ -72,7 +72,7 @@ function CheckoutInner({
     if (err) {
       if (err.code === 'setup_intent_unexpected_state' && err?.setup_intent?.id) {
         try {
-          const r = await fetch('/api/billing/activate-guest', {
+          const r = await fetch('/api/billing/guest/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ setupIntentId: err.setup_intent.id, priceId: PRICE_ID }),
@@ -120,7 +120,7 @@ function CheckoutInner({
     }
 
     try {
-      const r = await fetch('/api/billing/activate-guest', {
+      const r = await fetch('/api/billing/guest/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ setupIntentId: siId, priceId: PRICE_ID }),
@@ -189,7 +189,7 @@ export default function SubscribePay() {
         return;
       }
 
-      const r = await fetch('/api/billing/start-guest', {
+      const r = await fetch('/api/billing/guest/setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailTrimmed }),

@@ -8,6 +8,12 @@ import prisma from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type ApplyOption = {
+  url: string;
+  publisher?: string;     // "LinkedIn", "Greenhouse", employer name, etc.
+  isDirect?: boolean;     // JSearch's signal that the link is the employer's own ATS, not an aggregator
+};
+
 type JobCard = {
   title: string;
   company: string;
@@ -17,7 +23,12 @@ type JobCard = {
   tags?: string[];
   postedAt?: string;
   description?: string;
+  /** Primary apply URL — typically the most popular aggregator (LinkedIn/Indeed). */
   source?: string;
+  /** All apply links JSearch returned for this listing. The direct ATS link
+   * (Greenhouse / Lever / Ashby / Workable) often hides in here even when
+   * `source` is a LinkedIn redirect. */
+  applyOptions?: ApplyOption[];
 };
 
 function parsePostedAt(value?: string | null): Date | null {
@@ -101,19 +112,38 @@ async function fetchFromJSearch(opts: {
   const data = await res.json();
   const items: any[] = Array.isArray(data?.data) ? data.data : [];
 
-  const mapped: JobCard[] = items.map((j) => ({
-    title: j.job_title || "",
-    company: j.employer_name || "",
-    location: [j.job_city, j.job_country].filter(Boolean).join(", "),
-    employmentType: j.job_employment_type || "",
-    salary: j.job_min_salary && j.job_max_salary
-      ? `${j.job_min_salary}–${j.job_max_salary} ${j.job_salary_currency || ""}`.trim()
-      : undefined,
-    tags: [j.job_employment_type, j.job_city, j.job_state].filter(Boolean),
-    postedAt: j.job_posted_at_datetime_utc || j.job_posted_at || undefined,
-    description: j.job_description || "",
-    source: j.job_apply_link || "",
-  }));
+  const mapped: JobCard[] = items.map((j) => {
+    // JSearch returns `apply_options[]` separately from `job_apply_link`.
+    // The direct-ATS link (Greenhouse / Lever / Ashby) is often only present
+    // in that array, hidden behind a LinkedIn redirect as the headline link.
+    const rawOpts: any[] = Array.isArray(j.apply_options)
+      ? j.apply_options
+      : Array.isArray(j.job_apply_options)
+        ? j.job_apply_options
+        : [];
+    const applyOptions: ApplyOption[] = rawOpts
+      .map((o: any) => ({
+        url: String(o?.apply_link || ""),
+        publisher: o?.publisher ? String(o.publisher) : undefined,
+        isDirect: !!o?.is_direct,
+      }))
+      .filter((o: ApplyOption) => /^https?:\/\//i.test(o.url));
+
+    return {
+      title: j.job_title || "",
+      company: j.employer_name || "",
+      location: [j.job_city, j.job_country].filter(Boolean).join(", "),
+      employmentType: j.job_employment_type || "",
+      salary: j.job_min_salary && j.job_max_salary
+        ? `${j.job_min_salary}–${j.job_max_salary} ${j.job_salary_currency || ""}`.trim()
+        : undefined,
+      tags: [j.job_employment_type, j.job_city, j.job_state].filter(Boolean),
+      postedAt: j.job_posted_at_datetime_utc || j.job_posted_at || undefined,
+      description: j.job_description || "",
+      source: j.job_apply_link || (applyOptions[0]?.url || ""),
+      applyOptions: applyOptions.length > 0 ? applyOptions : undefined,
+    };
+  });
 
   return dedupeJobs(scrubCompanies(normalizeRecentJobs(mapped, new Date()))).slice(0, count);
 }

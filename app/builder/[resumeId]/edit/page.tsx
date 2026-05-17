@@ -92,6 +92,79 @@ function EditPageInner() {
 
   const wrapRef = React.useRef<HTMLDivElement>(null);
   const lastThumbUpload = React.useRef<number>(0);
+  // Throttle job-match toasts so the user isn't pestered after every keystroke.
+  // 10-minute floor + we only fire after a "saved" transition, not every keypress.
+  const lastMatchSuggest = React.useRef<number>(0);
+  const matchSuggestInflight = React.useRef<boolean>(false);
+
+  /** After a successful resume save, look for cached jobs that match this
+   * resume and surface the top hit as a non-blocking toast. The user clicks
+   * "Tailor it →" to jump to /jobs with that listing pre-focused. */
+  const runMatchSuggest = React.useCallback(async () => {
+    if (matchSuggestInflight.current) return;
+    const now = Date.now();
+    if (now - lastMatchSuggest.current < 10 * 60 * 1000) return; // 10 min
+    matchSuggestInflight.current = true;
+    try {
+      const r = await fetch(
+        "/api/jobs/match-for-resume",
+        await withAuth({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // notify: 'email' lets the server fire a daily-capped email side-effect
+          body: JSON.stringify({ resumeId: String(resumeId), notify: "email", minScore: 50 }),
+        }),
+      );
+      if (!r.ok) return;
+      const j = await r.json();
+      const top = Array.isArray(j?.matches) ? j.matches[0] : null;
+      if (!top) return;
+      lastMatchSuggest.current = now;
+      // Show a custom toast with a clickable CTA. Auto-dismiss after 10s.
+      const subtitle = [top.company, top.location].filter(Boolean).join(" · ");
+      toast.custom(
+        (tt: any) => (
+          <div
+            role="status"
+            className="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border border-emerald-200 bg-white shadow-lg p-3"
+          >
+            <div className="mt-0.5 grid place-items-center h-9 w-9 rounded-full bg-emerald-100 text-emerald-700 font-semibold text-xs">
+              {top.score}%
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-[#1d1d20] truncate">
+                Match for your resume
+              </div>
+              <div className="text-xs text-[#52525a] truncate">{top.title}</div>
+              {subtitle && <div className="text-[11px] text-[#9ca3af] truncate">{subtitle}</div>}
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  className="rounded-md bg-brand text-white text-xs font-medium px-2.5 py-1 hover:bg-brand-700"
+                  onClick={() => {
+                    toast.dismiss(tt.id);
+                    router.push(top.focusUrl || `/jobs?source=${encodeURIComponent(top.source || "")}`);
+                  }}
+                >
+                  Tailor it →
+                </button>
+                <button
+                  className="text-xs text-[#6b7280] hover:text-[#1d1d20]"
+                  onClick={() => toast.dismiss(tt.id)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        ),
+        { duration: 12_000 },
+      );
+    } catch {
+      // non-fatal — purely a progressive enhancement
+    } finally {
+      matchSuggestInflight.current = false;
+    }
+  }, [resumeId, router]);
 
   const [dateFormat, setDateFormat] = React.useState<"MMM YYYY" | "MM/YYYY">("MMM YYYY");
   const { lang, setLang, t, months, skillLevels } = useI18n();
@@ -197,20 +270,35 @@ const handleChangeLanguage = (next: LanguageCode) => {
             selector: "svg[data-page]",
           });
           if (blob) {
-            await uploadThumbnail(String(resumeId), blob, withAuth).catch(() => {});
-            lastThumbUpload.current = now;
+            try {
+              await uploadThumbnail(String(resumeId), blob, withAuth);
+              lastThumbUpload.current = now;
+            } catch (e: any) {
+              // Log so we can spot a misconfigured Firebase bucket / auth in dev.
+              // Don't toast (would spam on every save) and don't update the
+              // throttle clock — that way we retry on the next save instead
+              // of waiting another 20s.
+              console.warn('[thumbnail-upload] failed:', e?.message || e);
+            }
           }
         }
 
         setSavingState("saved");
         setTimeout(() => setSavingState("idle"), 1200);
+
+        // After a successful save, fire a (throttled) job-match check.
+        // Skipped for local-only resumes and when nothing's actually changed.
+        // No await — purely fire-and-forget; the toast appears on its own.
+        if (!isLocal) {
+          void runMatchSuggest();
+        }
       } catch (e) {
         setSavingState("error");
         setTimeout(() => setSavingState("idle"), 1500);
         throw e;
       }
     },
-    [resumeId, isLocal]
+    [resumeId, isLocal, runMatchSuggest]
   );
 
   // Autosave (title, renderer, data)

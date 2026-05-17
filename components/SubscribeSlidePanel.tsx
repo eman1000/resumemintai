@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import SubscribeAllPay from './SubscribeAllPay';
+import InAppSubscribe from './InAppSubscribe';
 
 interface Props {
   open: boolean;
@@ -10,6 +10,11 @@ interface Props {
   title?: string;
   /** Optional headline shown above the pricing card */
   heading?: string;
+  /**
+   * Called after the subscription is activated. If omitted, the panel closes
+   * and the page reloads so the new sub status is reflected in `useAuthStatus`.
+   */
+  onActivated?: (payload: any) => void;
 }
 
 export default function SubscribeSlidePanel({
@@ -17,6 +22,7 @@ export default function SubscribeSlidePanel({
   onClose,
   title = 'Account',
   heading = 'Activate your subscription',
+  onActivated,
 }: Props) {
   // Close on Escape
   useEffect(() => {
@@ -103,8 +109,22 @@ export default function SubscribeSlidePanel({
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
           <h2 className="text-2xl font-bold text-[#1d1d20] mb-5">{heading}</h2>
 
-          {/* Only mount the Stripe flow while open so we don't create a SetupIntent up-front */}
-          {open && <SubscribeAllPay />}
+          {/* Only mount the subscribe flow while open so we don't create a
+              SetupIntent up-front. InAppSubscribe is dedicated to the authed
+              flow (talks to /api/billing/setup-intent + /api/billing/subscribe). */}
+          {open && (
+            <InAppSubscribe
+              onActivated={(payload) => {
+                if (onActivated) {
+                  onActivated(payload);
+                } else {
+                  onClose();
+                  // Hard reload so /api/account/ensure re-runs and the gates flip.
+                  setTimeout(() => location.reload(), 200);
+                }
+              }}
+            />
+          )}
 
           <p className="mt-5 text-xs text-[#52525a] leading-relaxed">
             After receipt of your payment, the product will be delivered to you immediately and you waive your right of withdrawal.

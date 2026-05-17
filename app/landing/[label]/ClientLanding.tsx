@@ -2,14 +2,13 @@
 'use client';
 
 import Link from 'next/link';
-import SubscribePay from '@/components/SubscribePay';
-import Creative from '@/components/Creative';
+import LandingSubscribe from '@/components/LandingSubscribe';
 import NonC from '@/components/NonC';
 import { useGeo } from '@/lib/useGeo';
 import type { LandingVariant } from './landingData';
 import { auth } from '@/app/firebase';
 import { track } from '@/lib/track';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 export function LandingImpression() {
   useEffect(() => {
     (async () => {
@@ -20,6 +19,56 @@ export function LandingImpression() {
   }, []);
   return null;
 }
+// Minor-unit formatter (Stripe gives amounts in cents/öre/etc.)
+function fmtPrice(amount: number | null, currency: string | null): string {
+  if (amount == null || !currency) return '';
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      maximumFractionDigits: 2,
+    }).format(amount / 100);
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  }
+}
+
+type Pricing = {
+  priceAmount: number | null;
+  priceCurrency: string | null;
+  priceInterval: 'day' | 'week' | 'month' | 'year' | null;
+  priceIntervalCount: number | null;
+  trialDays: number;
+};
+
+/** Read-only price/trial metadata for the hero copy. Doesn't create Stripe
+ * objects, so it's safe to call on every page load (including for already-
+ * subscribed visitors). LandingSubscribe creates its own SetupIntent only
+ * when it actually decides to render the guest flow. */
+function usePricing() {
+  const [p, setP] = useState<Pricing | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/billing/pricing-info', { method: 'GET' });
+        const j = await r.json();
+        if (!cancelled && r.ok) {
+          setP({
+            priceAmount: j.priceAmount ?? null,
+            priceCurrency: j.priceCurrency ?? null,
+            priceInterval: j.priceInterval ?? null,
+            priceIntervalCount: j.priceIntervalCount ?? null,
+            trialDays: j.trialDays ?? 0,
+          });
+        }
+      } catch { /* silent — fallback copy will render */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  return p;
+}
+
 export default function ClientLanding({
   cfg,
   label,
@@ -28,6 +77,7 @@ export default function ClientLanding({
   label: string;
 }) {
   const { data: geoData } = useGeo();
+  const pricing = usePricing();
 
   // Only runs in the browser
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -65,31 +115,51 @@ export default function ClientLanding({
           Tailor your resume in seconds
         </h1>
 
-        <p className="mt-6 text-lg text-[#52525a] md:text-xl">
-          1-day free trial, then <strong>€19.99 per month</strong> with auto-renewal.
-        </p>
+        {(() => {
+          const priceStr = fmtPrice(pricing?.priceAmount ?? null, pricing?.priceCurrency ?? null);
+          const interval = pricing?.priceInterval ?? 'month';
+          const intervalCount = pricing?.priceIntervalCount ?? 1;
+          const intervalLabel =
+            intervalCount > 1 ? `every ${intervalCount} ${interval}s` : `per ${interval}`;
+          const trialDays = pricing?.trialDays ?? 0;
+          return (
+            <>
+              <p className="mt-6 text-lg text-[#52525a] md:text-xl">
+                {trialDays > 0
+                  ? <>{trialDays}-day free trial, then <strong>{priceStr || '…'} {intervalLabel}</strong> with auto-renewal.</>
+                  : priceStr
+                    ? <><strong>{priceStr} {intervalLabel}</strong>, cancel anytime.</>
+                    : <>Subscribe to ResumeMint, cancel anytime.</>}
+              </p>
 
-        <div className="mt-8 w-full max-w-md">
-          <SubscribePay />
-        </div>
+              <div className="mt-8 w-full max-w-md">
+                <LandingSubscribe />
+              </div>
 
-        {/* Consent copy */}
-        <div className="mt-4 max-w-2xl space-y-3 text-left text-sm text-[#52525a]">
-          <label className="flex items-start gap-2">
-            <input defaultChecked id="c1" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 bg-transparent" />
-            <span>
-              By signing up, you confirm you are 18+ and accept our{' '}
-              <Link href="/terms" className="underline">Terms &amp; Conditions</Link> and{' '}
-              <Link href="/privacy" className="underline">Privacy Policy</Link>.
-            </span>
-          </label>
-          <label className="flex items-start gap-2">
-            <input defaultChecked id="c2" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 bg-transparent" />
-            <span>
-              Your subscription starts now for €0.00 (1-day trial) and auto-renews at €19.99 / 28 days until canceled.
-            </span>
-          </label>
-        </div>
+              {/* Consent copy — driven by the same pricing config */}
+              <div className="mt-4 max-w-2xl space-y-3 text-left text-sm text-[#52525a]">
+                <label className="flex items-start gap-2">
+                  <input defaultChecked id="c1" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 bg-transparent" />
+                  <span>
+                    By signing up, you confirm you are 18+ and accept our{' '}
+                    <Link href="/terms" className="underline">Terms &amp; Conditions</Link> and{' '}
+                    <Link href="/privacy" className="underline">Privacy Policy</Link>.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input defaultChecked id="c2" type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 bg-transparent" />
+                  <span>
+                    {trialDays > 0 && priceStr
+                      ? <>Your subscription starts now for {fmtPrice(0, pricing?.priceCurrency ?? null) || '0.00'} ({trialDays}-day trial) and auto-renews at {priceStr} {intervalLabel} until canceled.</>
+                      : priceStr
+                        ? <>Your subscription auto-renews at {priceStr} {intervalLabel} until canceled.</>
+                        : <>Your subscription auto-renews until canceled.</>}
+                  </span>
+                </label>
+              </div>
+            </>
+          );
+        })()}
       </section>
 
      {/* FEATURES */}

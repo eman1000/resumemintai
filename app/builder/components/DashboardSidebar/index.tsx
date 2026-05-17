@@ -2,7 +2,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faFileLines, faBriefcase, faEnvelope } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faRightToBracket, faFileLines, faBriefcase, faEnvelope } from "@fortawesome/free-solid-svg-icons";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 type Props = {
   userName: string;
@@ -22,6 +23,7 @@ export default function DashboardSidebar({
   onMobileClose,
 }: Props) {
   const W = collapsed ? "w-[72px]" : "w-[260px]";
+  const { isAuthenticated, loading: authLoading } = useAuthStatus();
 
   const Item = ({
     href,
@@ -103,32 +105,46 @@ export default function DashboardSidebar({
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-200">
-        <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100">
-          <div className="w-8 h-8 grid place-items-center rounded bg-gray-100 text-[#52525a] text-xs font-medium">
-            {userName?.charAt(0)?.toUpperCase() || "U"}
-          </div>
-          {!collapsed && <div className="truncate text-sm text-[#1d1d20]">{userName || "Account"}</div>}
-        </div>
-        <div className="mt-2 flex flex-col items-center gap-1">
+        {isAuthenticated ? (
+          <>
+            <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100">
+              <div className="w-8 h-8 grid place-items-center rounded bg-gray-100 text-[#52525a] text-xs font-medium">
+                {userName?.charAt(0)?.toUpperCase() || "U"}
+              </div>
+              {!collapsed && <div className="truncate text-sm text-[#1d1d20]">{userName || "Account"}</div>}
+            </div>
+            <div className="mt-2 flex flex-col items-center gap-1">
+              <Link
+                href="/account"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[#52525a] hover:bg-gray-100 transition-colors"
+                onClick={onMobileClose}
+                title="Settings"
+              >
+                <FontAwesomeIcon style={{ alignSelf: "auto" }} icon={faGear} className="w-4 h-4" />
+                {!collapsed && <span className="text-sm">Settings</span>}
+              </Link>
+              <Link
+                href="/logout"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[#52525a] hover:bg-gray-100 transition-colors"
+                onClick={onMobileClose}
+                title="Log out"
+              >
+                <FontAwesomeIcon style={{ alignSelf: "auto" }} icon={faDoorOpen} className="w-4 h-4" />
+                {!collapsed && <span className="text-sm">Log out</span>}
+              </Link>
+            </div>
+          </>
+        ) : authLoading ? null : (
           <Link
-            href="/account"
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[#52525a] hover:bg-gray-100 transition-colors"
+            href="/login"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-brand text-white hover:bg-brand-700 transition-colors"
             onClick={onMobileClose}
-            title="Settings"
+            title="Log in"
           >
-            <FontAwesomeIcon style={{ alignSelf: "auto"}} icon={faGear} className="w-4 h-4" />
-            {!collapsed && <span className="text-sm">Settings</span>}
+            <FontAwesomeIcon style={{ alignSelf: "auto" }} icon={faRightToBracket} className="w-4 h-4" />
+            {!collapsed && <span className="text-sm font-medium">Log in</span>}
           </Link>
-          <Link
-            href="/logout"
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[#52525a] hover:bg-gray-100 transition-colors"
-            onClick={onMobileClose}
-            title="Log out"
-          >
-            <FontAwesomeIcon style={{ alignSelf: "auto"}} icon={faDoorOpen} className="w-4 h-4" />
-            {!collapsed && <span className="text-sm">Log out</span>}
-          </Link>
-        </div>
+        )}
       </div>
     </aside>
   );

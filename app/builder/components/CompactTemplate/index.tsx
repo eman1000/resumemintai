@@ -115,10 +115,10 @@ export const CompactTemplate: React.FC<CompactProps> = (props) => {
   const headerC   = colors?.header  ?? "#222222";
   const dividerC  = colors?.divider ?? "#d0d0d0";
 
-  /* Compact: override to smaller sizes */
-  const bodySize       = sizes?.body ? Math.min(sizes.body, 9.5) : 9;
-  const lineH          = sizes?.line ? Math.min(sizes.line, 15) : 14;
-  const sectionSize    = sizes?.section ? Math.min(sizes.section, 12) : 12;
+  /* Compact: tighter defaults but respect the user's size choice — no caps. */
+  const bodySize       = sizes?.body    ?? 9;
+  const lineH          = sizes?.line    ?? 14;
+  const sectionSize    = sizes?.section ?? 12;
   const nameSize       = sizes?.heading ?? 18;
   const paraGap        = 4;
   const headerGap      = 2;

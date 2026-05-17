@@ -20,7 +20,7 @@ type Props = {
   handleDownload: () => Promise<void>;
 };
 
-const RENDERERS: Record<string, React.ComponentType<any>> = {
+export const RENDERERS: Record<string, React.ComponentType<any>> = {
   circular: CircularTemplate,
   professional: ProfessionalTemplate,
   elegant: ElegantTemplate,
