@@ -3,8 +3,16 @@ import './globals.scss';
 import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
 import Script from 'next/script';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import Hotjar from '@/components/Hotjar';
 import TrackPageView from '@/components/TrackPageView';
+
+const brandFont = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-brand',
+  display: 'swap',
+});
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || 'https://www.resumemintai.com'
@@ -75,7 +83,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={brandFont.variable}>
       <head>
         <Script
             src={`https://www.googletagmanager.com/gtag/js?id=G-G1TL8Q135F`}

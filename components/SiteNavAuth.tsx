@@ -3,6 +3,7 @@ import { auth } from '@/app/firebase';
 import { signOut } from 'firebase/auth';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import Logo from '@/components/Logo';
 
 export default function SiteNavAuth() {
 
@@ -20,7 +21,9 @@ export default function SiteNavAuth() {
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-site mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-extrabold tracking-tight text-[#1d1d20]">ResumeMint</Link>
+        <Link href="/" aria-label="ResumeMint home" className="flex items-center">
+          <Logo size="md" />
+        </Link>
         <div className="items-center gap-6 text-md">
           <button onClick={onLogout} className="px-3 py-1.5 rounded-lg border border-gray-300 text-[#52525a] hover:bg-gray-100">Logout</button>
         </div>

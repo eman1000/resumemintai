@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import Logo from '@/components/Logo';
 
 export default function SiteNav() {
   const pathname = usePathname();
@@ -17,7 +18,9 @@ export default function SiteNav() {
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-site mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-bold text-xl text-[#1d1d20]">ResumeMint</Link>
+        <Link href="/" aria-label="ResumeMint home" className="flex items-center">
+          <Logo size="md" />
+        </Link>
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6 text-sm">

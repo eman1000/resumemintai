@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 
 export default function SiteFooter() {
   return (
@@ -6,7 +7,7 @@ export default function SiteFooter() {
       <div className="max-w-site mx-auto px-4 py-10 grid sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
         {/* Brand */}
         <div>
-          <p className="text-lg font-bold text-[#1d1d20]">ResumeMint</p>
+          <Logo size="md" />
           <p className="mt-2 text-[#52525a]">AI‑powered resume &amp; cover letter builder for the modern job seeker.</p>
         </div>
 

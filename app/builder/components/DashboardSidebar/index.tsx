@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faRightToBracket, faFileLines, faBriefcase, faEnvelope, faClipboardCheck } from "@fortawesome/free-solid-svg-icons";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
+import Logo from "@/components/Logo";
 
 type Props = {
   userName: string;
@@ -54,12 +55,9 @@ export default function DashboardSidebar({
     >
       {/* Header row */}
       <div className="flex items-center justify-between px-3 py-4">
-        <div className="flex items-center gap-2">
-          <div className="bg-brand-50 text-brand px-2 py-1 rounded-md text-xs font-semibold">
-            R
-          </div>
-          {!collapsed && <div className="font-semibold text-[#1d1d20]">Resume Mint</div>}
-        </div>
+        <Link href="/" className="flex items-center gap-2" aria-label="ResumeMint home">
+          {collapsed ? <Logo variant="mark" size="md" /> : <Logo size="md" />}
+        </Link>
 
         {/* Collapse btn (desktop) */}
         <button

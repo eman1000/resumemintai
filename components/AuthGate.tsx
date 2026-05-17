@@ -5,6 +5,7 @@ import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/app/firebase';
+import Logo from '@/components/Logo';
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -67,12 +68,22 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }, [router]);
 
   if (!ready) {
-    return (
-      <div className="p-6 text-sm text-[#a1a1aa]">
-        Checking access…
-      </div>
-    );
+    return <AuthGateLoader />;
   }
   if (!ok) return null;
   return <>{children}</>;
+}
+
+function AuthGateLoader() {
+  return (
+    <div className="fixed inset-0 z-[9999] grid place-items-center bg-white">
+      <div className="flex flex-col items-center gap-5">
+        <Logo size="xl" />
+        <div className="flex items-center gap-2 text-sm text-[#52525a]">
+          <div className="h-3.5 w-3.5 rounded-full border-2 border-brand/30 border-t-brand animate-spin" />
+          Loading your account…
+        </div>
+      </div>
+    </div>
+  );
 }
