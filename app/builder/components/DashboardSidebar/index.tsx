@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faRightToBracket, faFileLines, faBriefcase, faEnvelope } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faRightToBracket, faFileLines, faBriefcase, faEnvelope, faClipboardCheck } from "@fortawesome/free-solid-svg-icons";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 type Props = {
@@ -98,6 +98,7 @@ export default function DashboardSidebar({
         <Item href="/builder" label="CVs" icon={faFileLines} />
         <Item href="/builder/cover-letters" label="Cover Letters" icon={faEnvelope} />
         <Item href="/jobs" label="Jobs" icon={faBriefcase} />
+        <Item href="/applications" label="Applications" icon={faClipboardCheck} />
       </nav>
 
       {/* Spacer */}
