@@ -1,5 +1,4 @@
 import type { MetadataRoute } from "next";
-import { LANDING_VARIANTS } from "./landing/[label]/landingData";
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.resumemintai.com"
@@ -29,21 +28,10 @@ const STATIC_ROUTES: Entry[] = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((r) => ({
+  return STATIC_ROUTES.map((r) => ({
     url: `${SITE_URL}${r.path}`,
     lastModified: now,
     changeFrequency: r.changeFrequency,
     priority: r.priority,
   }));
-
-  const landingEntries: MetadataRoute.Sitemap = Object.keys(LANDING_VARIANTS).map(
-    (label) => ({
-      url: `${SITE_URL}/landing/${label}`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    })
-  );
-
-  return [...staticEntries, ...landingEntries];
 }

@@ -14,6 +14,13 @@ export function generateMetadata({ params }: Props): Metadata {
     title: cfg.seo.title,
     description: cfg.seo.description,
     alternates: { canonical },
+    // Paid/ad landing variants — keep out of organic index to avoid
+    // thin/duplicate content + cannibalizing the home page.
+    robots: {
+      index: false,
+      follow: false,
+      googleBot: { index: false, follow: false },
+    },
     openGraph: {
       title: cfg.seo.title,
       description: cfg.seo.description,

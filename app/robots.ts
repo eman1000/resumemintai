@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
           "/builder",
           "/billing/",
           "/dcb/",
+          "/landing/",
           "/templates-admin",
           "/templates/import",
           "/unsubscribe",
