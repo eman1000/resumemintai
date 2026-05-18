@@ -3213,13 +3213,16 @@ const addableKeys = allKeys.filter(k => !presentKeys.has(k));
 
 
   const submitLinkedInUrl = React.useCallback(
-    async (url: string) => {
+    async (text: string) => {
       const res = await fetch("/api/import-linkedin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ text }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.detail || j?.error || `HTTP ${res.status}`);
+      }
       const payload = await res.json(); // { sections }
       setDoc((prev) => ({ ...prev, sections: mergeSections(prev.sections, payload.sections) }));
     },

@@ -10,34 +10,38 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { json, url } = body || {};
-
-    if (!json && !url) {
-      return NextResponse.json({ error: "Provide LinkedIn JSON or URL" }, { status: 400 });
-    }
+    const { json, text: pastedText } = body || {};
 
     let text = "";
-    if (json) {
-      text = JSON.stringify(json);
-    } else if (url) {
-      // You can swap this for your own scraper / server-side fetcher
-      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-      if (!res.ok) return NextResponse.json({ error: "Unable to fetch URL" }, { status: 422 });
-      const html = await res.text();
-      // crude HTML→text; you may replace with a better extractor
-      text = html.replace(/<script[\s\S]*?<\/script>/gi, "")
-                 .replace(/<style[\s\S]*?<\/style>/gi, "")
-                 .replace(/<[^>]+>/g, " ")
-                 .replace(/\s+/g, " ")
-                 .trim();
+    if (typeof pastedText === "string" && pastedText.trim().length > 0) {
+      text = pastedText.trim();
+    } else if (json) {
+      text = typeof json === "string" ? json : JSON.stringify(json);
+    } else {
+      // We deliberately removed URL fetching: LinkedIn redirects unauthenticated
+      // requests to /authwall, so the prior flow only ever fed GPT a login page.
+      return NextResponse.json(
+        {
+          error: "missing_input",
+          detail:
+            "Paste your LinkedIn profile text. URL fetching no longer works because LinkedIn blocks unauthenticated requests.",
+        },
+        { status: 400 },
+      );
     }
 
-    if (!text) return NextResponse.json({ error: "No content to parse" }, { status: 422 });
+    if (text.length < 200) {
+      return NextResponse.json(
+        { error: "too_short", detail: "Paste more of your profile so the AI has enough to work with." },
+        { status: 422 },
+      );
+    }
 
     const sections = await structureWithOpenAI(text);
     return NextResponse.json({ sections });
   } catch (e: any) {
-    return NextResponse.json({ error: String(e?.message || e) }, { status: 500 });
+    console.error("[POST /api/import-linkedin]", e);
+    return NextResponse.json({ error: "import_failed", detail: e?.message || String(e) }, { status: 500 });
   }
 }
 

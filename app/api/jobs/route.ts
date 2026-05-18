@@ -78,7 +78,11 @@ async function fetchFromJSearch(opts: {
 }) {
   const { role, location, country, count } = opts;
   const apiKey = process.env.RAPIDAPI_KEY;
-  if (!apiKey) throw new Error("Missing RAPIDAPI_KEY");
+  if (!apiKey) {
+    const err: any = new Error("Missing RAPIDAPI_KEY");
+    err.code = "JOBS_UNCONFIGURED";
+    throw err;
+  }
   const rapidHost = process.env.RAPIDAPI_HOST || "jsearch.p.rapidapi.com";
 
   const url = new URL(`https://${rapidHost}/search`);
@@ -295,6 +299,16 @@ export async function POST(req: NextRequest) {
           keyHint: e?.keyHint || "unknown",
         },
         { status: 402 },
+      );
+    }
+    if (e?.code === "JOBS_UNCONFIGURED") {
+      console.error("[POST /api/jobs] jobs feature not configured (no RAPIDAPI_KEY)");
+      return NextResponse.json(
+        {
+          error: "jobs_unavailable",
+          detail: "Job search is temporarily unavailable. We're working on it.",
+        },
+        { status: 503 },
       );
     }
     if (e?.code === "JSEARCH_FAILED") {
