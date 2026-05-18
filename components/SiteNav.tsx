@@ -10,6 +10,7 @@ export default function SiteNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navLinks = [
+    { label: 'ATS Check', href: '/resume-checker' },
     { label: 'Templates', href: '/templates' },
     { label: 'Cover Letters', href: '/cover-letter-templates' },
     { label: 'Pricing', href: '/pricing' },
