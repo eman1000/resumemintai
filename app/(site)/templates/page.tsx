@@ -18,15 +18,15 @@ export const metadata: Metadata = {
 };
 
 const templates = [
-  { name: 'Circular', renderer: 'circular', desc: 'Two-column layout with a stylish sidebar for skills and contact info.' },
-  { name: 'Elegant', renderer: 'elegant', desc: 'Sophisticated design with a deep emerald sidebar and accent colors.' },
-  { name: 'Classic', renderer: 'classic', desc: 'Single-column ATS-friendly layout, clean and traditional.' },
-  { name: 'Modern', renderer: 'modern', desc: 'Subtle color accents with timeline-style work experience.' },
-  { name: 'Minimal', renderer: 'minimal', desc: 'Maximum whitespace with thin dividers for a clean look.' },
-  { name: 'Creative', renderer: 'creative', desc: 'Bold header with asymmetric two-column layout.' },
-  { name: 'Executive', renderer: 'executive', desc: 'Formal serif-style design for senior professionals.' },
-  { name: 'Chrono', renderer: 'chrono', desc: 'Timeline layout with visual date markers and vertical line.' },
-  { name: 'Horizontal', renderer: 'horizontal', desc: 'Bold horizontal dividers with skill progress bars.' },
+  { name: 'Circular', renderer: 'circular', desc: 'Two-column with photo sidebar.' },
+  { name: 'Elegant', renderer: 'elegant', desc: 'Emerald sidebar, polished accents.' },
+  { name: 'Classic', renderer: 'classic', desc: 'Clean single-column, ATS-safe.' },
+  { name: 'Modern', renderer: 'modern', desc: 'Subtle accents, timeline feel.' },
+  { name: 'Minimal', renderer: 'minimal', desc: 'Whitespace-led, thin dividers.' },
+  { name: 'Creative', renderer: 'creative', desc: 'Bold header, asymmetric body.' },
+  { name: 'Executive', renderer: 'executive', desc: 'Serif type for senior roles.' },
+  { name: 'Chrono', renderer: 'chrono', desc: 'Timeline with date markers.' },
+  { name: 'Horizontal', renderer: 'horizontal', desc: 'Bold dividers, skill bars.' },
 ];
 
 const faqs = [
@@ -53,20 +53,20 @@ export default function TemplatesPage() {
       {/* Template Grid */}
       <section className="bg-[#f8fbfc]">
         <div className="max-w-6xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {templates.map((t) => (
               <Link
                 key={t.renderer}
                 href="/builder"
                 className="group block"
               >
-                <div className="relative rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
+                <div className="relative aspect-[210/297] rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/template-previews/resume/${t.renderer}.png`}
                     alt={`${t.name} resume template preview`}
                     loading="lazy"
-                    className="block w-full h-auto"
+                    className="absolute inset-0 w-full h-full object-cover object-top"
                   />
                   <div className="absolute inset-0 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-t from-brand/80 via-transparent to-transparent">
                     <span className="bg-white text-brand text-sm font-semibold px-4 py-2 rounded-full shadow-md">
@@ -76,7 +76,7 @@ export default function TemplatesPage() {
                 </div>
                 <div className="mt-3 px-1">
                   <h3 className="font-semibold text-[#1d1d20] group-hover:text-brand transition-colors">{t.name}</h3>
-                  <p className="text-sm text-[#52525a] mt-0.5">{t.desc}</p>
+                  <p className="text-sm text-[#52525a] mt-0.5 truncate">{t.desc}</p>
                 </div>
               </Link>
             ))}

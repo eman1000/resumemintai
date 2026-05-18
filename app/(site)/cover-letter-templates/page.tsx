@@ -18,10 +18,10 @@ export const metadata: Metadata = {
 };
 
 const templates = [
-  { name: 'Professional', renderer: 'professional', desc: 'Clean, structured layout perfect for corporate applications.' },
-  { name: 'Classic', renderer: 'classic', desc: 'Traditional business letter format with serif type.' },
-  { name: 'Elegant', renderer: 'elegant', desc: 'Two-column sidebar with contact strip and accent colors.' },
-  { name: 'Creative', renderer: 'creative', desc: 'Bold colour header with tag chips for skills.' },
+  { name: 'Professional', renderer: 'professional', desc: 'Clean, structured corporate layout.' },
+  { name: 'Classic', renderer: 'classic', desc: 'Traditional letter, serif type.' },
+  { name: 'Elegant', renderer: 'elegant', desc: 'Sidebar with accent colours.' },
+  { name: 'Creative', renderer: 'creative', desc: 'Bold header with tag chips.' },
 ];
 
 const faqs = [
@@ -53,13 +53,13 @@ export default function CoverLetterTemplatesPage() {
                 href="/login?return=/builder/cover-letters"
                 className="group block"
               >
-                <div className="relative rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
+                <div className="relative aspect-[210/297] rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/template-previews/cover-letter/${t.renderer}.png`}
                     alt={`${t.name} cover letter template preview`}
                     loading="lazy"
-                    className="block w-full h-auto"
+                    className="absolute inset-0 w-full h-full object-cover object-top"
                   />
                   <div className="absolute inset-0 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-t from-brand/80 via-transparent to-transparent">
                     <span className="bg-white text-brand text-sm font-semibold px-4 py-2 rounded-full shadow-md">
@@ -69,7 +69,7 @@ export default function CoverLetterTemplatesPage() {
                 </div>
                 <div className="mt-3 px-1">
                   <h3 className="font-semibold text-[#1d1d20] group-hover:text-brand transition-colors">{t.name}</h3>
-                  <p className="text-sm text-[#52525a] mt-0.5">{t.desc}</p>
+                  <p className="text-sm text-[#52525a] mt-0.5 truncate">{t.desc}</p>
                 </div>
               </Link>
             ))}
