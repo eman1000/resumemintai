@@ -105,6 +105,7 @@ export async function POST(req: Request) {
       { idempotencyKey: idem },
     );
 
+    const itemPrice = sub.items.data[0]?.price;
     return NextResponse.json({
       subscriptionId: sub.id,
       status: sub.status,
@@ -112,6 +113,8 @@ export async function POST(req: Request) {
       currentPeriodEnd: periodEndDate(sub)?.toISOString() ?? null,
       customerId,
       accountId,
+      priceAmount: itemPrice?.unit_amount ?? null,
+      priceCurrency: itemPrice?.currency ?? null,
     });
   } catch (e: any) {
     console.error('[billing/guest/subscribe] error', e);

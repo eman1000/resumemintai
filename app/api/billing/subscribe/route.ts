@@ -189,12 +189,17 @@ export async function POST(req: Request) {
       },
     });
 
+    // Surface the price for analytics so the client can attach value+currency
+    // to GA4 `subscribe` / `trial_start` events.
+    const itemPrice = sub.items.data[0]?.price;
     return NextResponse.json({
       subscriptionId: sub.id,
       status: sub.status,
       cancelAtPeriodEnd: !!sub.cancel_at_period_end,
       currentPeriodEnd: periodEnd?.toISOString() ?? null,
       customerId,
+      priceAmount: itemPrice?.unit_amount ?? null,
+      priceCurrency: itemPrice?.currency ?? null,
     });
   } catch (e: any) {
     console.error('[billing/subscribe] error', e);

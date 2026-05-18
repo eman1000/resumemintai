@@ -10,6 +10,85 @@ type TrackOpts = {
   includeAuth?: boolean; // default true
 };
 
+// --- GA4 conversion helpers ----------------------------------------------
+// These are session-deduped (per browser tab, per event/dedupeKey) so we
+// don't double-count a conversion if a user retries a flow or a component
+// re-mounts. The dedupeKey is sent to /api/track too — server-side dedupe
+// guards against retried POSTs.
+function alreadyFired(dedupeKey: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const KEY = '__rm_tracked';
+  const set: Set<string> = (window as any)[KEY] || new Set();
+  if (set.has(dedupeKey)) return true;
+  set.add(dedupeKey);
+  (window as any)[KEY] = set;
+  return false;
+}
+
+/**
+ * Fired when a Stripe subscription is created. Also fires `trial_start`
+ * if the subscription's initial status is `trialing`.
+ *
+ * GA4 maps `value` + `currency` to monetary conversions in Reports.
+ */
+export function trackSubscribeSuccess(args: {
+  subscriptionId: string;
+  status?: string | null;     // 'active' | 'trialing' | 'incomplete' | …
+  priceAmount?: number | null; // minor units (cents)
+  priceCurrency?: string | null;
+  page?: string;
+}) {
+  const isTrial = (args.status || '').toLowerCase() === 'trialing';
+  const value = typeof args.priceAmount === 'number' ? args.priceAmount / 100 : undefined;
+  const currency = args.priceCurrency ? args.priceCurrency.toUpperCase() : undefined;
+
+  if (!alreadyFired(`subscribe:${args.subscriptionId}`)) {
+    track({
+      event: 'subscribe',
+      props: {
+        subscription_id: args.subscriptionId,
+        status: args.status ?? null,
+        value,
+        currency,
+        page: args.page,
+      },
+      dedupeKey: `subscribe:${args.subscriptionId}`,
+    });
+  }
+
+  if (isTrial && !alreadyFired(`trial_start:${args.subscriptionId}`)) {
+    track({
+      event: 'trial_start',
+      props: {
+        subscription_id: args.subscriptionId,
+        value,
+        currency,
+        page: args.page,
+      },
+      dedupeKey: `trial_start:${args.subscriptionId}`,
+    });
+  }
+}
+
+/**
+ * Fired every time the user successfully exports a resume to PDF.
+ * Not deduped — every export is a separate conversion event.
+ */
+export function trackResumeExported(args: {
+  resumeId?: string | null;
+  renderer?: string | null;
+  page?: string;
+}) {
+  track({
+    event: 'resume_exported',
+    props: {
+      resume_id: args.resumeId ?? null,
+      renderer: args.renderer ?? null,
+      page: args.page,
+    },
+  });
+}
+
 export async function track({ event, props = {}, dedupeKey, includeAuth = true }: TrackOpts) {
   try {
     // Push to GTM (non-blocking)

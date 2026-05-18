@@ -13,7 +13,7 @@ import {
 } from 'firebase/auth';
 import { useQuery } from '@/app/builder/hooks/use-query';
 import { fireAdsConversionDirect } from '@/lib/ads';
-import { track } from '@/lib/track';
+import { track, trackSubscribeSuccess } from '@/lib/track';
 
 const PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO as string;
 
@@ -108,6 +108,15 @@ export default function BillingReturn() {
           if (!r.ok) throw new Error(j?.error || j?.detail || 'activate_failed');
 
           fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
+          if (j.subscriptionId) {
+            trackSubscribeSuccess({
+              subscriptionId: j.subscriptionId,
+              status: j.status,
+              priceAmount: j.priceAmount,
+              priceCurrency: j.priceCurrency,
+              page: 'billing_return',
+            });
+          }
           toast.success('Subscription started!');
           router.replace('/builder');
           return;
@@ -129,6 +138,15 @@ export default function BillingReturn() {
         fireAdsConversionDirect({ value: 1, currency: 'EUR', transactionId: j.subscriptionId });
         try{
             track({ event: 'sale', props: { page: 'landing'} });
+            if (j.subscriptionId) {
+              trackSubscribeSuccess({
+                subscriptionId: j.subscriptionId,
+                status: j.status,
+                priceAmount: j.priceAmount,
+                priceCurrency: j.priceCurrency,
+                page: 'billing_return_guest',
+              });
+            }
         }catch(e){
           console.error(e);
         }

@@ -19,6 +19,7 @@ import FullscreenLoader from "../../components/FullscreenLoader";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
+import { trackResumeExported } from "@/lib/track";
 
 type LoadedResume = {
   id?: string;
@@ -325,6 +326,11 @@ const handleChangeLanguage = (next: LanguageCode) => {
       filename: `resume-${new Date().toISOString().slice(0, 10)}.pdf`,
       selector: "svg[data-page]",
       scale: 2,
+    });
+    trackResumeExported({
+      resumeId: typeof resumeId === 'string' ? resumeId : null,
+      renderer: loaded?.renderer ?? null,
+      page: 'builder_editor',
     });
   };
 

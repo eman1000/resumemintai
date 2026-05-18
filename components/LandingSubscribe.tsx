@@ -25,7 +25,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
-import { track } from '@/lib/track';
+import { track, trackSubscribeSuccess } from '@/lib/track';
 import { useAuthStatus } from '@/hooks/useAuthStatus';
 import InAppSubscribe from './InAppSubscribe';
 
@@ -112,6 +112,15 @@ function CheckoutForm({
       props: { page: 'landing', setupIntentId: siId, subscriptionId: j.subscriptionId },
       dedupeKey: j.subscriptionId,
     });
+    if (j.subscriptionId) {
+      trackSubscribeSuccess({
+        subscriptionId: j.subscriptionId,
+        status: j.status,
+        priceAmount: j.priceAmount ?? start.priceAmount,
+        priceCurrency: j.priceCurrency ?? start.priceCurrency,
+        page: 'landing',
+      });
+    }
     (window as any).dataLayer = (window as any).dataLayer || [];
     (window as any).dataLayer.push({
       event: 'ads_conversion',

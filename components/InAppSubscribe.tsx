@@ -18,7 +18,7 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import { auth } from '@/app/firebase';
-import { track } from '@/lib/track';
+import { track, trackSubscribeSuccess } from '@/lib/track';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -90,6 +90,15 @@ function PayForm({ clientSecret, onActivated }: { clientSecret: string; onActiva
     const j = await r.json();
     if (!r.ok) throw new Error(j?.detail || j?.error || 'subscribe_failed');
     track({ event: 'subscribe_success', props: { authed: true, setupIntentId: siId } });
+    if (j.subscriptionId && !j.alreadySubscribed) {
+      trackSubscribeSuccess({
+        subscriptionId: j.subscriptionId,
+        status: j.status,
+        priceAmount: j.priceAmount,
+        priceCurrency: j.priceCurrency,
+        page: 'in_app',
+      });
+    }
     toast.success(j.alreadySubscribed ? 'You already have an active subscription.' : 'Subscription activated!');
     onActivated?.(j);
   }
