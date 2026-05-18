@@ -15,8 +15,17 @@ export default function PreviewClient({
     // capture is exactly the resume with no whitespace borders.
     const css = document.createElement("style");
     css.textContent = `
-      html, body { margin: 0; padding: 0; background: #fff; width: 210mm; }
+      html, body { margin: 0; padding: 0; background: #fff; width: 210mm; overflow: hidden; }
       body > * { box-sizing: border-box; }
+      /* Templates paginate via either repeated <div> wrappers
+         (Professional, Creative) or repeated <svg> elements (Elegant) —
+         hide every page after the first. */
+      [data-preview-root="1"] svg + svg,
+      [data-preview-root="1"] svg ~ svg { display: none !important; }
+      [data-preview-root="1"] > div > div:nth-child(n+2) { display: none !important; }
+      [data-preview-root="1"] > div { padding: 0 !important; margin: 0 !important; background: #fff !important; }
+      /* Belt-and-braces clip in case a template uses yet another layout. */
+      [data-preview-root="1"] { max-height: 297mm; overflow: hidden; }
     `;
     document.head.appendChild(css);
 
