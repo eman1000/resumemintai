@@ -33,9 +33,38 @@ export default function ResumeCheckerClient() {
   const [resume, setResume] = React.useState("");
   const [job, setJob] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadedName, setUploadedName] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<Result | null>(null);
   const resultRef = React.useRef<HTMLDivElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  async function onUpload(file: File) {
+    setError(null);
+    setUploading(true);
+    setUploadedName(null);
+    try {
+      track({ event: 'ats_check_upload', props: { size: file.size, type: file.type } });
+      const form = new FormData();
+      form.append('file', file);
+      const r = await fetch('/api/ats/extract', { method: 'POST', body: form });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.detail || j?.error || 'extract_failed');
+      setResume(j.text || '');
+      setUploadedName(j.filename || file.name);
+    } catch (e: any) {
+      setError(e?.message || 'Could not read that file.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function clearUpload() {
+    setUploadedName(null);
+    setResume('');
+  }
 
   async function onCheck() {
     setError(null);
@@ -68,13 +97,47 @@ export default function ResumeCheckerClient() {
       {/* Inputs */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="rounded-lg bg-white border border-gray-200 p-5 shadow-sm">
-          <label className="block text-sm font-semibold text-[#1d1d20] mb-2">
-            1. Paste your resume
-          </label>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <label className="block text-sm font-semibold text-[#1d1d20]">
+              1. Your resume
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onUpload(f);
+                }}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#1d1d20] hover:bg-gray-50 disabled:opacity-60"
+              >
+                {uploading ? 'Reading…' : 'Upload PDF / DOCX'}
+              </button>
+            </div>
+          </div>
+          {uploadedName && (
+            <div className="mb-2 flex items-center gap-2 text-[11px] rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-1">
+              <span className="truncate">📄 {uploadedName}</span>
+              <button
+                type="button"
+                onClick={clearUpload}
+                className="ml-auto text-emerald-700 hover:underline"
+              >
+                clear
+              </button>
+            </div>
+          )}
           <textarea
             value={resume}
             onChange={(e) => setResume(e.target.value)}
-            placeholder="Paste your full resume text here — including contact info, experience, education, skills…"
+            placeholder="Paste your full resume text here — or upload a PDF / DOCX above."
             rows={14}
             className="w-full text-sm rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-brand focus:ring-1 focus:ring-brand resize-y leading-relaxed text-[#1d1d20]"
             spellCheck={false}
