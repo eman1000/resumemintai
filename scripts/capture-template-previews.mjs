@@ -32,9 +32,13 @@ const RESUME_RENDERERS = [
 
 const COVER_LETTER_RENDERERS = ['professional', 'classic', 'elegant', 'creative'];
 
+// A4 at 96dpi = 794 x 1123 px. Use deviceScaleFactor 2 for retina-quality output.
+const A4_WIDTH = 794;
+const A4_HEIGHT = 1123;
+
 async function capture(browser, url, fullPath, thumbPath) {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1240, height: 1754, deviceScaleFactor: 2 });
+  await page.setViewport({ width: A4_WIDTH, height: A4_HEIGHT, deviceScaleFactor: 2 });
   console.log(`  → ${url}`);
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await page.waitForFunction(() => document.title === 'PREVIEW_READY', { timeout: 15000 }).catch(() => {
@@ -53,35 +57,22 @@ async function capture(browser, url, fullPath, thumbPath) {
     ));
   });
 
-  // Try to capture just the resume/cover-letter container, fall back to viewport.
-  let clip = null;
-  try {
-    const root = await page.$('[data-preview-root="1"]');
-    if (root) {
-      const box = await root.boundingBox();
-      if (box && box.width > 0 && box.height > 0) {
-        clip = {
-          x: Math.max(0, box.x),
-          y: Math.max(0, box.y),
-          width: Math.min(box.width, 1240),
-          // Cap at A4 height — some templates have long bottom whitespace.
-          height: Math.min(box.height, 1754),
-        };
-      }
-    }
-  } catch {}
-
+  // Clip to the body's A4-locked content area so any browser-added margin
+  // doesn't pollute the screenshot.
   await page.screenshot({
     path: fullPath,
     type: 'png',
-    clip: clip ?? undefined,
+    clip: { x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT },
     omitBackground: false,
   });
 
-  // Generate a square-ish 640x800 thumbnail by re-screenshotting at smaller viewport.
-  // Easier than node-side image processing.
-  await page.setViewport({ width: 640, height: 800, deviceScaleFactor: 2 });
-  await page.screenshot({ path: thumbPath, type: 'png' });
+  // 480 wide thumb for the card hover state etc. (Same aspect, smaller file.)
+  await page.setViewport({ width: 480, height: 679, deviceScaleFactor: 2 });
+  await page.screenshot({
+    path: thumbPath,
+    type: 'png',
+    clip: { x: 0, y: 0, width: 480, height: 679 },
+  });
   await page.close();
 }
 

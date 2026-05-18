@@ -12,29 +12,32 @@ export default function PreviewClient({
   data: CoverLetterData;
 }) {
   React.useEffect(() => {
+    const css = document.createElement("style");
+    css.textContent = `
+      html, body { margin: 0; padding: 0; background: #fff; width: 210mm; }
+      body > * { box-sizing: border-box; }
+    `;
+    document.head.appendChild(css);
+
     const id = window.requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         document.title = "PREVIEW_READY";
       });
     });
-    return () => window.cancelAnimationFrame(id);
+    return () => {
+      window.cancelAnimationFrame(id);
+      css.remove();
+    };
   }, []);
 
   const Template = getCoverLetterTemplate(renderer);
 
   return (
     <div
-      style={{
-        margin: 0,
-        padding: 0,
-        background: "white",
-      }}
+      style={{ width: "210mm", height: "297mm", margin: 0, background: "#fff" }}
       data-preview-root="1"
     >
-      {/* Constrain to A4 width for consistent capture. */}
-      <div style={{ width: "210mm", margin: "0 auto" }}>
-        <Template data={data} />
-      </div>
+      <Template data={data} />
     </div>
   );
 }
