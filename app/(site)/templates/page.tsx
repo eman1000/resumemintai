@@ -19,17 +19,14 @@ export const metadata: Metadata = {
 
 const templates = [
   { name: 'Circular', renderer: 'circular', desc: 'Two-column layout with a stylish sidebar for skills and contact info.' },
-  { name: 'Professional', renderer: 'professional', desc: 'Clean banner header with a structured two-column body.' },
-  { name: 'Elegant', renderer: 'elegant', desc: 'Sophisticated design with a dark sidebar and accent colors.' },
+  { name: 'Elegant', renderer: 'elegant', desc: 'Sophisticated design with a deep emerald sidebar and accent colors.' },
   { name: 'Classic', renderer: 'classic', desc: 'Single-column ATS-friendly layout, clean and traditional.' },
   { name: 'Modern', renderer: 'modern', desc: 'Subtle color accents with timeline-style work experience.' },
   { name: 'Minimal', renderer: 'minimal', desc: 'Maximum whitespace with thin dividers for a clean look.' },
   { name: 'Creative', renderer: 'creative', desc: 'Bold header with asymmetric two-column layout.' },
-  { name: 'Compact', renderer: 'compact', desc: 'Dense layout optimized for fitting more content per page.' },
   { name: 'Executive', renderer: 'executive', desc: 'Formal serif-style design for senior professionals.' },
   { name: 'Chrono', renderer: 'chrono', desc: 'Timeline layout with visual date markers and vertical line.' },
   { name: 'Horizontal', renderer: 'horizontal', desc: 'Bold horizontal dividers with skill progress bars.' },
-  { name: 'Casual', renderer: 'casual', desc: 'Friendly design with rounded elements and warm colors.' },
 ];
 
 const faqs = [

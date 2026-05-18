@@ -93,8 +93,8 @@ export default function ElegantTemplate(props: ElegantProps) {
     sizes,
   } = props;
 
-  // Theme
-  const primary     = colors?.primary ?? "#395a86";          // user-picked “primary”
+  // Theme — Elegant defaults to a deep emerald green identity (#1a4d3f).
+  const primary     = colors?.primary ?? "#1a4d3f";          // user-picked “primary”
   const accent      = colors?.accent  ?? tint(primary, 0.55);
   const text        = colors?.text    ?? "#101418";
   const headerColor = colors?.header  ?? primary;
@@ -156,7 +156,7 @@ export default function ElegantTemplate(props: ElegantProps) {
   // Rail/sidebar background follows theme — adapter passes railBg
   // (derived from leftColumnBackgroundColor or primary), then primary,
   // then a dark default. No more pure-black-regardless-of-theme.
-  const sidebar = colors?.sidebar ?? colors?.railBg ?? colors?.primary ?? "#262630";
+  const sidebar = colors?.sidebar ?? colors?.railBg ?? colors?.primary ?? "#1a4d3f";
 
   // Auto-pick rail text colors based on sidebar luminance so they stay readable
   // when the user picks a light primary.

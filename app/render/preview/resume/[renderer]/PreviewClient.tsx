@@ -42,12 +42,22 @@ export default function PreviewClient({
 
   const renderFn = TEMPLATE_REGISTRY[renderer] || TEMPLATE_REGISTRY.professional;
 
+  // Per-template theme overrides for the marketing preview.
+  const options: any = (() => {
+    switch (renderer) {
+      case 'elegant':
+        return { colors: { primary: '#1a4d3f', backgroundColor: '#1a4d3f' } };
+      default:
+        return undefined;
+    }
+  })();
+
   return (
     <div
       style={{ width: "210mm", margin: 0, background: "#fff" }}
       data-preview-root="1"
     >
-      {renderFn({ doc: data })}
+      {renderFn({ doc: data, options })}
     </div>
   );
 }
