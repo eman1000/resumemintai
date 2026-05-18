@@ -57,46 +57,69 @@ async function capture(browser, url, fullPath, thumbPath) {
     ));
   });
 
-  // Measure the actual content bottom by scanning the rendered first-page SVG
-  // for its last drawn element. SVGs declare A4 dimensions even when their
-  // content stops short — so we walk children and find the deepest one.
-  const contentHeight = await page.evaluate((maxH) => {
+  // Measure the actual painted content bounding box. Resume templates often
+  // have internal margins (Classic / Modern / Minimal / Executive) so a
+  // fixed A4 clip leaves whitespace on all four sides. We walk the first
+  // SVG's drawn children and find the union bbox.
+  const bbox = await page.evaluate((maxW, maxH) => {
     const root = document.querySelector('[data-preview-root="1"]');
-    if (!root) return maxH;
+    if (!root) return null;
     const firstSvg = root.querySelector('svg');
-    if (!firstSvg) return Math.min(maxH, Math.ceil(root.getBoundingClientRect().height));
+    if (!firstSvg) {
+      const r = root.getBoundingClientRect();
+      return { x: 0, y: 0, width: Math.min(maxW, r.width), height: Math.min(maxH, r.height) };
+    }
     const svgRect = firstSvg.getBoundingClientRect();
-    let maxBottom = svgRect.top + 50; // safety floor
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
     const els = Array.from(firstSvg.querySelectorAll('*'));
+    const skipTags = new Set(['defs', 'clippath', 'lineargradient', 'stop', 'pattern', 'mask', 'g']);
     for (const el of els) {
-      // Skip definitions / backgrounds that span the full page.
       const tag = el.tagName.toLowerCase();
-      if (tag === 'defs' || tag === 'clippath' || tag === 'lineargradient' || tag === 'stop' || tag === 'pattern') continue;
+      if (skipTags.has(tag)) continue;
       try {
         const r = el.getBoundingClientRect();
-        // Filter the page-background rect (full SVG height + width).
+        if (r.width === 0 || r.height === 0) continue;
+        // Skip the full-page background rect.
         if (r.width >= svgRect.width - 1 && r.height >= svgRect.height - 1) continue;
-        if (r.bottom > maxBottom) maxBottom = r.bottom;
+        if (r.left < left) left = r.left;
+        if (r.right > right) right = r.right;
+        if (r.top < top) top = r.top;
+        if (r.bottom > bottom) bottom = r.bottom;
       } catch {}
     }
-    // Translate to "from top of viewport" with a 16px breathing room.
-    return Math.min(maxH, Math.ceil(maxBottom - root.getBoundingClientRect().top + 16));
-  }, A4_HEIGHT);
+    if (!Number.isFinite(left)) return null;
+    const PAD = 16; // breathing room around content
+    const rootRect = root.getBoundingClientRect();
+    const x = Math.max(0, Math.floor(left - rootRect.left - PAD));
+    const y = Math.max(0, Math.floor(top - rootRect.top - PAD));
+    const width = Math.min(maxW - x, Math.ceil(right - left + 2 * PAD));
+    const height = Math.min(maxH - y, Math.ceil(bottom - top + 2 * PAD));
+    return { x, y, width, height };
+  }, A4_WIDTH, A4_HEIGHT);
+
+  const clip = bbox && bbox.width > 50 && bbox.height > 50
+    ? bbox
+    : { x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT };
 
   await page.screenshot({
     path: fullPath,
     type: 'png',
-    clip: { x: 0, y: 0, width: A4_WIDTH, height: contentHeight },
+    clip,
     omitBackground: false,
   });
 
-  // Thumbnail at half size with same content-clip.
+  // Thumbnail at half size with the same content-clip, scaled.
   const thumbScale = 480 / A4_WIDTH;
   await page.setViewport({ width: 480, height: Math.ceil(A4_HEIGHT * 2 * thumbScale), deviceScaleFactor: 2 });
   await page.screenshot({
     path: thumbPath,
     type: 'png',
-    clip: { x: 0, y: 0, width: 480, height: Math.ceil(contentHeight * thumbScale) },
+    clip: {
+      x: Math.floor(clip.x * thumbScale),
+      y: Math.floor(clip.y * thumbScale),
+      width: Math.ceil(clip.width * thumbScale),
+      height: Math.ceil(clip.height * thumbScale),
+    },
   });
   await page.close();
 }
