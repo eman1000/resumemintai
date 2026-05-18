@@ -107,7 +107,13 @@ async function fetchFromJSearch(opts: {
       err.keyHint = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
       throw err;
     }
-    throw new Error(`jsearch_failed: ${res.status} ${text.slice(0, 200)}`);
+    // Tagged so the route handler can return a clean upstream error to the
+    // client instead of a generic 500 / "internal_error".
+    const err: any = new Error(`jsearch_failed: ${res.status}`);
+    err.code = "JSEARCH_FAILED";
+    err.status = res.status;
+    err.detail = text.slice(0, 300);
+    throw err;
   }
   const data = await res.json();
   const items: any[] = Array.isArray(data?.data) ? data.data : [];
@@ -291,10 +297,29 @@ export async function POST(req: NextRequest) {
         { status: 402 },
       );
     }
+    if (e?.code === "JSEARCH_FAILED") {
+      console.error("[POST /api/jobs] jsearch_failed", e?.status, e?.detail);
+      // 4xx from JSearch usually means "no coverage for this country / query
+      // shape" — degrade gracefully so the jobs page shows an empty state
+      // instead of a hard error.
+      if (e.status >= 400 && e.status < 500) {
+        return NextResponse.json(
+          { jobs: [], cached: false, createdAt: null, upstream: { status: e.status, detail: e.detail } },
+          { status: 200 },
+        );
+      }
+      return NextResponse.json(
+        { error: "jsearch_failed", detail: e?.detail || `HTTP ${e?.status}`, upstreamStatus: e?.status },
+        { status: 502 },
+      );
+    }
     if (e?.name === "UNAUTHORIZED") {
       return NextResponse.json({ error: e.message || "unauthorized" }, { status: 401 });
     }
     console.error("[POST /api/jobs]", e);
-    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "internal_error", detail: e?.message || "unexpected_error" },
+      { status: 500 },
+    );
   }
 }
