@@ -285,11 +285,16 @@ const handleChangeLanguage = (next: LanguageCode) => {
               await uploadThumbnail(String(resumeId), blob, withAuth);
               lastThumbUpload.current = now;
             } catch (e: any) {
-              // Log so we can spot a misconfigured Firebase bucket / auth in dev.
-              // Don't toast (would spam on every save) and don't update the
-              // throttle clock — that way we retry on the next save instead
-              // of waiting another 20s.
-              console.warn('[thumbnail-upload] failed:', e?.message || e);
+              // One toast per browser session so the user sees the failure
+              // without it spamming on every autosave. Console warn always.
+              const reason = e?.message || String(e);
+              console.warn('[thumbnail-upload] failed:', reason);
+              try {
+                if (typeof window !== 'undefined' && !(window as any).__rmThumbToasted) {
+                  (window as any).__rmThumbToasted = true;
+                  toast.error(`Couldn't save preview thumbnail: ${reason.slice(0, 140)}`);
+                }
+              } catch {}
             }
           }
         }

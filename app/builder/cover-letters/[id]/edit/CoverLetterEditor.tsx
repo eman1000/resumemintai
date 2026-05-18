@@ -73,7 +73,14 @@ export default function CoverLetterEditor({
         await uploadCoverLetterThumbnail(coverLetterId, blob, withAuth);
         lastThumbUpload.current = Date.now();
       } catch (e: any) {
-        console.warn("[cl-thumbnail-upload] failed:", e?.message || e);
+        const reason = e?.message || String(e);
+        console.warn("[cl-thumbnail-upload] failed:", reason);
+        try {
+          if (typeof window !== 'undefined' && !(window as any).__rmThumbToasted) {
+            (window as any).__rmThumbToasted = true;
+            toast.error(`Couldn't save preview thumbnail: ${reason.slice(0, 140)}`);
+          }
+        } catch {}
       }
     }, 1500); // small debounce so we don't fire mid-typing
     return () => clearTimeout(handle);
