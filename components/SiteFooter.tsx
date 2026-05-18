@@ -16,6 +16,7 @@ export default function SiteFooter() {
           <p className="font-semibold text-[#1d1d20] mb-2">Product</p>
           <ul className="space-y-1 text-[#52525a]">
             <li><Link href="/resume-checker" className="hover:text-brand">Free ATS Checker</Link></li>
+            <li><Link href="/resume-examples" className="hover:text-brand">Resume Examples</Link></li>
             <li><Link href="/templates" className="hover:text-brand">Resume Templates</Link></li>
             <li><Link href="/cover-letter-templates" className="hover:text-brand">Cover Letter Templates</Link></li>
             <li><Link href="/pricing" className="hover:text-brand">Pricing</Link></li>

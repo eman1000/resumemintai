@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getAllResumeExampleSlugs } from "@/lib/resumeExamples";
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.resumemintai.com"
@@ -13,6 +14,7 @@ type Entry = {
 const STATIC_ROUTES: Entry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1.0 },
   { path: "/resume-checker", changeFrequency: "weekly", priority: 0.95 },
+  { path: "/resume-examples", changeFrequency: "weekly", priority: 0.9 },
   { path: "/pricing", changeFrequency: "weekly", priority: 0.9 },
   { path: "/templates", changeFrequency: "weekly", priority: 0.9 },
   { path: "/cover-letter-templates", changeFrequency: "weekly", priority: 0.8 },
@@ -30,10 +32,21 @@ const STATIC_ROUTES: Entry[] = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  return STATIC_ROUTES.map((r) => ({
+  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((r) => ({
     url: `${SITE_URL}${r.path}`,
     lastModified: now,
     changeFrequency: r.changeFrequency,
     priority: r.priority,
   }));
+
+  const resumeExampleEntries: MetadataRoute.Sitemap = getAllResumeExampleSlugs().map(
+    (slug) => ({
+      url: `${SITE_URL}/resume-examples/${slug}`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    }),
+  );
+
+  return [...staticEntries, ...resumeExampleEntries];
 }
