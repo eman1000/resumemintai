@@ -150,13 +150,15 @@ export default function ElegantTemplate(props: ElegantProps) {
   const mainFirst : Box = { x: RAIL_W + 20, y: BODY_TOP, w: width - (RAIL_W + 20) - PAGE_PAD, h: height - BODY_TOP - PAGE_PAD };
   const mainFollow: Box = { x: RAIL_W + 20, y: PAGE_PAD,  w: width - (RAIL_W + 20) - PAGE_PAD, h: height - PAGE_PAD - PAGE_PAD };
 
-  const railFirst : Box = { x: 40, y: BODY_TOP, w: RAIL_W - 80, h: height - BODY_TOP - PAGE_PAD };
-  const railFollow: Box = { x: 40, y: PAGE_PAD,  w: RAIL_W - 80, h: height - PAGE_PAD - PAGE_PAD };
+  // Inset rail content by 20pt on each side so skill labels + level dots
+  // have more horizontal room (was 40 → labels like "Design systems" clipped).
+  const railFirst : Box = { x: 20, y: BODY_TOP, w: RAIL_W - 40, h: height - BODY_TOP - PAGE_PAD };
+  const railFollow: Box = { x: 20, y: PAGE_PAD,  w: RAIL_W - 40, h: height - PAGE_PAD - PAGE_PAD };
 
-  // Rail/sidebar background follows theme — adapter passes railBg
-  // (derived from leftColumnBackgroundColor or primary), then primary,
-  // then a dark default. No more pure-black-regardless-of-theme.
-  const sidebar = colors?.sidebar ?? colors?.railBg ?? colors?.primary ?? "#1a4d3f";
+  // Elegant is the "coloured sidebar" template: prefer primary so the rail
+  // adopts the brand colour the user picked. Fall back to railBg only if
+  // there's no primary, and ultimately to the emerald default.
+  const sidebar = colors?.sidebar ?? colors?.primary ?? colors?.railBg ?? "#1a4d3f";
 
   // Auto-pick rail text colors based on sidebar luminance so they stay readable
   // when the user picks a light primary.
@@ -174,7 +176,15 @@ export default function ElegantTemplate(props: ElegantProps) {
 
   // Shared style for pourer
   const styleMain = { family: fontFamily, body: bodySize, line, section: sectionSize, primary, text, header: headerColor, divider };
-  const styleRail = { ...styleMain, text: railText, header: railHeader, divider: railDivider };
+  // Rail uses contrasting text + headings + neutralised primary so accent
+  // text (section titles, skill labels) doesn't disappear into the sidebar.
+  const styleRail = {
+    ...styleMain,
+    text: railText,
+    header: railHeader,
+    primary: railHeader,
+    divider: railDivider,
+  };
 
   const gaps = {
     para: paraGap, header: headerGap, title: titleGap,
@@ -223,8 +233,8 @@ export default function ElegantTemplate(props: ElegantProps) {
             {/* page background */}
             <R x={0} y={0} w={width} h={height} fill="#ffffff" />
 
-            {/* left rail is **black** on all pages */}
-            <R x={0} y={0} w={RAIL_W} h={height} fill="#000000" />
+            {/* left rail — derived from the theme (defaults to deep emerald) */}
+            <R x={0} y={0} w={RAIL_W} h={height} fill={sidebar} />
 
             {/* framed banner on page 1 */}
             {isFirst && (
