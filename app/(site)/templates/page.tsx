@@ -63,20 +63,18 @@ export default function TemplatesPage() {
                 href="/builder"
                 className="group block"
               >
-                <div className="rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
-                  <div className="relative bg-gray-100" style={{ aspectRatio: '210 / 297' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/template-previews/resume/${t.renderer}.png`}
-                      alt={`${t.name} resume template preview`}
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover object-top"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/0 via-black/0 to-black/0 group-hover:from-brand/80 group-hover:via-brand/0 group-hover:to-transparent transition-colors duration-200 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100">
-                      <span className="bg-white text-brand text-sm font-semibold px-4 py-2 rounded-full shadow-md">
-                        Use this template →
-                      </span>
-                    </div>
+                <div className="relative rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/template-previews/resume/${t.renderer}.png`}
+                    alt={`${t.name} resume template preview`}
+                    loading="lazy"
+                    className="block w-full h-auto"
+                  />
+                  <div className="absolute inset-0 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-t from-brand/80 via-transparent to-transparent">
+                    <span className="bg-white text-brand text-sm font-semibold px-4 py-2 rounded-full shadow-md">
+                      Use this template →
+                    </span>
                   </div>
                 </div>
                 <div className="mt-3 px-1">
