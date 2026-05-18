@@ -452,12 +452,36 @@ export function checkResumeAgainstJob(resume: string, job: string): AtsCheckResu
     categoryTailoring(safeResume, safeJob),
   ];
 
-  const totalWeight = categories.reduce((s, c) => s + c.weight, 0);
-  const weightedSum = categories.reduce((s, c) => s + c.weight * c.scorePercent, 0);
-  const score = Math.round(weightedSum / totalWeight);
-
   const tailoring = categories.find((c) => c.id === 'tailoring');
   const keywords = tailoring?.keywords || { total: 0, matched: [], missing: [], rate: 0 };
+
+  // Scoring model:
+  //  - When a JD is provided, tailoring is the dominant signal (55%). A
+  //    well-written resume that doesn't match the job is still a bad fit
+  //    and the score has to reflect that.
+  //  - The other six categories share the remaining 45%, weighted by their
+  //    declared weights.
+  //  - Hard caps prevent a "Good"/"Excellent" verdict when tailoring is
+  //    weak.
+  //  - With no JD, we omit tailoring and use the weighted average of the
+  //    other six categories.
+  const jdProvided = !!safeJob;
+  const others = categories.filter((c) => c.id !== 'tailoring');
+  const othersTotalWeight = others.reduce((s, c) => s + c.weight, 0);
+  const othersWeighted = others.reduce((s, c) => s + c.weight * c.scorePercent, 0);
+  const othersAvg = othersTotalWeight ? othersWeighted / othersTotalWeight : 0;
+
+  let score: number;
+  if (!jdProvided) {
+    score = Math.round(othersAvg);
+  } else {
+    const tailoringPct = tailoring?.scorePercent ?? 0;
+    score = Math.round(0.55 * tailoringPct + 0.45 * othersAvg);
+    // Caps: keyword fit gates the verdict so wrong-fit resumes can't sneak
+    // into "Good" on the strength of formatting alone.
+    if (tailoringPct < 30) score = Math.min(score, 50);
+    else if (tailoringPct < 50) score = Math.min(score, 65);
+  }
 
   return {
     score,
