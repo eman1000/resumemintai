@@ -56,20 +56,20 @@ export default function TemplatesPage() {
       {/* Template Grid */}
       <section className="bg-[#f8fbfc]">
         <div className="max-w-6xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
             {templates.map((t) => (
               <Link
                 key={t.renderer}
                 href="/builder"
                 className="group block"
               >
-                <div className="relative aspect-[210/297] rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
+                <div className="relative rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/template-previews/resume/${t.renderer}.png`}
                     alt={`${t.name} resume template preview`}
                     loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    className="block w-full h-auto"
                   />
                   <div className="absolute inset-0 flex items-end justify-center pb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-t from-brand/80 via-transparent to-transparent">
                     <span className="bg-white text-brand text-sm font-semibold px-4 py-2 rounded-full shadow-md">
