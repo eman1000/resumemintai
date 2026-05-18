@@ -40,14 +40,32 @@ export async function POST(req: Request) {
       select: { stripeCustomerId: true },
     });
 
+    // Verify the stored customer still exists in the connected Stripe account.
+    // If we switched test↔live or pointed at a different account, the saved
+    // ID is stale — null it out and create a fresh customer instead of
+    // failing with "No such customer".
     let customerId = me?.stripeCustomerId ?? null;
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId);
+        // Deleted customers come back with `{ deleted: true }`; treat as gone.
+        if ((existing as any)?.deleted) customerId = null;
+      } catch (e: any) {
+        const code = e?.code || e?.raw?.code;
+        if (code === 'resource_missing' || e?.statusCode === 404) {
+          customerId = null;
+        } else {
+          throw e;
+        }
+      }
+    }
     if (!customerId) {
       const customer = await stripe.customers.create(
         {
           email: email ?? undefined,
           metadata: { accountId: userId, uid },
         },
-        { idempotencyKey: `customer-create:${userId}` },
+        { idempotencyKey: `customer-create:${userId}:${crypto.randomUUID()}` },
       );
       customerId = customer.id;
       await prisma.user.update({
