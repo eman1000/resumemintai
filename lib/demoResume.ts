@@ -107,6 +107,42 @@ export const DEMO_RESUME_DATA: any = {
         { fields: { header: 'Portuguese', level: 'Conversational' } },
       ],
     },
+    {
+      key: 'projects',
+      title: 'Selected projects',
+      records: [
+        {
+          fields: {
+            header: 'Northwind Activation Sprint',
+            subheader: 'Internal product team',
+            period: '2024',
+            richtextValue: bullets([
+              'Redesigned onboarding into a 5-step task list with progress nudges.',
+              'Lifted activation by 38% in the first quarter post-launch.',
+            ]),
+          },
+        },
+        {
+          fields: {
+            header: 'Helio Card Issuing v2',
+            subheader: 'Consumer fintech launch',
+            period: '2021',
+            richtextValue: bullets([
+              'Designed the card-issuing flow from spec through launch.',
+              'Cut support tickets by 22% with clearer error states.',
+            ]),
+          },
+        },
+      ],
+    },
+    {
+      key: 'certifications',
+      title: 'Certifications',
+      records: [
+        { fields: { header: 'NN/g UX Master', subheader: 'Nielsen Norman Group', period: '2022' } },
+        { fields: { header: 'Google UX Design Professional', subheader: 'Coursera', period: '2020' } },
+      ],
+    },
   ],
 };
 
