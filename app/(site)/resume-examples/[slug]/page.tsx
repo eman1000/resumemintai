@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { CheckCircle2, AlertTriangle, ArrowRight, MapPin, Phone, Mail } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ArrowRight, MapPin, Phone, Mail, PenLine } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 import {
@@ -282,6 +282,29 @@ export default function Page({ params }: { params: Params }) {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* Cover letter cross-link */}
+      <section className="bg-[#f8fbfc]">
+        <div className="max-w-3xl mx-auto px-4 py-10">
+          <Link
+            href={`/cover-letter-examples/${ex.slug}`}
+            className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md hover:border-brand/30 transition-all"
+          >
+            <div className="w-11 h-11 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+              <PenLine className="w-5 h-5 text-brand" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-[#1d1d20]">
+                Pair it with the {ex.title.toLowerCase()} cover letter example
+              </div>
+              <div className="text-sm text-[#52525a]">
+                A full sample cover letter with a why-it-works breakdown and mistakes to avoid.
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-brand flex-shrink-0" />
+          </Link>
         </div>
       </section>
 

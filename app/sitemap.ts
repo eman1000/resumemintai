@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getAllResumeExampleSlugs } from "@/lib/resumeExamples";
+import { getAllCoverLetterSlugs } from "@/lib/coverLetterExamples";
 
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.resumemintai.com"
@@ -15,6 +16,7 @@ const STATIC_ROUTES: Entry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1.0 },
   { path: "/resume-checker", changeFrequency: "weekly", priority: 0.95 },
   { path: "/resume-examples", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/cover-letter-examples", changeFrequency: "weekly", priority: 0.9 },
   { path: "/pricing", changeFrequency: "weekly", priority: 0.9 },
   { path: "/templates", changeFrequency: "weekly", priority: 0.9 },
   { path: "/cover-letter-templates", changeFrequency: "weekly", priority: 0.8 },
@@ -48,5 +50,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }),
   );
 
-  return [...staticEntries, ...resumeExampleEntries];
+  const coverLetterEntries: MetadataRoute.Sitemap = getAllCoverLetterSlugs().map(
+    (slug) => ({
+      url: `${SITE_URL}/cover-letter-examples/${slug}`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    }),
+  );
+
+  return [...staticEntries, ...resumeExampleEntries, ...coverLetterEntries];
 }
