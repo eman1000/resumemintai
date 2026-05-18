@@ -38,7 +38,7 @@ const A4_HEIGHT = 1123;
 
 async function capture(browser, url, fullPath, thumbPath) {
   const page = await browser.newPage();
-  await page.setViewport({ width: A4_WIDTH, height: A4_HEIGHT, deviceScaleFactor: 2 });
+  await page.setViewport({ width: A4_WIDTH, height: A4_HEIGHT * 2, deviceScaleFactor: 2 });
   console.log(`  → ${url}`);
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await page.waitForFunction(() => document.title === 'PREVIEW_READY', { timeout: 15000 }).catch(() => {
@@ -57,21 +57,46 @@ async function capture(browser, url, fullPath, thumbPath) {
     ));
   });
 
-  // Clip to the body's A4-locked content area so any browser-added margin
-  // doesn't pollute the screenshot.
+  // Measure the actual content bottom by scanning the rendered first-page SVG
+  // for its last drawn element. SVGs declare A4 dimensions even when their
+  // content stops short — so we walk children and find the deepest one.
+  const contentHeight = await page.evaluate((maxH) => {
+    const root = document.querySelector('[data-preview-root="1"]');
+    if (!root) return maxH;
+    const firstSvg = root.querySelector('svg');
+    if (!firstSvg) return Math.min(maxH, Math.ceil(root.getBoundingClientRect().height));
+    const svgRect = firstSvg.getBoundingClientRect();
+    let maxBottom = svgRect.top + 50; // safety floor
+    const els = Array.from(firstSvg.querySelectorAll('*'));
+    for (const el of els) {
+      // Skip definitions / backgrounds that span the full page.
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'defs' || tag === 'clippath' || tag === 'lineargradient' || tag === 'stop' || tag === 'pattern') continue;
+      try {
+        const r = el.getBoundingClientRect();
+        // Filter the page-background rect (full SVG height + width).
+        if (r.width >= svgRect.width - 1 && r.height >= svgRect.height - 1) continue;
+        if (r.bottom > maxBottom) maxBottom = r.bottom;
+      } catch {}
+    }
+    // Translate to "from top of viewport" with a 16px breathing room.
+    return Math.min(maxH, Math.ceil(maxBottom - root.getBoundingClientRect().top + 16));
+  }, A4_HEIGHT);
+
   await page.screenshot({
     path: fullPath,
     type: 'png',
-    clip: { x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT },
+    clip: { x: 0, y: 0, width: A4_WIDTH, height: contentHeight },
     omitBackground: false,
   });
 
-  // 480 wide thumb for the card hover state etc. (Same aspect, smaller file.)
-  await page.setViewport({ width: 480, height: 679, deviceScaleFactor: 2 });
+  // Thumbnail at half size with same content-clip.
+  const thumbScale = 480 / A4_WIDTH;
+  await page.setViewport({ width: 480, height: Math.ceil(A4_HEIGHT * 2 * thumbScale), deviceScaleFactor: 2 });
   await page.screenshot({
     path: thumbPath,
     type: 'png',
-    clip: { x: 0, y: 0, width: 480, height: 679 },
+    clip: { x: 0, y: 0, width: 480, height: Math.ceil(contentHeight * thumbScale) },
   });
   await page.close();
 }

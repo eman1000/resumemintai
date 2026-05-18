@@ -55,6 +55,7 @@ export const DEMO_RESUME_DATA: any = {
               'Led the redesign of the onboarding flow that lifted activation by 38% in the first quarter post-launch.',
               'Built and shipped a cross-product design system used by 6 squads, cutting handoff time per feature by ~40%.',
               'Partnered with research and engineering on a generative-AI assistant feature now used by 60% of weekly actives.',
+              'Hired and mentored two mid-level designers; ran weekly critiques and quarterly portfolio reviews.',
             ]),
           },
         },
@@ -65,21 +66,9 @@ export const DEMO_RESUME_DATA: any = {
             city: 'Remote',
             period: 'Aug 2019 – Feb 2022',
             richtextValue: bullets([
-              'Designed the consumer card-issuing experience from zero to 100k MAU.',
+              'Designed the consumer card-issuing experience from zero to 100k MAU in eighteen months.',
               'Ran 30+ usability sessions and translated findings into a measurable 22% reduction in support tickets.',
-              'Owned end-to-end visual language for the iOS app — typography, motion, illustration.',
-            ]),
-          },
-        },
-        {
-          fields: {
-            header: 'UX Designer',
-            subheader: 'Crane Studio',
-            city: 'Brooklyn, NY',
-            period: 'Jun 2017 – Jul 2019',
-            richtextValue: bullets([
-              'Shipped client work for Spotify, Squarespace, and three Y Combinator startups.',
-              'Established the studio’s design QA process for production releases.',
+              'Owned end-to-end visual language for the iOS app — typography, motion, and illustration.',
             ]),
           },
         },
