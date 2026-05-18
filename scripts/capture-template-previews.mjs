@@ -57,69 +57,23 @@ async function capture(browser, url, fullPath, thumbPath) {
     ));
   });
 
-  // Measure the actual painted content bounding box. Resume templates often
-  // have internal margins (Classic / Modern / Minimal / Executive) so a
-  // fixed A4 clip leaves whitespace on all four sides. We walk the first
-  // SVG's drawn children and find the union bbox.
-  const bbox = await page.evaluate((maxW, maxH) => {
-    const root = document.querySelector('[data-preview-root="1"]');
-    if (!root) return null;
-    const firstSvg = root.querySelector('svg');
-    if (!firstSvg) {
-      const r = root.getBoundingClientRect();
-      return { x: 0, y: 0, width: Math.min(maxW, r.width), height: Math.min(maxH, r.height) };
-    }
-    const svgRect = firstSvg.getBoundingClientRect();
-    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
-    const els = Array.from(firstSvg.querySelectorAll('*'));
-    const skipTags = new Set(['defs', 'clippath', 'lineargradient', 'stop', 'pattern', 'mask', 'g']);
-    for (const el of els) {
-      const tag = el.tagName.toLowerCase();
-      if (skipTags.has(tag)) continue;
-      try {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) continue;
-        // Skip the full-page background rect.
-        if (r.width >= svgRect.width - 1 && r.height >= svgRect.height - 1) continue;
-        if (r.left < left) left = r.left;
-        if (r.right > right) right = r.right;
-        if (r.top < top) top = r.top;
-        if (r.bottom > bottom) bottom = r.bottom;
-      } catch {}
-    }
-    if (!Number.isFinite(left)) return null;
-    const PAD = 16; // breathing room around content
-    const rootRect = root.getBoundingClientRect();
-    const x = Math.max(0, Math.floor(left - rootRect.left - PAD));
-    const y = Math.max(0, Math.floor(top - rootRect.top - PAD));
-    const width = Math.min(maxW - x, Math.ceil(right - left + 2 * PAD));
-    const height = Math.min(maxH - y, Math.ceil(bottom - top + 2 * PAD));
-    return { x, y, width, height };
-  }, A4_WIDTH, A4_HEIGHT);
-
-  const clip = bbox && bbox.width > 50 && bbox.height > 50
-    ? bbox
-    : { x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT };
-
+  // Capture the full A4 rectangle. We deliberately don't crop to content
+  // because we want uniform card heights in the marketing grid and we want
+  // sidebars / banners that paint full-height to actually look full-height
+  // (Elegant's black rail, Circular's blue rail, etc.).
   await page.screenshot({
     path: fullPath,
     type: 'png',
-    clip,
+    clip: { x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT },
     omitBackground: false,
   });
 
-  // Thumbnail at half size with the same content-clip, scaled.
   const thumbScale = 480 / A4_WIDTH;
-  await page.setViewport({ width: 480, height: Math.ceil(A4_HEIGHT * 2 * thumbScale), deviceScaleFactor: 2 });
+  await page.setViewport({ width: 480, height: Math.ceil(A4_HEIGHT * thumbScale), deviceScaleFactor: 2 });
   await page.screenshot({
     path: thumbPath,
     type: 'png',
-    clip: {
-      x: Math.floor(clip.x * thumbScale),
-      y: Math.floor(clip.y * thumbScale),
-      width: Math.ceil(clip.width * thumbScale),
-      height: Math.ceil(clip.height * thumbScale),
-    },
+    clip: { x: 0, y: 0, width: 480, height: Math.ceil(A4_HEIGHT * thumbScale) },
   });
   await page.close();
 }
