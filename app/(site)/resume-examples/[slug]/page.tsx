@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ArrowRight, MapPin, Phone, Mail } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 import {
   getResumeExample,
   getAllResumeExampleSlugs,
   getRelatedExamples,
+  exampleEmail,
 } from '@/lib/resumeExamples';
 import { breadcrumbLd, jsonLdScript } from '@/lib/seo-ld';
 
@@ -43,11 +44,18 @@ export function generateMetadata({ params }: { params: Params }): Metadata {
   };
 }
 
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand border-b border-brand/20 pb-1.5">
+    {children}
+  </div>
+);
+
 export default function Page({ params }: { params: Params }) {
   const ex = getResumeExample(params.slug);
   if (!ex) notFound();
 
   const related = getRelatedExamples(ex.slug);
+  const email = exampleEmail(ex.candidateName);
   const breadcrumb = breadcrumbLd([
     { name: 'Home', path: '/' },
     { name: 'Resume Examples', path: '/resume-examples' },
@@ -90,52 +98,122 @@ export default function Page({ params }: { params: Params }) {
         </div>
       </header>
 
-      {/* Sample resume */}
+      {/* Full sample resume */}
       <section className="bg-[#f8fbfc]">
         <div className="max-w-3xl mx-auto px-4 py-14">
           <h2 className="text-2xl md:text-3xl font-bold text-[#1d1d20]">
             {ex.title} resume sample
           </h2>
           <p className="mt-2 text-sm text-[#52525a]">
-            A sample you can adapt — swap in your own details, metrics, and employers.
+            A complete example you can adapt — swap in your own name, employers, dates, and
+            metrics. The candidate below is illustrative only.
           </p>
 
-          <div className="mt-6 rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
+          <article className="mt-6 rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
             <div className="bg-brand h-2 w-full" />
-            <div className="p-7">
-              <div className="text-xs font-semibold uppercase tracking-wider text-brand">
-                Professional Summary
-              </div>
-              <p className="mt-2 text-[#1d1d20] leading-relaxed">{ex.summary}</p>
-
-              <div className="mt-7 text-xs font-semibold uppercase tracking-wider text-brand">
-                Experience
-              </div>
-              <p className="mt-2 font-semibold text-[#1d1d20]">{ex.sampleRole}</p>
-              <ul className="mt-3 space-y-2">
-                {ex.bullets.map((b, i) => (
-                  <li key={i} className="flex gap-2.5 text-sm text-[#52525a]">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-brand flex-shrink-0" />
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-7 text-xs font-semibold uppercase tracking-wider text-brand">
-                Skills
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {ex.skills.map((s) => (
-                  <span
-                    key={s}
-                    className="text-xs bg-gray-100 text-[#1d1d20] rounded-md px-2.5 py-1"
-                  >
-                    {s}
+            <div className="p-7 md:p-10">
+              {/* Resume header */}
+              <div className="text-center border-b border-gray-200 pb-6">
+                <div className="text-2xl md:text-3xl font-bold text-[#1d1d20]">
+                  {ex.candidateName}
+                </div>
+                <div className="mt-1 text-brand font-medium">{ex.title}</div>
+                <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1.5 text-sm text-[#52525a]">
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" /> {ex.candidateLocation}
                   </span>
-                ))}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5" /> {ex.candidatePhone}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" /> {email}
+                  </span>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="mt-7">
+                <SectionLabel>Professional Summary</SectionLabel>
+                <p className="mt-3 text-sm text-[#1d1d20] leading-relaxed">{ex.summary}</p>
+              </div>
+
+              {/* Experience */}
+              <div className="mt-7">
+                <SectionLabel>Experience</SectionLabel>
+                <div className="mt-4 space-y-6">
+                  {ex.experience.map((job, i) => (
+                    <div key={i}>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <p className="font-semibold text-[#1d1d20]">
+                          {job.role} — {job.company}
+                        </p>
+                        <p className="text-xs text-[#a1a1aa] whitespace-nowrap">{job.period}</p>
+                      </div>
+                      <p className="text-xs text-[#52525a]">{job.location}</p>
+                      <ul className="mt-2.5 space-y-1.5">
+                        {job.bullets.map((b, j) => (
+                          <li key={j} className="flex gap-2.5 text-sm text-[#52525a]">
+                            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-brand flex-shrink-0" />
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Education */}
+              <div className="mt-7">
+                <SectionLabel>Education</SectionLabel>
+                <div className="mt-3 space-y-2">
+                  {ex.education.map((ed, i) => (
+                    <div key={i} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <p className="text-sm text-[#1d1d20]">
+                        <span className="font-semibold">{ed.qualification}</span> — {ed.institution}
+                      </p>
+                      <p className="text-xs text-[#a1a1aa] whitespace-nowrap">{ed.period}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Certifications */}
+              {ex.certifications && ex.certifications.length > 0 && (
+                <div className="mt-7">
+                  <SectionLabel>Certifications</SectionLabel>
+                  <ul className="mt-3 space-y-1.5">
+                    {ex.certifications.map((c) => (
+                      <li key={c} className="flex gap-2.5 text-sm text-[#52525a]">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-brand flex-shrink-0" />
+                        <span>{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Skills */}
+              <div className="mt-7">
+                <SectionLabel>Skills</SectionLabel>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {ex.skills.map((s) => (
+                    <span
+                      key={s}
+                      className="text-xs bg-gray-100 text-[#1d1d20] rounded-md px-2.5 py-1"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          </article>
+
+          <p className="mt-3 text-xs text-[#a1a1aa] text-center">
+            Illustrative sample — {ex.candidateName} is not a real person. Use it as a structure,
+            not a script: every line on your resume must be true to your own experience.
+          </p>
         </div>
       </section>
 
