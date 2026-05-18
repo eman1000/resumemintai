@@ -58,11 +58,6 @@ export function softwareApplicationLd() {
     applicationCategory: 'BusinessApplication',
     url: SITE.url,
     publisher: { '@id': `${SITE.url}/#org` },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.5',
-      ratingCount: '10000',
-    },
     offers: {
       '@type': 'Offer',
       price: '19.99',

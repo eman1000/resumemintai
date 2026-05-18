@@ -47,12 +47,6 @@ const steps = [
   { n: '3', t: 'Download & apply', d: 'Export as PDF and start applying to jobs with confidence.' },
 ];
 
-const reviews = [
-  { name: 'Sarah C.', role: 'Software Engineer', text: 'Got 5 interviews in 2 weeks — the AI suggestions made my bullets show real impact.', stars: 5 },
-  { name: 'Marcus J.', role: 'Product Manager', text: 'Identified gaps in my resume and helped me tailor it for PM roles perfectly.', stars: 5 },
-  { name: 'Emily R.', role: 'Data Scientist', text: 'Saved me hours of work. The keyword optimization alone boosted my response rate.', stars: 5 },
-];
-
 const faqs = [
   { q: 'Is there a free trial?', a: 'Yes! You get a 14-day free trial with full access to all features, templates, and AI tools. No commitment required.' },
   { q: 'Can I cancel anytime?', a: 'Absolutely. You can cancel your subscription at any time from your account settings. No questions asked.' },
@@ -85,9 +79,9 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
-            <span className="flex items-center gap-1.5"><Star className="w-4 h-4 text-[#00b67a]" fill="#00b67a" /> 4.5/5 from 10,000+ users</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> 14-day free trial</span>
-            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand" /> Cancel anytime</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand" /> No credit card to start</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> Cancel anytime</span>
           </div>
         </div>
       </header>
@@ -148,25 +142,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Reviews */}
-      <section id="reviews" className="bg-white">
+      {/* Free ATS checker */}
+      <section id="ats-checker" className="bg-white">
         <div className="max-w-site mx-auto px-4 py-16">
-          <h2 className="text-3xl font-bold text-center text-[#1d1d20] mb-10">What our users say</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {reviews.map((r, i) => (
-              <div key={i} className="card">
-                <div className="flex gap-0.5 mb-2">
-                  {Array.from({ length: r.stars }).map((_, j) => (
-                    <Star key={j} className="w-4 h-4 text-[#00b67a]" fill="#00b67a" />
-                  ))}
-                </div>
-                <p className="text-[#1d1d20]">&ldquo;{r.text}&rdquo;</p>
-                <div className="mt-3">
-                  <p className="font-medium text-[#1d1d20]">{r.name}</p>
-                  <p className="text-sm text-[#52525a]">{r.role}</p>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-2xl bg-brand-50 border border-brand/15 px-6 py-12 md:px-12 text-center">
+            <span className="inline-block text-[11px] font-semibold tracking-[0.18em] uppercase text-brand bg-white rounded-full px-3 py-1">
+              Free tool · no signup
+            </span>
+            <h2 className="mt-4 text-3xl font-bold text-[#1d1d20]">Not sure your resume passes ATS?</h2>
+            <p className="mt-3 text-[#52525a] max-w-2xl mx-auto">
+              Paste your resume and a job description into our free ATS checker. Get an instant score
+              and see exactly which keywords you&apos;re missing — no account needed.
+            </p>
+            <Link href="/resume-checker" className="btn-primary mt-6 inline-flex text-base">
+              Check my resume free
+            </Link>
           </div>
         </div>
       </section>
@@ -193,7 +183,7 @@ export default function LandingPage() {
       <section className="bg-brand-50">
         <div className="max-w-site mx-auto px-4 py-16 text-center">
           <h2 className="text-3xl font-bold text-[#1d1d20]">Ready to build your resume?</h2>
-          <p className="mt-3 text-[#52525a]">Join thousands of professionals who landed their dream jobs with ResumeMint.</p>
+          <p className="mt-3 text-[#52525a]">Tailor your resume to any job and apply with confidence — your first 14 days are free.</p>
           <Link href="/builder" className="btn-primary mt-6 inline-flex text-base">
             Get started — it&apos;s free
           </Link>
