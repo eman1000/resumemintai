@@ -21,25 +21,41 @@ export const runtime = "nodejs"; // ensure server runtime
 
 export async function POST(req: NextRequest) {
   try {
-    const form = await req.formData();
-    const file = form.get("file") as File | null;
-    if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
+    const contentType = req.headers.get('content-type') || '';
+    let text = '';
 
-    const buf = Buffer.from(await file.arrayBuffer());
-    const lower = (file.name || "").toLowerCase();
-
-    let text = "";
-    if (lower.endsWith(".pdf") || file.type === "application/pdf") {
-      const parsed = await pdfParse(buf);
-      text = (parsed.text || "").trim();
-    } else if (
-      lower.endsWith(".docx") ||
-      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ) {
-      const res = await mammoth.extractRawText({ buffer: buf });
-      text = (res.value || "").trim();
+    if (contentType.includes('application/json')) {
+      // JSON text payload — used by the /resume-checker → /builder handoff
+      // where the text was already extracted client-side.
+      const body = await req.json().catch(() => null) as any;
+      text = String(body?.text || '').trim().slice(0, 100_000);
+      if (!text) {
+        return NextResponse.json({ error: "Missing text." }, { status: 400 });
+      }
     } else {
-      return NextResponse.json({ error: "Unsupported file. Upload PDF or DOCX." }, { status: 400 });
+      const form = await req.formData();
+      const file = form.get("file") as File | null;
+      const formText = form.get("text");
+      if (typeof formText === 'string' && formText.trim()) {
+        text = formText.trim().slice(0, 100_000);
+      } else if (file) {
+        const buf = Buffer.from(await file.arrayBuffer());
+        const lower = (file.name || "").toLowerCase();
+        if (lower.endsWith(".pdf") || file.type === "application/pdf") {
+          const parsed = await pdfParse(buf);
+          text = (parsed.text || "").trim();
+        } else if (
+          lower.endsWith(".docx") ||
+          file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ) {
+          const res = await mammoth.extractRawText({ buffer: buf });
+          text = (res.value || "").trim();
+        } else {
+          return NextResponse.json({ error: "Unsupported file. Upload PDF or DOCX." }, { status: 400 });
+        }
+      } else {
+        return NextResponse.json({ error: "No file or text." }, { status: 400 });
+      }
     }
     if (!text) {
       return NextResponse.json({ error: "No extractable text (scanned or empty)." }, { status: 422 });

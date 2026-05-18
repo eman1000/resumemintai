@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { track } from "@/lib/track";
+import { setCheckerHandoff } from "@/lib/checkerHandoff";
 
 type Hygiene = {
   hasEmail: boolean;
@@ -30,6 +32,7 @@ const BAND_COLOURS: Record<Result['band'], { ring: string; text: string; bg: str
 };
 
 export default function ResumeCheckerClient() {
+  const router = useRouter();
   const [resume, setResume] = React.useState("");
   const [job, setJob] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -197,9 +200,21 @@ export default function ResumeCheckerClient() {
               ResumeMint AI rewrites your bullets, adds the missing keywords where they truthfully fit,
               and exports a clean ATS-friendly PDF in minutes.
             </p>
-            <Link href="/builder" className="btn-primary mt-4 inline-flex">
+            <button
+              type="button"
+              onClick={() => {
+                setCheckerHandoff({
+                  resumeText: resume,
+                  jdText: job,
+                  score: result.score,
+                });
+                track({ event: 'ats_check_to_builder', props: { score: result.score, band: result.band } });
+                router.push('/builder?from=resume-checker');
+              }}
+              className="btn-primary mt-4 inline-flex"
+            >
               Build my tailored resume
-            </Link>
+            </button>
           </div>
         </div>
       )}

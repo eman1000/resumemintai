@@ -21,6 +21,13 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import RenameDialog from "@/components/RenameDialog";
 import { withAuth } from "./_client/withAuth";
 import { useResumeActions } from "./hooks/useResumeActions";
+import {
+  CHECKER_HANDOFF_KEY,
+  consumeCheckerHandoff,
+  peekCheckerHandoff,
+  setTailoredJdForResume,
+} from "@/lib/checkerHandoff";
+import { track } from "@/lib/track";
 
 // ⬇️ sidebar
 import { auth } from "@/app/firebase";
@@ -105,6 +112,67 @@ export default function BuilderHome() {
       document.removeEventListener("keydown", onEsc);
     };
   }, [menuAnchor]);
+
+  // Resume-checker handoff: when the user clicked "Build my tailored resume"
+  // on /resume-checker, we stashed the pasted/uploaded resume text + the JD.
+  // Here we structure that text via /api/import, create a resume row, and
+  // hand off the JD to the editor for tailoring.
+  const [handoffBusy, setHandoffBusy] = React.useState(false);
+  const handoffRanRef = React.useRef(false);
+  React.useEffect(() => {
+    if (authLoading || handoffRanRef.current) return;
+    if (!isAuthenticated) {
+      // If a handoff is pending, prompt sign-in so we can finish it.
+      if (peekCheckerHandoff()) setLoginOpen(true);
+      return;
+    }
+    const handoff = consumeCheckerHandoff();
+    if (!handoff) return;
+    handoffRanRef.current = true;
+
+    (async () => {
+      setHandoffBusy(true);
+      try {
+        track({ event: 'checker_handoff_start', props: { score: handoff.score } });
+        // 1) Structure the pasted text into editor sections.
+        const importRes = await fetch('/api/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: handoff.resumeText }),
+        });
+        const importJson = await importRes.json();
+        if (!importRes.ok || !Array.isArray(importJson?.sections)) {
+          throw new Error(importJson?.error || 'import_failed');
+        }
+        // 2) Create the resume.
+        const createRes = await fetch(
+          '/api/resumes',
+          await withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: 'Imported from ATS Checker',
+              renderer: 'professional',
+              data: { id: 'local', sections: importJson.sections },
+            }),
+          }),
+        );
+        const createJson = await createRes.json();
+        if (!createRes.ok || !createJson?.id) {
+          throw new Error(createJson?.error || 'create_failed');
+        }
+        // 3) Stash the JD for the editor to surface as the tailoring source.
+        if (handoff.jdText) setTailoredJdForResume(createJson.id, handoff.jdText);
+        track({ event: 'checker_handoff_complete', props: { resumeId: createJson.id } });
+        router.push(`/builder/${createJson.id}/edit?from=resume-checker`);
+      } catch (e: any) {
+        toast.error('Could not import your resume — created a blank one instead.');
+        // Clear handoff so we don't loop.
+        try { sessionStorage.removeItem(CHECKER_HANDOFF_KEY); } catch {}
+        setHandoffBusy(false);
+      }
+    })();
+  }, [authLoading, isAuthenticated, router]);
 
   const create = async () => {
     if (!isAuthenticated) {
@@ -307,6 +375,19 @@ export default function BuilderHome() {
             </div>
 
             {busy && <div className="mt-6 text-sm text-gray-500">Loading…</div>}
+
+            {handoffBusy && (
+              <div className="fixed inset-0 z-[9000] bg-white/85 backdrop-blur-sm grid place-items-center">
+                <div className="flex flex-col items-center gap-3 text-center max-w-md px-6">
+                  <div className="h-10 w-10 rounded-full border-4 border-brand/20 border-t-brand animate-spin" />
+                  <div className="font-medium text-[#1d1d20]">Importing your resume…</div>
+                  <p className="text-sm text-[#52525a]">
+                    We&rsquo;re structuring the resume you pasted into ResumeMint sections.
+                    This takes a few seconds.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

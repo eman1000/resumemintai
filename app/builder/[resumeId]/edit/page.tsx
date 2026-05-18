@@ -20,6 +20,7 @@ import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { trackResumeExported } from "@/lib/track";
+import { consumeTailoredJdForResume } from "@/lib/checkerHandoff";
 
 type LoadedResume = {
   id?: string;
@@ -79,6 +80,15 @@ function EditPageInner() {
     setPendingProAfterLogin(false);
     if (!isSubscribed) setSubscribeOpen(true);
   }, [pendingProAfterLogin, isAuthenticated, authLoading, isSubscribed]);
+
+  // Resume-checker handoff: pick up the JD the user was scoring against and
+  // pass it into BuilderEditor so the Smart Tailor pane opens pre-filled.
+  const [initialJdInput, setInitialJdInput] = React.useState<string | undefined>(undefined);
+  React.useEffect(() => {
+    if (!resumeId) return;
+    const jd = consumeTailoredJdForResume(String(resumeId));
+    if (jd) setInitialJdInput(jd);
+  }, [resumeId]);
 
   const [loaded, setLoaded] = React.useState<LoadedResume | null>(null);
   const [title, setTitle] = React.useState<string>("Untitled CV");
@@ -410,6 +420,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
         dateFormat={dateFormat}
         onChangeRenderer={setRenderer}
         isSubscribed={isSubscribed}
+        initialJdInput={initialJdInput}
         onAuthGate={() => {
           if (!isAuthenticated) {
             setPendingProAfterLogin(true);

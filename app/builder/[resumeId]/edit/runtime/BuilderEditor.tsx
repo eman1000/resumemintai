@@ -2978,6 +2978,7 @@ export default function BuilderEditor({
   dateFormat,
   isSubscribed = false,
   onAuthGate,
+  initialJdInput,
 
 }: {
   initialData: any;
@@ -2991,6 +2992,9 @@ export default function BuilderEditor({
   onChangeRenderer?: (r: string) => void;
   isSubscribed?: boolean;
   onAuthGate?: () => void;
+  /** When set (e.g. handoff from /resume-checker), the Smart Tailor pane
+   *  opens automatically with this JD pre-filled. */
+  initialJdInput?: string;
 
 }) {
   const [confirmRemoveKey, setConfirmRemoveKey] = useState<CVSectionKey | null>(null);
@@ -3031,6 +3035,16 @@ const [ats, setAts] = useState<OptimizeOut | null>(null);
 
 const [smartOpen, setSmartOpen] = React.useState(false); // open by default (first-time)
 const [jdInput, setJdInput] = React.useState("");
+
+// Handoff from /resume-checker: open the Smart Tailor pane with the JD
+// the user was scoring against, so they can one-click apply the tailoring.
+const handoffJdAppliedRef = React.useRef(false);
+React.useEffect(() => {
+  if (!initialJdInput || handoffJdAppliedRef.current) return;
+  handoffJdAppliedRef.current = true;
+  setJdInput(initialJdInput);
+  setSmartOpen(true);
+}, [initialJdInput]);
 
 useEffect(() => {
   // If sections ever become empty, repopulate with defaults so users can build from scratch.
