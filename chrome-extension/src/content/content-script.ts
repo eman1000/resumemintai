@@ -1,13 +1,34 @@
-// Content script. Injected on supported job sites. Detects the host's ATS,
-// shows a floating "Fill with ResumeMint" button, and runs the matching
-// filler on click. Falls back to AI-mapping for unknown forms.
+// Content script. Injected on supported job sites. Shows a floating
+// "Apply with ResumeMint" button that opens the side panel; also listens
+// for FILL_FORM messages from the side panel and runs the matching filler.
 
-import type { FlatResume } from "../types";
-import { detectAts } from "./fillers";
-import { runFiller } from "./fillers";
+import type { FlatResume, ExtensionMessage } from "../types";
+import { detectAts, runFiller } from "./fillers";
 
 console.debug("[ResumeMint] content script ready on", location.host);
 
+// ---- Side-panel → content script: fill the form ------------------------
+chrome.runtime.onMessage.addListener((msg: ExtensionMessage, _sender, sendResponse) => {
+  if (msg.type !== "FILL_FORM") return false;
+  (async () => {
+    try {
+      const { resume } = (await chrome.runtime.sendMessage({ type: "GET_RESUME" })) as
+        | { resume: FlatResume | null }
+        | undefined ?? {};
+      if (!resume) {
+        sendResponse({ ok: false, error: "Not signed in." });
+        return;
+      }
+      const filled = await runFiller({ resume });
+      sendResponse({ ok: true, filled });
+    } catch (e: any) {
+      sendResponse({ ok: false, error: e?.message || String(e) });
+    }
+  })();
+  return true;
+});
+
+// ---- Floating helper button on the page --------------------------------
 (function injectFloatingButton() {
   if ((window as any).__rmInjected) return;
   (window as any).__rmInjected = true;
@@ -27,36 +48,23 @@ console.debug("[ResumeMint] content script ready on", location.host);
       font-size:13px;display:flex;align-items:center;gap:6px;">
       <span style="display:inline-block;width:14px;height:14px;background:#fff;border-radius:3px;color:#2a72d7;
         text-align:center;line-height:14px;font-size:10px;font-weight:800;">RM</span>
-      Fill with ResumeMint (${labelAts})
+      Apply with ResumeMint (${labelAts})
     </button>
-    <div id="__rm-status" style="margin-top:6px;font-size:11px;color:#52525a;background:#fff;
-      padding:4px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.08);display:none;"></div>
   `;
   document.documentElement.appendChild(host);
 
   const btn = host.querySelector<HTMLButtonElement>("#__rm-fill-btn")!;
-  const status = host.querySelector<HTMLDivElement>("#__rm-status")!;
-  const setStatus = (s: string, ok = true) => {
-    status.style.display = "block";
-    status.style.color = ok ? "#0a2d50" : "#9f1239";
-    status.textContent = s;
-  };
-
   btn.onclick = async () => {
-    setStatus("Loading your resume…");
+    // Ask the background to open the side panel — must be triggered from
+    // a user gesture (this click satisfies that).
+    try {
+      const resp = await chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL" });
+      if (resp?.ok) return;
+    } catch {}
+    // Fallback: if the side panel API isn't available, fill directly.
     const { resume } = (await chrome.runtime.sendMessage({ type: "GET_RESUME" })) as
       | { resume: FlatResume | null }
       | undefined ?? {};
-    if (!resume) {
-      setStatus("Not signed in — open the ResumeMint extension and sign in first.", false);
-      return;
-    }
-    setStatus(`Filling fields via ${ats ? ats : "AI"}…`);
-    try {
-      const filled = await runFiller({ resume });
-      setStatus(`Filled ${filled} field${filled === 1 ? "" : "s"}. Review and submit.`);
-    } catch (e: any) {
-      setStatus(`Couldn't fill: ${e?.message || e}`, false);
-    }
+    if (resume) await runFiller({ resume });
   };
 })();

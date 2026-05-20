@@ -10,9 +10,11 @@ export default defineManifest({
   version: "0.1.0",
   description: "Auto-fill job application forms using your ResumeMint resume.",
   icons: { 16: "icons/16.png", 48: "icons/48.png", 128: "icons/128.png" },
-  action: { default_popup: "src/popup/index.html", default_title: "ResumeMint Apply" },
+  // Clicking the toolbar icon opens the side panel — no popup.
+  action: { default_title: "ResumeMint Apply" },
+  side_panel: { default_path: "src/sidepanel/index.html" },
   background: { service_worker: "src/background/service-worker.ts", type: "module" },
-  permissions: ["storage", "activeTab", "scripting"],
+  permissions: ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
   host_permissions: [
     "https://www.resumemintai.com/*",
     "https://*.greenhouse.io/*",

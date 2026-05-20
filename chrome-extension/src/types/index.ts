@@ -37,6 +37,7 @@ export type ExtensionMessage =
   | { type: "SIGN_OUT" }
   | { type: "GET_RESUME" }
   | { type: "FILL_FORM"; mode?: "fill" | "fill_submit" }
+  | { type: "OPEN_SIDE_PANEL" }
   | { type: "AI_FILL_FIELDS"; fields: AiField[] }
   | { type: "LOG_APPLY"; ats: string; jobUrl: string; jobSnapshot?: any }
   // Sent from /extension/connect on resumemintai.com via externally_connectable

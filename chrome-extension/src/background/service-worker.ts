@@ -1,11 +1,16 @@
 // Background service worker. Handles:
 //  - External messages from the resumemintai.com connect page (auth handoff).
-//  - Internal messages from popup / content scripts.
-//  - Periodic resume cache refresh.
+//  - Internal messages from side panel / content scripts.
+//  - Opens the side panel when the toolbar icon is clicked.
 
 import { STORAGE_KEYS, type ExtensionMessage, type StoredAuth } from "../types";
 import { fetchResume } from "../lib/api";
 import { setStoredAuth } from "../lib/auth";
+
+// Clicking the toolbar icon opens the side panel (Chrome ≥114).
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true }).catch(() => {});
+});
 
 // ---- External (web page → extension) -----------------------------------
 chrome.runtime.onMessageExternal.addListener((msg: ExtensionMessage, sender, sendResponse) => {
@@ -35,9 +40,25 @@ chrome.runtime.onMessageExternal.addListener((msg: ExtensionMessage, sender, sen
   return true;
 });
 
-// ---- Internal (popup / content script → background) --------------------
-chrome.runtime.onMessage.addListener((msg: ExtensionMessage, _sender, sendResponse) => {
+// ---- Internal (side panel / content script → background) --------------
+chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendResponse) => {
   (async () => {
+    if (msg.type === "OPEN_SIDE_PANEL") {
+      try {
+        const tabId = sender.tab?.id;
+        // @ts-ignore — chrome.sidePanel.open availability varies by Chrome version.
+        if (tabId && chrome.sidePanel?.open) {
+          // @ts-ignore
+          await chrome.sidePanel.open({ tabId });
+          sendResponse({ ok: true });
+          return;
+        }
+        sendResponse({ ok: false, error: "side_panel_unavailable" });
+      } catch (e: any) {
+        sendResponse({ ok: false, error: e?.message || String(e) });
+      }
+      return;
+    }
     if (msg.type === "GET_AUTH") {
       const out = await chrome.storage.local.get(STORAGE_KEYS.AUTH);
       sendResponse(out[STORAGE_KEYS.AUTH] || null);

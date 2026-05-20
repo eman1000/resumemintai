@@ -4,7 +4,10 @@ Auto-fills job application forms with the user's ResumeMint resume.
 
 ## What it does
 - Detects the ATS on the current page (Greenhouse, Lever, Ashby, Workable, Workday, LinkedIn, Indeed).
-- Shows a floating "Fill with ResumeMint" button (bottom-right).
+- Lives in Chrome's **Side Panel** (the right-side panel introduced in Chrome 114+). Click the
+  toolbar icon — or the floating "Apply with ResumeMint" button on a job page — to open it.
+- The side panel shows the active tab, the detected ATS, the cached resume, and a
+  big "Fill this form" button.
 - On click, fills the form from the user's saved resume.
   - Greenhouse uses a deterministic name/email/phone/etc. mapper.
   - Anything else uses AI (`/api/extension/fill-fields`) to map labels → resume values.
