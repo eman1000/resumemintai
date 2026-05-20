@@ -953,6 +953,31 @@ function JobDetailsPane({
           ))}
         </div>
 
+        {/* Primary apply CTA — always visible. Subscribed users get a real
+            external link; everyone else triggers the upgrade gate (login or
+            subscribe slide-panel). */}
+        {!isGreenhouse && bestApplyUrl && (
+          isSubscribed ? (
+            <a
+              href={bestApplyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-700"
+            >
+              Apply on {ats.label} →
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={onUpgradeGate}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-700"
+            >
+              <FontAwesomeIcon icon={faLock} className="w-3.5 h-3.5" />
+              Apply on {ats.label}
+            </button>
+          )
+        )}
+
         {/* Phase A: Submit directly via Greenhouse */}
         {isGreenhouse && (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
