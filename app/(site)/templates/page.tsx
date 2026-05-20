@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 const templates = [
+  { name: 'Iconic', renderer: 'iconic', desc: 'Clean two-column with left-rail labels.' },
   { name: 'Circular', renderer: 'circular', desc: 'Two-column with photo sidebar.' },
   { name: 'Elegant', renderer: 'elegant', desc: 'Emerald sidebar, polished accents.' },
   { name: 'Classic', renderer: 'classic', desc: 'Clean single-column, ATS-safe.' },

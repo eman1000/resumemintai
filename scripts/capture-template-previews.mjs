@@ -26,7 +26,7 @@ const OUT_DIR = path.join(REPO_ROOT, 'public', 'template-previews');
 const BASE = process.env.PREVIEW_BASE_URL || 'http://localhost:3000';
 
 const RESUME_RENDERERS = [
-  'circular', 'professional', 'elegant', 'classic', 'modern', 'minimal',
+  'iconic', 'circular', 'professional', 'elegant', 'classic', 'modern', 'minimal',
   'creative', 'compact', 'executive', 'chrono', 'horizontal', 'casual',
 ];
 

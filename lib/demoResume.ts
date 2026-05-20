@@ -147,6 +147,7 @@ export const DEMO_RESUME_DATA: any = {
 };
 
 export const RESUME_RENDERERS = [
+  'iconic',
   'circular',
   'professional',
   'elegant',

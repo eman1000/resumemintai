@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_RENDERERS = new Set([
-  'circular','professional','elegant','classic','modern','minimal',
+  'iconic','circular','professional','elegant','classic','modern','minimal',
   'creative','compact','executive','chrono','horizontal','casual',
 ]);
 
