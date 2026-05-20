@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faRightToBracket, faFileLines, faBriefcase, faEnvelope, faClipboardCheck } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faChevronLeft, faChevronRight, faPlus, faGear, faDoorOpen, faRightToBracket, faFileLines, faBriefcase, faEnvelope, faClipboardCheck, faPuzzlePiece, faLock } from "@fortawesome/free-solid-svg-icons";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import Logo from "@/components/Logo";
 
@@ -24,7 +24,7 @@ export default function DashboardSidebar({
   onMobileClose,
 }: Props) {
   const W = collapsed ? "w-[72px]" : "w-[260px]";
-  const { isAuthenticated, loading: authLoading } = useAuthStatus();
+  const { isAuthenticated, isSubscribed, loading: authLoading } = useAuthStatus();
 
   const Item = ({
     href,
@@ -97,6 +97,24 @@ export default function DashboardSidebar({
         <Item href="/builder/cover-letters" label="Cover Letters" icon={faEnvelope} />
         <Item href="/jobs" label="Jobs" icon={faBriefcase} />
         <Item href="/applications" label="Applications" icon={faClipboardCheck} />
+        <Link
+          href="/extension"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#52525a] hover:bg-gray-100 hover:text-[#1d1d20] transition-colors"
+          onClick={onMobileClose}
+          title="Chrome extension — PRO"
+        >
+          <FontAwesomeIcon icon={faPuzzlePiece} className="w-4 h-4" />
+          {!collapsed && (
+            <span className="flex items-center gap-1.5 truncate">
+              Apply Extension
+              {!isSubscribed && (
+                <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wide rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">
+                  <FontAwesomeIcon icon={faLock} className="w-2 h-2 mr-1" /> Pro
+                </span>
+              )}
+            </span>
+          )}
+        </Link>
       </nav>
 
       {/* Spacer */}
