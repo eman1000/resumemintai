@@ -148,6 +148,38 @@ export interface CVDocument {
 
 export const SAMPLE_TEMPLATES = [
   {
+    id: "a2c4f1d6-0001-4000-8000-00000000ic01",
+    name: "iconic",
+    documentType: "resume",
+    renderer: "iconic",
+    isNew: true,
+    isFree: true,
+    isATSFriendly: true,
+    defaultOptions: {
+      colors: {
+        primary: "#1d1d20",
+        textColor: "#1d1d20",
+        backgroundColor: "white",
+      },
+      fontName: "Helvetica",
+      showName: "both",
+      colorSets: [
+        { primary: "#1d1d20", textColor: "#1d1d20", backgroundColor: "white" },
+        { primary: "#0a2d50", textColor: "#1d1d20", backgroundColor: "white" },
+        { primary: "#1a4d3f", textColor: "#1d1d20", backgroundColor: "white" },
+      ],
+      fontSizes: { text: 11, footer: 9, sectionHeader: 11 },
+      fontSizeFactor: "m",
+      derivableColors: {
+        highlightColor: { type: "copy", color: "primary" },
+      },
+      lineHeightFactor: 1.45,
+      pageMarginsFactor: "m",
+      sectionSpacingFactor: "m",
+    },
+    createdAt: "2026-05-20T00:00:00.000Z",
+  },
+  {
     id: "33c3ab26-06bb-466f-82f9-1a72c6fed814",
     name: "circular",
     documentType: "resume",
