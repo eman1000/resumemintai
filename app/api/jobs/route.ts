@@ -160,9 +160,15 @@ async function fetchFromJSearch(opts: {
 
 export async function GET(req: NextRequest) {
   try {
-    const fb = await getUserFromRequest();
-    const userId = await getDbUserIdByFirebaseUid(fb.uid);
-    if (!userId) return NextResponse.json({ error: "no_user" }, { status: 403 });
+    // Guests don't have a JobResult cache to read from — just return empty.
+    let userId: string | null = null;
+    try {
+      const fb = await getUserFromRequest();
+      userId = await getDbUserIdByFirebaseUid(fb.uid);
+    } catch {
+      return NextResponse.json({ jobs: [], createdAt: null }, { status: 200 });
+    }
+    if (!userId) return NextResponse.json({ jobs: [], createdAt: null }, { status: 200 });
 
     const { searchParams } = new URL(req.url);
     const location = searchParams.get("location");
@@ -220,9 +226,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const fb = await getUserFromRequest();
-    const userId = await getDbUserIdByFirebaseUid(fb.uid);
-    if (!userId) return NextResponse.json({ error: "no_user" }, { status: 403 });
+    // Guests can search jobs (soft paywall on the UI gates view/apply).
+    // Only signed-in users get a JobResult cache row.
+    let userId: string | null = null;
+    try {
+      const fb = await getUserFromRequest();
+      userId = await getDbUserIdByFirebaseUid(fb.uid);
+    } catch {
+      userId = null;
+    }
 
     const { role, location, country = "us", count = 30 } = await req.json();
 
@@ -233,40 +245,42 @@ export async function POST(req: NextRequest) {
 
     const thirtyDaysAgo = subDays(new Date(), 30);
 
-    // Prune stale
-    await prisma.jobResult.deleteMany({
-      where: {
-        userId,
-        location: { equals: safeLocation, mode: "insensitive" },
-        country: { equals: safeCountry, mode: "insensitive" },
-        createdAt: { lte: thirtyDaysAgo },
-      },
-    });
+    if (userId) {
+      // Prune stale for this user
+      await prisma.jobResult.deleteMany({
+        where: {
+          userId,
+          location: { equals: safeLocation, mode: "insensitive" },
+          country: { equals: safeCountry, mode: "insensitive" },
+          createdAt: { lte: thirtyDaysAgo },
+        },
+      });
 
-    // Serve cache if fresh
-    const cached = await prisma.jobResult.findFirst({
-      where: {
-        userId,
-        location: { equals: safeLocation, mode: "insensitive" },
-        country: { equals: safeCountry, mode: "insensitive" },
-        createdAt: { gt: thirtyDaysAgo },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+      // Serve cache if fresh
+      const cached = await prisma.jobResult.findFirst({
+        where: {
+          userId,
+          location: { equals: safeLocation, mode: "insensitive" },
+          country: { equals: safeCountry, mode: "insensitive" },
+          createdAt: { gt: thirtyDaysAgo },
+        },
+        orderBy: { createdAt: "desc" },
+      });
 
-    if (cached) {
-      const today = new Date();
-      const cachedResults = Array.isArray(cached.results) ? (cached.results as unknown as JobCard[]) : [];
-      const filtered = normalizeRecentJobs(cachedResults, today);
-      if (filtered.length) {
-        return NextResponse.json({
-          id: cached.id,
-          jobs: filtered,
-          cached: true,
-          createdAt: cached.createdAt ? cached.createdAt.toISOString() : null,
-        });
+      if (cached) {
+        const today = new Date();
+        const cachedResults = Array.isArray(cached.results) ? (cached.results as unknown as JobCard[]) : [];
+        const filtered = normalizeRecentJobs(cachedResults, today);
+        if (filtered.length) {
+          return NextResponse.json({
+            id: cached.id,
+            jobs: filtered,
+            cached: true,
+            createdAt: cached.createdAt ? cached.createdAt.toISOString() : null,
+          });
+        }
+        await prisma.jobResult.delete({ where: { id: cached.id } });
       }
-      await prisma.jobResult.delete({ where: { id: cached.id } });
     }
 
     const jobs = await fetchFromJSearch({
@@ -276,18 +290,20 @@ export async function POST(req: NextRequest) {
       count: n,
     });
 
-    const created = await prisma.jobResult.create({
-      data: {
-        userId,
-        requestedRole: safeRole,
-        location: safeLocation,
-        country: safeCountry,
-        results: jobs as any,
-      },
-      select: { id: true },
-    });
-
-    return NextResponse.json({ id: created.id, jobs });
+    if (userId) {
+      const created = await prisma.jobResult.create({
+        data: {
+          userId,
+          requestedRole: safeRole,
+          location: safeLocation,
+          country: safeCountry,
+          results: jobs as any,
+        },
+        select: { id: true },
+      });
+      return NextResponse.json({ id: created.id, jobs });
+    }
+    return NextResponse.json({ jobs });
   } catch (e: any) {
     if (e?.code === "JSEARCH_FORBIDDEN") {
       return NextResponse.json(

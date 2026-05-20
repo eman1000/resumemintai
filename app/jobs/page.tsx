@@ -8,7 +8,7 @@ import { detectAts, pickBestApply, AUTO_SUBMIT_ATS, type AtsHost } from "@/lib/a
 import GreenhouseSubmitPanel from "@/components/GreenhouseSubmitPanel";
 
 import LoginSlidePanel from "@/components/LoginSlidePanel";
-import { withAuth } from "@/app/builder/_client/withAuth";
+import { withAuth, withAuthOptional } from "@/app/builder/_client/withAuth";
 import { useGeo } from "@/lib/useGeo";
 import DashboardSidebar from "@/app/builder/components/DashboardSidebar";
 import { auth } from "@/app/firebase";
@@ -291,7 +291,7 @@ function JobsPageInner() {
       try {
         const res = await fetch(
           "/api/jobs",
-          await withAuth({
+          await withAuthOptional({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -303,27 +303,29 @@ function JobsPageInner() {
         setJobs(newJobs);
         setSelected(null);
 
-        // Fire and forget — match score is a progressive enhancement, the
-        // listing renders regardless.
-        if (newJobs.length > 0) {
+        // Fire and forget — match score is a progressive enhancement, only
+        // for signed-in users (it scores against THEIR resume).
+        if (newJobs.length > 0 && isAuthenticated) {
           setMatching(true);
-          fetch(
-            "/api/jobs/match",
-            await withAuth({
+          try {
+            const init = await withAuth({
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ jobs: newJobs }),
-            })
-          )
-            .then((r) => r.json())
-            .then((data) => {
-              if (data?.warn) setMatchWarning(data.warn);
-              const map: Record<number, JobMatch> = {};
-              for (const m of data?.matches || []) map[m.index] = m;
-              setMatchesByIndex(map);
-            })
-            .catch(() => { /* non-fatal */ })
-            .finally(() => setMatching(false));
+            });
+            fetch("/api/jobs/match", init)
+              .then((r) => r.json())
+              .then((data) => {
+                if (data?.warn) setMatchWarning(data.warn);
+                const map: Record<number, JobMatch> = {};
+                for (const m of data?.matches || []) map[m.index] = m;
+                setMatchesByIndex(map);
+              })
+              .catch(() => { /* non-fatal */ })
+              .finally(() => setMatching(false));
+          } catch {
+            setMatching(false);
+          }
         }
       } catch (e: any) {
         setError(String(e?.message || e));
