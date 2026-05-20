@@ -7,7 +7,7 @@ import { faBars, faBriefcase, faLocationDot, faMagnifyingGlass, faArrowLeft, faX
 import { detectAts, pickBestApply, AUTO_SUBMIT_ATS, type AtsHost } from "@/lib/atsDetect";
 import GreenhouseSubmitPanel from "@/components/GreenhouseSubmitPanel";
 
-import AuthGate from "@/components/AuthGate";
+import LoginSlidePanel from "@/components/LoginSlidePanel";
 import { withAuth } from "@/app/builder/_client/withAuth";
 import { useGeo } from "@/lib/useGeo";
 import DashboardSidebar from "@/app/builder/components/DashboardSidebar";
@@ -105,8 +105,19 @@ function JobsPageInner() {
   const [filter, setFilter] = React.useState<JobFilter>("all");
 
   // PRO: "Tailor for this job" state
-  const { isSubscribed } = useAuthStatus();
+  const { isAuthenticated, isSubscribed, loading: authLoading } = useAuthStatus();
   const [subscribeOpen, setSubscribeOpen] = React.useState(false);
+  const [loginOpen, setLoginOpen] = React.useState(false);
+
+  // Soft paywall: guests + signed-in non-subscribers see 3 jobs clearly,
+  // the rest blurred behind a "Show more vacancies" CTA. Click → login or
+  // subscribe (same flow as PRO features in the builder).
+  const FREE_PREVIEW_COUNT = 3;
+  const requireUpgrade = !authLoading && !isSubscribed;
+  function promptUpgrade() {
+    if (!isAuthenticated) setLoginOpen(true);
+    else setSubscribeOpen(true);
+  }
   const [tailoring, setTailoring] = React.useState(false);
   const [tailorResult, setTailorResult] = React.useState<
     | { resumeId: string; coverLetterId: string; title: string; summary?: string }
@@ -175,6 +186,7 @@ function JobsPageInner() {
 
   async function runTailorKit() {
     if (!selected) return;
+    if (!isAuthenticated) { setLoginOpen(true); return; }
     if (!isSubscribed) { setSubscribeOpen(true); return; }
     // Hard guard — surface a friendly message instead of letting the API
     // refuse us with "empty_resume".
@@ -380,7 +392,7 @@ function JobsPageInner() {
   const selectedMatch = selectedIndex >= 0 ? matchesByIndex[selectedIndex] : undefined;
 
   return (
-    <AuthGate>
+    <>
       <div className="min-h-screen bg-[#f8fbfc] text-[#1d1d20] flex">
         <DashboardSidebar
           userName={auth?.currentUser?.displayName || auth?.currentUser?.email || "Account"}
@@ -563,7 +575,7 @@ function JobsPageInner() {
                   </div>
                 )}
 
-                {indexedJobs.map(({ job, originalIndex }) => {
+                {(requireUpgrade ? indexedJobs.slice(0, FREE_PREVIEW_COUNT) : indexedJobs).map(({ job, originalIndex }, displayIdx) => {
                   const match = matchesByIndex[originalIndex];
                   const tier = match ? matchTier(match.score) : null;
                   const isActive = selected === job;
@@ -617,6 +629,51 @@ function JobsPageInner() {
                   );
                 })}
 
+                {/* Locked preview — visible to guests & non-subscribers as a
+                    teaser. Click anywhere on it (or the floating CTA) to
+                    trigger login / subscribe. */}
+                {requireUpgrade && indexedJobs.length > FREE_PREVIEW_COUNT && (
+                  <div className="relative">
+                    <div className="space-y-3 select-none pointer-events-none" style={{ filter: "blur(5px)" }} aria-hidden="true">
+                      {indexedJobs.slice(FREE_PREVIEW_COUNT, FREE_PREVIEW_COUNT + 5).map(({ job, originalIndex }) => (
+                        <div
+                          key={`locked-${originalIndex}`}
+                          className="w-full text-left rounded-xl border bg-white p-4 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-base lg:text-[15px] truncate">{job.title || "Untitled role"}</h3>
+                              <p className="text-xs text-gray-600 mt-0.5">
+                                <FontAwesomeIcon icon={faLocationDot} className="w-3 h-3 mr-1" />
+                                {job.location || country.toUpperCase()}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-700 line-clamp-2">{job.description || "No description"}</p>
+                          <div className="mt-2 text-[10px] text-gray-700 flex flex-wrap items-center gap-1">
+                            {job.employmentType && <span className="rounded bg-gray-100 px-1.5 py-0.5">{job.employmentType}</span>}
+                            {job.salary && <span className="rounded bg-gray-100 px-1.5 py-0.5">{job.salary}</span>}
+                            {(job.tags || []).slice(0, 3).map((t) => (
+                              <span key={t} className="rounded bg-gray-100 px-1.5 py-0.5">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Click anywhere on the blurred area to trigger upgrade */}
+                    <button
+                      type="button"
+                      onClick={promptUpgrade}
+                      className="absolute inset-0 grid place-items-center group cursor-pointer"
+                      aria-label="Unlock all vacancies"
+                    >
+                      <span className="rounded-full bg-brand text-white font-semibold px-5 py-2.5 shadow-lg group-hover:bg-brand-700 transition-colors">
+                        Show more vacancies
+                      </span>
+                    </button>
+                  </div>
+                )}
+
                 {!jobs.length && !loading && (
                   <div className="rounded-xl border bg-white p-6 text-sm text-gray-600">
                     No jobs found for current filters. Try another country or role.
@@ -649,6 +706,7 @@ function JobsPageInner() {
                       onGoToBuilder={() => router.push("/builder")}
                       quota={tailorQuota}
                       blockedResetAt={tailorBlockedAt}
+                      onUpgradeGate={promptUpgrade}
                     />
                   ) : (
                     <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/60 p-10 text-center text-gray-500">
@@ -665,7 +723,13 @@ function JobsPageInner() {
       </div>
 
       <SubscribeSlidePanel open={subscribeOpen} onClose={() => setSubscribeOpen(false)} />
-    </AuthGate>
+      <LoginSlidePanel
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={() => setLoginOpen(false)}
+        reason="Sign in to browse the full list of jobs and apply with ResumeMint."
+      />
+    </>
   );
 }
 
@@ -752,6 +816,7 @@ function JobDetailsPane({
   onGoToBuilder,
   quota,
   blockedResetAt,
+  onUpgradeGate,
 }: {
   job: JobCard;
   match?: JobMatch;
@@ -779,6 +844,9 @@ function JobDetailsPane({
   onGoToBuilder: () => void;
   quota: { remainingDay: number; remainingMonth: number; dayLimit: number; monthLimit: number } | null;
   blockedResetAt: string | null;
+  /** Called when a non-subscriber tries to use a gated apply CTA. Should
+   *  open the login or subscribe slide-panel depending on auth state. */
+  onUpgradeGate: () => void;
 }) {
   // Pick the best apply URL: prefers an auto-submittable ATS link from
   // applyOptions[] over a LinkedIn/Indeed redirect headlining `source`.
@@ -1140,14 +1208,25 @@ function JobDetailsPane({
                     {!isSubscribed && <FontAwesomeIcon icon={faLock} className="w-3 h-3" />}
                     {tailoring ? "Tailoring…" : isSubscribed ? "Tailor with AI" : "Unlock with PRO"}
                   </button>
-                  <a
-                    href={job.source || buildFallbackApplyUrl(job, country)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-gray-600 hover:text-gray-900"
-                  >
-                    or apply without tailoring →
-                  </a>
+                  {isSubscribed ? (
+                    <a
+                      href={job.source || buildFallbackApplyUrl(job, country)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-gray-600 hover:text-gray-900"
+                    >
+                      or apply without tailoring →
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onUpgradeGate}
+                      className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+                    >
+                      <FontAwesomeIcon icon={faLock} className="w-3 h-3" />
+                      or apply without tailoring →
+                    </button>
+                  )}
                 </div>
               )}
 
