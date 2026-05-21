@@ -202,7 +202,8 @@ function extractContact(sections: any[]) {
 }
 
 export async function POST(req: NextRequest) {
-  // Auth + sub gate
+  // Auth + sub gate. Accepts either a Firebase ID token (web app) or an
+  // extension token (Chrome extension agent).
   let userId: string | null = null;
   try {
     const u = await getUserFromRequest();
@@ -212,7 +213,13 @@ export async function POST(req: NextRequest) {
     });
     userId = row?.id ?? null;
   } catch {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    // Try extension token fallback before giving up.
+    try {
+      const { userIdFromExtensionRequest } = await import('@/lib/extensionToken');
+      userId = userIdFromExtensionRequest(req);
+    } catch {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
   }
   if (!userId) return NextResponse.json({ error: 'no_user' }, { status: 403 });
 

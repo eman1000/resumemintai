@@ -3,6 +3,7 @@ import type { StoredAuth, FlatResume, AgentAction } from "../types";
 import { STORAGE_KEYS } from "../types";
 import { openConnectFlow, getSettings, setSettings } from "../lib/auth";
 import { runAgentLoop, type AgentEvent } from "./agentLoop";
+import type { ResumeSummary } from "../lib/api";
 
 const COLORS = {
   brand: "#2a72d7",
@@ -31,8 +32,11 @@ export default function SidePanel() {
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
+  const [pendingTailorChoice, setPendingTailorChoice] =
+    useState<{ resumes: ResumeSummary[]; suggestedId?: string } | null>(null);
   const answersResolverRef = useRef<((a: Record<string, string>) => void) | null>(null);
   const loginResolverRef = useRef<(() => void) | null>(null);
+  const tailorChoiceResolverRef = useRef<((c: { baseResumeId: string } | null) => void) | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -125,6 +129,10 @@ export default function SidePanel() {
           new Promise<void>((resolve) => {
             loginResolverRef.current = resolve;
           }),
+        awaitTailorBaseChoice: () =>
+          new Promise<{ baseResumeId: string } | null>((resolve) => {
+            tailorChoiceResolverRef.current = resolve;
+          }),
       });
     } finally {
       setAgentRunning(false);
@@ -145,6 +153,13 @@ export default function SidePanel() {
     r?.();
   }
 
+  function chooseTailorBase(baseResumeId: string | null) {
+    setPendingTailorChoice(null);
+    const r = tailorChoiceResolverRef.current;
+    tailorChoiceResolverRef.current = null;
+    r?.(baseResumeId ? { baseResumeId } : null);
+  }
+
   async function clickGoogleSignIn() {
     if (!activeTab?.id) return;
     try {
@@ -153,12 +168,13 @@ export default function SidePanel() {
     // Don't auto-continue — let the user complete the sign-in then click "I'm in".
   }
 
-  // React to ask_user / needs_login events from the loop.
+  // React to ask_user / needs_login / ask_tailor_base events from the loop.
   useEffect(() => {
     const last = agentLog[agentLog.length - 1];
     if (!last) return;
     if (last.kind === "ask_user") setPendingQuestions(last.questions);
     if (last.kind === "needs_login") setPendingLogin({ providers: last.providers, message: last.message, suggestGoogle: last.suggestGoogle });
+    if (last.kind === "ask_tailor_base") setPendingTailorChoice({ resumes: last.resumes, suggestedId: last.suggestedId });
   }, [agentLog]);
 
   async function refreshResume() {
@@ -274,6 +290,13 @@ export default function SidePanel() {
                 )}
                 {pendingQuestions && (
                   <QuestionForm questions={pendingQuestions} onSubmit={submitAnswers} />
+                )}
+                {pendingTailorChoice && (
+                  <TailorBasePicker
+                    resumes={pendingTailorChoice.resumes}
+                    suggestedId={pendingTailorChoice.suggestedId}
+                    onChoose={chooseTailorBase}
+                  />
                 )}
                 <AgentLog events={agentLog} />
               </Section>
@@ -438,6 +461,8 @@ function renderLogLine(e: AgentEvent): string {
       return `• needs ${e.questions.length} answer${e.questions.length === 1 ? "" : "s"} from you`;
     case "needs_login":
       return `• needs login (${e.providers.join(", ")})`;
+    case "ask_tailor_base":
+      return `• pick a base resume to tailor (${e.resumes.filter((r) => !r.isTailored).length} available)`;
     case "resume_selected":
       return `• selected resume ${e.resumeId.slice(0, 8)}…${e.reason ? ` — ${e.reason}` : ""}`;
     case "tailoring":
@@ -511,6 +536,130 @@ function QuestionForm({
         </div>
       ))}
       <PrimaryButton onClick={() => onSubmit(values)}>Continue</PrimaryButton>
+    </div>
+  );
+}
+
+function TailorBasePicker({
+  resumes,
+  suggestedId,
+  onChoose,
+}: {
+  resumes: ResumeSummary[];
+  suggestedId?: string;
+  onChoose: (baseResumeId: string | null) => void;
+}) {
+  // Only base resumes (not already-tailored) are reasonable bases.
+  const bases = resumes.filter((r) => !r.isTailored);
+  const [selectedId, setSelectedId] = useState<string>(
+    suggestedId && bases.find((b) => b.id === suggestedId) ? suggestedId : bases[0]?.id || "",
+  );
+
+  if (bases.length === 0) {
+    return (
+      <div style={{ background: "#fff8e6", border: "1px solid #f5e0a0", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#8a6a00", marginBottom: 6 }}>
+          You need a base resume first
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.ink, marginBottom: 8, lineHeight: 1.5 }}>
+          The agent wants to tailor a resume for this job, but you don't have a base resume yet.
+          Build one (or upload an existing PDF) on ResumeMint, then run the agent again.
+        </div>
+        <a
+          href="https://www.resumemintai.com/builder"
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "block",
+            textAlign: "center",
+            background: COLORS.brand,
+            color: "white",
+            textDecoration: "none",
+            borderRadius: 6,
+            padding: "8px 12px",
+            fontSize: 12,
+            fontWeight: 600,
+            marginBottom: 6,
+          }}
+        >
+          Open ResumeMint builder
+        </a>
+        <a
+          href="https://www.resumemintai.com/templates/import"
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "block",
+            textAlign: "center",
+            background: "white",
+            color: COLORS.brand,
+            textDecoration: "none",
+            border: `1px solid ${COLORS.brand}`,
+            borderRadius: 6,
+            padding: "8px 12px",
+            fontSize: 12,
+            fontWeight: 600,
+            marginBottom: 6,
+          }}
+        >
+          Upload an existing resume
+        </a>
+        <button
+          onClick={() => onChoose(null)}
+          style={{
+            background: "transparent",
+            color: COLORS.meta,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 11,
+            textDecoration: "underline",
+            padding: 0,
+            width: "100%",
+          }}
+        >
+          Skip tailoring for now
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#fff8e6", border: "1px solid #f5e0a0", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#8a6a00", marginBottom: 6 }}>
+        Pick a base resume to tailor
+      </div>
+      <div style={{ fontSize: 12, color: COLORS.ink, marginBottom: 8 }}>
+        The agent will tailor a fresh copy of this resume for the job.
+      </div>
+      <select
+        value={selectedId}
+        onChange={(e) => setSelectedId(e.target.value)}
+        style={{ width: "100%", padding: 6, fontSize: 12, border: `1px solid ${COLORS.border}`, borderRadius: 6, marginBottom: 10 }}
+      >
+        {bases.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.title || "Untitled"}{b.id === suggestedId ? "  (suggested)" : ""}
+          </option>
+        ))}
+      </select>
+      <PrimaryButton onClick={() => onChoose(selectedId)}>
+        Tailor this resume
+      </PrimaryButton>
+      <button
+        onClick={() => onChoose(null)}
+        style={{
+          background: "transparent",
+          color: COLORS.meta,
+          border: "none",
+          cursor: "pointer",
+          fontSize: 11,
+          textDecoration: "underline",
+          padding: "6px 0 0 0",
+          width: "100%",
+        }}
+      >
+        Skip tailoring — fill with my current resume
+      </button>
     </div>
   );
 }

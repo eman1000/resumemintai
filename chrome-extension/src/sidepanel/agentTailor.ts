@@ -8,18 +8,22 @@ import type { StoredAuth } from "../types";
 const PROD_BASE = "https://www.resumemintai.com";
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || PROD_BASE;
 
-export async function agentTailorPassThrough(jobContext?: AgentJobContext): Promise<void> {
+export async function agentTailorPassThrough(
+  jobContext: AgentJobContext | undefined,
+  baseResumeId: string,
+): Promise<void> {
   const out = await chrome.storage.local.get(STORAGE_KEYS.AUTH);
   const auth = out[STORAGE_KEYS.AUTH] as StoredAuth | undefined;
   if (!auth?.token) throw new Error("not_signed_in");
 
-  const r = await fetch(`${API_BASE}/api/jobs/tailored-kit`, {
+  const r = await fetch(`${API_BASE}/api/jobs/tailor-kit`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${auth.token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      resumeId: baseResumeId,
       job: {
         title: jobContext?.title || "",
         company: jobContext?.company || "",

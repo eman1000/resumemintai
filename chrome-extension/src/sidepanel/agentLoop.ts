@@ -28,6 +28,7 @@ export type AgentEvent =
   | { kind: "executed"; ok: boolean; note?: string }
   | { kind: "ask_user"; questions: Extract<AgentAction, { type: "ask_user" }>["questions"] }
   | { kind: "needs_login"; providers: string[]; message?: string; suggestGoogle?: boolean }
+  | { kind: "ask_tailor_base"; resumes: ResumeSummary[]; suggestedId?: string }
   | { kind: "resume_selected"; resumeId: string; reason?: string }
   | { kind: "tailoring" }
   | { kind: "done"; message?: string }
@@ -46,6 +47,8 @@ export type AgentLoopOptions = {
   awaitAnswers: () => Promise<Record<string, string>>;
   /** Resolves when the user clicks "I've signed in, continue". */
   awaitLoginCompleted: () => Promise<void>;
+  /** Resolves with the user's choice of base resume (or null to skip tailoring). */
+  awaitTailorBaseChoice: () => Promise<{ baseResumeId: string } | null>;
 };
 
 const MAX_TURNS = 12;
@@ -71,11 +74,14 @@ async function executeOnTab(
   return resp || { ok: false, note: "no response" };
 }
 
-async function tailorNow(jobContext: AgentJobContext | undefined): Promise<void> {
+async function tailorNow(
+  jobContext: AgentJobContext | undefined,
+  baseResumeId: string,
+): Promise<void> {
   // Calls the existing /api/jobs/tailored-kit endpoint. Side panel can
   // continue once it returns. Token-aware fetch lives in api.ts.
   const { agentTailorPassThrough } = await import("./agentTailor");
-  await agentTailorPassThrough(jobContext);
+  await agentTailorPassThrough(jobContext, baseResumeId);
 }
 
 export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
@@ -165,9 +171,29 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
         break;
       }
       case "tailor": {
+        // Always ask the user which resume to use as the base — never silently
+        // tailor on their behalf. The agent's baseResumeId is just a suggestion.
+        opts.onEvent({
+          kind: "ask_tailor_base",
+          resumes,
+          suggestedId: action.baseResumeId,
+        });
+        const choice = await opts.awaitTailorBaseChoice();
+        if (!choice) {
+          // User cancelled or has no base resume — stop the loop.
+          opts.onEvent({
+            kind: "done",
+            message:
+              resumes.length === 0
+                ? "Create a resume at resumemintai.com first, then run the agent again."
+                : "Tailoring skipped. Form filled with current resume.",
+          });
+          history.push({ action, result: "skipped", note: "no base resume chosen" });
+          return;
+        }
         opts.onEvent({ kind: "tailoring" });
         try {
-          await tailorNow(opts.jobContext);
+          await tailorNow(opts.jobContext, choice.baseResumeId);
           history.push({ action, result: "success", note: "tailored kit created" });
         } catch (e: any) {
           history.push({ action, result: "failed", note: e?.message });
