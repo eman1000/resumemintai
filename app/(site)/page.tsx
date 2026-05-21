@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CheckCircle2, Wand2, ShieldCheck, Clock, FileText, Star, ChevronDown, Briefcase, PenLine, LayoutTemplate } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import LaidOffBanner from '@/components/LaidOffBanner';
 import {
   organizationLd,
   webSiteLd,
@@ -63,6 +64,7 @@ export default function LandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(softwareApplicationLd())} />
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(faqPageLd(faqs))} />
       <SiteNav />
+      <LaidOffBanner />
 
       {/* Hero */}
       <header className="bg-white">
