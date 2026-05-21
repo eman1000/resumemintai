@@ -18,7 +18,9 @@ export type AiFeature =
   | 'tailor-kit'
   | 'cover-letter-tailor'
   | 'ats-optimize'
-  | 'section-suggest';
+  | 'section-suggest'
+  | 'extension-fill'
+  | 'extension-agent';
 
 type Limit = { day: number; month: number };
 
@@ -34,6 +36,11 @@ const LIMITS: Record<AiFeature, Limit> = {
   'ats-optimize':        { day: 30, month: 300 },
   // Light suggestions (gpt-4o-mini). Generous.
   'section-suggest':     { day: 50, month: 500 },
+  // Chrome extension: single-field map calls (gpt-4o-mini). Very cheap.
+  'extension-fill':      { day: 200, month: 2000 },
+  // Chrome extension: agent loop turns (gpt-4o-mini, multi-turn).
+  // Each application is typically 3–8 turns, so cap at ~30 applications/day.
+  'extension-agent':     { day: 250, month: 3000 },
 };
 
 export function getAiLimit(feature: AiFeature): Limit {
