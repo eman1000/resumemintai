@@ -7,7 +7,7 @@ import { defineManifest } from "@crxjs/vite-plugin";
 export default defineManifest({
   manifest_version: 3,
   name: "ResumeMint Apply",
-  version: "0.1.0",
+  version: "0.2.0",
   description: "Auto-fill job application forms using your ResumeMint resume.",
   icons: { 16: "icons/16.png", 48: "icons/48.png", 128: "icons/128.png" },
   // Clicking the toolbar icon opens the side panel — no popup.
