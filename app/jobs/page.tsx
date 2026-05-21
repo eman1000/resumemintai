@@ -67,17 +67,108 @@ function buildFallbackApplyUrl(job: JobCard, country: string) {
 // force the entire build to error out at prerender time.
 function JobsFallback() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-20 bg-white">
-      <h1 className="text-3xl md:text-4xl font-bold text-[#1d1d20]">
-        Find jobs matched to your resume
-      </h1>
-      <p className="mt-4 text-[#52525a] max-w-xl">
-        Search thousands of live job postings — Greenhouse, Lever, Ashby, Workable, LinkedIn and
-        Indeed — ranked by how well each role matches your saved resume. Apply with one click
-        using the ResumeMint Apply Chrome extension.
-      </p>
-      <p className="mt-6 text-sm text-[#a1a1aa]">Loading listings…</p>
-    </div>
+    <main className="min-h-screen bg-white">
+      <section className="bg-white">
+        <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-3xl md:text-5xl font-bold text-[#1d1d20] leading-tight">
+            Find jobs matched to your resume
+          </h1>
+          <p className="mt-5 text-[#52525a] text-lg max-w-2xl mx-auto leading-relaxed">
+            Search thousands of live job postings, see exactly how each role matches your saved
+            resume, and apply in seconds. ResumeMint pulls openings from Greenhouse, Lever,
+            Ashby, Workable, LinkedIn and Indeed — all in one place.
+          </p>
+          <p className="mt-3 text-sm text-[#a1a1aa]">Loading the job board…</p>
+        </div>
+      </section>
+
+      <section className="bg-[#f8fbfc]">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <h2 className="text-2xl font-bold text-center text-[#1d1d20]">How matching works</h2>
+          <div className="mt-8 grid md:grid-cols-3 gap-5 text-sm">
+            <div className="rounded-lg bg-white border border-gray-200 p-5">
+              <h3 className="font-semibold text-[#1d1d20]">1. We read your resume</h3>
+              <p className="mt-1 text-[#52525a] leading-relaxed">
+                Your saved resume is parsed into skills, titles, seniority, and locations.
+              </p>
+            </div>
+            <div className="rounded-lg bg-white border border-gray-200 p-5">
+              <h3 className="font-semibold text-[#1d1d20]">2. We score every listing</h3>
+              <p className="mt-1 text-[#52525a] leading-relaxed">
+                Each posting gets a Strong, Good, or Weak match badge based on overlap with the
+                job description.
+              </p>
+            </div>
+            <div className="rounded-lg bg-white border border-gray-200 p-5">
+              <h3 className="font-semibold text-[#1d1d20]">3. You apply in seconds</h3>
+              <p className="mt-1 text-[#52525a] leading-relaxed">
+                Click Apply — the ResumeMint Chrome extension fills the form using your resume.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="grid md:grid-cols-2 gap-8">
+            <div>
+              <h2 className="text-xl font-bold text-[#1d1d20]">Supported job boards</h2>
+              <ul className="mt-3 text-sm text-[#52525a] space-y-1.5">
+                <li>• Greenhouse</li>
+                <li>• Lever</li>
+                <li>• Ashby</li>
+                <li>• Workable</li>
+                <li>• Workday</li>
+                <li>• LinkedIn Jobs</li>
+                <li>• Indeed</li>
+              </ul>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-[#1d1d20]">Search by country</h2>
+              <ul className="mt-3 text-sm text-[#52525a] space-y-1.5">
+                <li>• United States</li>
+                <li>• United Kingdom</li>
+                <li>• Canada</li>
+                <li>• Australia</li>
+                <li>• Germany</li>
+                <li>• Netherlands</li>
+                <li>• India · Sweden · Zimbabwe</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-[#f8fbfc]">
+        <div className="max-w-3xl mx-auto px-4 py-12">
+          <h2 className="text-2xl font-bold text-[#1d1d20]">Frequently asked</h2>
+          <div className="mt-6 space-y-4 text-sm text-[#52525a]">
+            <div>
+              <h3 className="font-semibold text-[#1d1d20]">Do I need to sign up?</h3>
+              <p className="mt-1 leading-relaxed">
+                No — the first jobs are visible to everyone. To unlock the full list and
+                personalised match scores, sign in and import your resume.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[#1d1d20]">Where do the listings come from?</h3>
+              <p className="mt-1 leading-relaxed">
+                We aggregate live postings via JSearch (RapidAPI), which pulls from LinkedIn,
+                Indeed, Greenhouse, Lever, Ashby and other ATS providers.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[#1d1d20]">How is this different from LinkedIn Jobs?</h3>
+              <p className="mt-1 leading-relaxed">
+                ResumeMint ranks every job by how well it matches your saved resume, so you skip
+                the postings you have no chance of getting and focus on the ones that fit.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
