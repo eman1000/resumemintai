@@ -78,7 +78,9 @@ export const metadata: Metadata = {
       'max-video-preview': -1,
     },
   },
-  alternates: { canonical: SITE_URL },
+  // No default canonical: each page must declare its own via `alternates.canonical`.
+  // A site-wide default of "/" causes pages without per-page metadata (e.g. client
+  // components) to inherit it and look like duplicates of the homepage to Google.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

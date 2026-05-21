@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
         // discover them via signed-in users, they just won't be ranked.
         disallow: [
           "/account",
+          "/applications",
           "/login",
           "/logout",
           "/builder",

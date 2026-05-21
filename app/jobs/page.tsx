@@ -65,9 +65,25 @@ function buildFallbackApplyUrl(job: JobCard, country: string) {
 
 // Wrap in Suspense at the export boundary so `useSearchParams()` doesn't
 // force the entire build to error out at prerender time.
+function JobsFallback() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-20 bg-white">
+      <h1 className="text-3xl md:text-4xl font-bold text-[#1d1d20]">
+        Find jobs matched to your resume
+      </h1>
+      <p className="mt-4 text-[#52525a] max-w-xl">
+        Search thousands of live job postings — Greenhouse, Lever, Ashby, Workable, LinkedIn and
+        Indeed — ranked by how well each role matches your saved resume. Apply with one click
+        using the ResumeMint Apply Chrome extension.
+      </p>
+      <p className="mt-6 text-sm text-[#a1a1aa]">Loading listings…</p>
+    </div>
+  );
+}
+
 export default function JobsPage() {
   return (
-    <React.Suspense fallback={null}>
+    <React.Suspense fallback={<JobsFallback />}>
       <JobsPageInner />
     </React.Suspense>
   );
