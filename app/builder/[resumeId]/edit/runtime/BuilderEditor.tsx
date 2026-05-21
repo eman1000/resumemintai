@@ -161,7 +161,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "#1d1d20",
         backgroundColor: "white",
       },
-      fontName: "Helvetica",
+      fontName: "Roboto",
       showName: "both",
       colorSets: [
         { primary: "#1d1d20", textColor: "#1d1d20", backgroundColor: "white" },
@@ -193,7 +193,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "#f5f7f9",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "both",
       colorSets: [
         { primary: "#395a86", textColor: "black", backgroundColor: "white" },
@@ -270,7 +270,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Poppins",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         {
@@ -360,7 +360,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Poppins",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         {
@@ -461,7 +461,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "personalDetails",
       colorSets: [
         {
@@ -536,7 +536,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         { primary: "#2a72d7", secondary: "#64748b", textColor: "black", backgroundColor: "white" },
@@ -572,7 +572,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "#1f2937",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         { primary: "#111827", textColor: "#1f2937", backgroundColor: "white" },
@@ -608,7 +608,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "both",
       colorSets: [
         { primary: "#6366f1", secondary: "#818cf8", textColor: "black", backgroundColor: "white" },
@@ -651,7 +651,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         { primary: "#1e40af", secondary: "#6b7280", textColor: "black", backgroundColor: "white" },
@@ -688,7 +688,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Georgia",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         { primary: "#1a1a2e", secondary: "#8b7355", textColor: "black", backgroundColor: "white" },
@@ -725,7 +725,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         { primary: "#2563eb", secondary: "#94a3b8", textColor: "black", backgroundColor: "white" },
@@ -762,7 +762,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "black",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "title",
       colorSets: [
         { primary: "#334155", secondary: "#64748b", textColor: "black", backgroundColor: "white" },
@@ -799,7 +799,7 @@ export const SAMPLE_TEMPLATES = [
         textColor: "#1f2937",
         backgroundColor: "white",
       },
-      fontName: "Arial",
+      fontName: "Roboto",
       showName: "both",
       colorSets: [
         { primary: "#10b981", secondary: "#6ee7b7", textColor: "#1f2937", backgroundColor: "white" },
@@ -3694,7 +3694,7 @@ async function handleAISuggest(section: CVSection) {
               }}
               isSubscribed={isSubscribed}
               onAuthGate={onAuthGate}
-              fontName={(options as any)?.fontName || "Arial"}
+              fontName={(options as any)?.fontName || "Roboto"}
               onChangeFontName={(name) =>
                 setOptions((prev: any) => ({ ...prev, fontName: name }))
               }
@@ -3853,7 +3853,7 @@ async function handleAISuggest(section: CVSection) {
             }}
             isSubscribed={isSubscribed}
             onAuthGate={onAuthGate}
-            fontName={(options as any)?.fontName || "Arial"}
+            fontName={(options as any)?.fontName || "Roboto"}
             onChangeFontName={(name) =>
               setOptions((prev: any) => ({ ...prev, fontName: name }))
             }

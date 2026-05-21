@@ -405,7 +405,7 @@ export function toCircularProps(templateData: any, templateOptions?: any): Circu
     railSections,
     mainSections,
     colors,
-    fontFamily: templateOptions?.fontName || "LiberationSans, Arial, sans-serif",
+    fontFamily: templateOptions?.fontName || "Roboto, LiberationSans, Arial, sans-serif",
     sizes,
   };
 }

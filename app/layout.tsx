@@ -87,6 +87,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={brandFont.variable}>
       <head>
+        {/* Default resume font (used by SVG resume templates). */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+        />
         <Script
             src={`https://www.googletagmanager.com/gtag/js?id=G-G1TL8Q135F`}
             strategy="afterInteractive"
