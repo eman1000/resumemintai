@@ -2,8 +2,22 @@
 // extension token issued by /api/extension/exchange after the user signs in
 // on the web app.
 
-import type { FlatResume, AiField, StoredAuth } from "../types";
+import type {
+  FlatResume,
+  AiField,
+  StoredAuth,
+  AgentRequest,
+  AgentResponse,
+} from "../types";
 import { STORAGE_KEYS } from "../types";
+
+export type ResumeSummary = {
+  id: string;
+  title: string;
+  isTailored: boolean;
+  tailoredFor?: { title?: string; company?: string; location?: string; source?: string };
+  updatedAt: string;
+};
 
 const PROD_BASE = "https://www.resumemintai.com";
 const DEV_BASE = "http://localhost:3000";
@@ -61,6 +75,26 @@ export async function aiFillFields(
     throw new Error(j?.detail || j?.error || "fill_failed");
   }
   return (await r.json()).values as Record<string, string>;
+}
+
+export async function fetchResumes(): Promise<ResumeSummary[]> {
+  const r = await authedFetch("/api/extension/resumes");
+  if (!r.ok) return [];
+  return ((await r.json()).resumes || []) as ResumeSummary[];
+}
+
+export async function agentPlan(
+  req: AgentRequest & { resume: FlatResume; resumes: ResumeSummary[] },
+): Promise<AgentResponse> {
+  const r = await authedFetch("/api/extension/agent", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j?.detail || j?.error || "agent_failed");
+  }
+  return (await r.json()) as AgentResponse;
 }
 
 export async function logApply(args: {

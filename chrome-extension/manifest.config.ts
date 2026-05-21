@@ -14,7 +14,7 @@ export default defineManifest({
   action: { default_title: "ResumeMint Apply" },
   side_panel: { default_path: "src/sidepanel/index.html" },
   background: { service_worker: "src/background/service-worker.ts", type: "module" },
-  permissions: ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
+  permissions: ["storage", "activeTab", "scripting", "sidePanel", "tabs", "identity", "identity.email"],
   host_permissions: [
     "https://www.resumemintai.com/*",
     "https://*.greenhouse.io/*",

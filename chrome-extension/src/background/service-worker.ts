@@ -69,6 +69,21 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, sender, sendRespons
       sendResponse({ ok: true });
       return;
     }
+    if (msg.type === "GET_CHROME_IDENTITY") {
+      // chrome.identity.getProfileUserInfo returns the email of the user
+      // currently signed into Chrome — used by the agent to detect when the
+      // resume email matches the Chrome account, in which case "Sign in
+      // with Google" is the right next action.
+      try {
+        // @ts-ignore — types vary by Chrome version
+        chrome.identity.getProfileUserInfo({ accountStatus: "ANY" }, (info: any) => {
+          sendResponse({ email: info?.email || "", id: info?.id || "" });
+        });
+      } catch {
+        sendResponse({ email: "", id: "" });
+      }
+      return;
+    }
     if (msg.type === "GET_RESUME") {
       const cached = await chrome.storage.local.get(STORAGE_KEYS.RESUME);
       if (cached[STORAGE_KEYS.RESUME]) {

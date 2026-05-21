@@ -4,28 +4,59 @@
 
 import type { FlatResume, ExtensionMessage } from "../types";
 import { detectAts, runFiller } from "./fillers";
+import { buildSnapshot } from "./snapshot";
+import { executeAction, clickGoogleSignIn } from "./executor";
 
 console.debug("[ResumeMint] content script ready on", location.host);
 
-// ---- Side-panel → content script: fill the form ------------------------
+// ---- Side-panel → content script: actions ------------------------------
 chrome.runtime.onMessage.addListener((msg: ExtensionMessage, _sender, sendResponse) => {
-  if (msg.type !== "FILL_FORM") return false;
-  (async () => {
+  // Agent loop: snapshot the page
+  if (msg.type === "AGENT_SNAPSHOT") {
     try {
-      const { resume } = (await chrome.runtime.sendMessage({ type: "GET_RESUME" })) as
-        | { resume: FlatResume | null }
-        | undefined ?? {};
-      if (!resume) {
-        sendResponse({ ok: false, error: "Not signed in." });
-        return;
-      }
-      const filled = await runFiller({ resume });
-      sendResponse({ ok: true, filled });
+      sendResponse({ ok: true, snapshot: buildSnapshot() });
     } catch (e: any) {
       sendResponse({ ok: false, error: e?.message || String(e) });
     }
-  })();
-  return true;
+    return false;
+  }
+  // Agent loop: execute one action
+  if (msg.type === "AGENT_EXECUTE") {
+    (async () => {
+      try {
+        const result = await executeAction(msg.action);
+        sendResponse(result);
+      } catch (e: any) {
+        sendResponse({ ok: false, note: e?.message || String(e) });
+      }
+    })();
+    return true;
+  }
+  // Side-panel told us to click the "Sign in with Google" button
+  if (msg.type === "AGENT_CLICK_GOOGLE_SIGNIN") {
+    sendResponse({ ok: clickGoogleSignIn() });
+    return false;
+  }
+  // Legacy deterministic fill (kept as a fallback / for one-off fills)
+  if (msg.type === "FILL_FORM") {
+    (async () => {
+      try {
+        const { resume } = (await chrome.runtime.sendMessage({ type: "GET_RESUME" })) as
+          | { resume: FlatResume | null }
+          | undefined ?? {};
+        if (!resume) {
+          sendResponse({ ok: false, error: "Not signed in." });
+          return;
+        }
+        const filled = await runFiller({ resume });
+        sendResponse({ ok: true, filled });
+      } catch (e: any) {
+        sendResponse({ ok: false, error: e?.message || String(e) });
+      }
+    })();
+    return true;
+  }
+  return false;
 });
 
 // ---- Floating helper button on the page --------------------------------
