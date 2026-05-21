@@ -75,8 +75,10 @@ async function fetchFromJSearch(opts: {
   location: string;
   country: string;
   count: number;
+  /** 1-indexed page within JSearch (each page ≈ 10 results). */
+  startPage?: number;
 }) {
-  const { role, location, country, count } = opts;
+  const { role, location, country, count, startPage = 1 } = opts;
   const apiKey = process.env.RAPIDAPI_KEY;
   if (!apiKey) {
     const err: any = new Error("Missing RAPIDAPI_KEY");
@@ -86,12 +88,14 @@ async function fetchFromJSearch(opts: {
   const rapidHost = process.env.RAPIDAPI_HOST || "jsearch.p.rapidapi.com";
 
   const url = new URL(`https://${rapidHost}/search`);
-  const query = location ? `${role} in ${location}` : `${role} in ${country}`;
+  const isGlobal = !country || country === "all";
+  const queryRegion = location || (isGlobal ? "" : country);
+  const query = queryRegion ? `${role} in ${queryRegion}` : role;
   url.searchParams.set("query", query);
-  url.searchParams.set("page", "1");
-  const pages = Math.min(5, Math.ceil(count / 10));
+  url.searchParams.set("page", String(Math.max(1, startPage)));
+  const pages = Math.min(10, Math.ceil(count / 10));
   url.searchParams.set("num_pages", String(pages));
-  url.searchParams.set("country", country || "us");
+  if (!isGlobal) url.searchParams.set("country", country);
   url.searchParams.set("date_posted", "month");
 
   const res = await fetch(url.toString(), {
@@ -236,16 +240,22 @@ export async function POST(req: NextRequest) {
       userId = null;
     }
 
-    const { role, location, country = "us", count = 30 } = await req.json();
+    const { role, location, country = "us", count = 30, page = 1 } = await req.json();
 
     const safeRole = (role || "generalist").toString().slice(0, 120);
     const safeLocation = (typeof location === "string" ? location : "").slice(0, 120);
     const safeCountry = country.toString().slice(0, 5).toLowerCase();
     const n = Math.max(10, Math.min(50, Number(count) || 30));
+    const safePage = Math.max(1, Math.min(10, Number(page) || 1));
+    // Each "page" pulls n results; multiply by the requested page to derive
+    // the JSearch start page (JSearch pages are 10 results each).
+    const startJsearchPage = (safePage - 1) * Math.ceil(n / 10) + 1;
 
     const thirtyDaysAgo = subDays(new Date(), 30);
 
-    if (userId) {
+    // Caching only kicks in for page 1 — later pages always hit JSearch live
+    // so the user can paginate through more results than the cache holds.
+    if (userId && safePage === 1) {
       // Prune stale for this user
       await prisma.jobResult.deleteMany({
         where: {
@@ -277,6 +287,8 @@ export async function POST(req: NextRequest) {
             jobs: filtered,
             cached: true,
             createdAt: cached.createdAt ? cached.createdAt.toISOString() : null,
+            page: 1,
+            hasMore: filtered.length >= n,
           });
         }
         await prisma.jobResult.delete({ where: { id: cached.id } });
@@ -288,9 +300,12 @@ export async function POST(req: NextRequest) {
       location: safeLocation,
       country: safeCountry,
       count: n,
+      startPage: startJsearchPage,
     });
 
-    if (userId) {
+    const hasMore = jobs.length >= n;
+
+    if (userId && safePage === 1) {
       const created = await prisma.jobResult.create({
         data: {
           userId,
@@ -301,9 +316,9 @@ export async function POST(req: NextRequest) {
         },
         select: { id: true },
       });
-      return NextResponse.json({ id: created.id, jobs });
+      return NextResponse.json({ id: created.id, jobs, page: safePage, hasMore });
     }
-    return NextResponse.json({ jobs });
+    return NextResponse.json({ jobs, page: safePage, hasMore });
   } catch (e: any) {
     if (e?.code === "JSEARCH_FORBIDDEN") {
       return NextResponse.json(

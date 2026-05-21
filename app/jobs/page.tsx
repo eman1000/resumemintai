@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faBriefcase, faLocationDot, faMagnifyingGlass, faArrowLeft, faXmark, faCirclePlus, faClipboardCheck } from "@fortawesome/free-solid-svg-icons";
 import { detectAts, pickBestApply, AUTO_SUBMIT_ATS, type AtsHost } from "@/lib/atsDetect";
 import GreenhouseSubmitPanel from "@/components/GreenhouseSubmitPanel";
+import { COUNTRIES, normalizeCountry, ALL_COUNTRIES_CODE } from "@/lib/countries";
 
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import { withAuth, withAuthOptional } from "@/app/builder/_client/withAuth";
@@ -41,21 +42,8 @@ function matchTier(score: number): { label: string; cls: string; ring: string } 
   return { label: "Unrated", cls: "bg-gray-50 text-gray-500", ring: "ring-gray-100" };
 }
 
-const COUNTRIES = [
-  { code: "us", label: "United States" },
-  { code: "se", label: "Sweden" },
-  { code: "gb", label: "United Kingdom" },
-  { code: "ca", label: "Canada" },
-  { code: "au", label: "Australia" },
-  { code: "de", label: "Germany" },
-  { code: "nl", label: "Netherlands" },
-  { code: "in", label: "India" },
-  { code: "zw", label: "Zimbabwe" },
-];
-
 function validCountry(code?: string | null) {
-  const c = (code || "").toLowerCase();
-  return COUNTRIES.some((x) => x.code === c) ? c : "us";
+  return normalizeCountry(code, "us");
 }
 
 function buildFallbackApplyUrl(job: JobCard, country: string) {
@@ -65,24 +53,14 @@ function buildFallbackApplyUrl(job: JobCard, country: string) {
 
 // Wrap in Suspense at the export boundary so `useSearchParams()` doesn't
 // force the entire build to error out at prerender time.
-function JobsFallback() {
+// SEO block rendered in BOTH the Suspense fallback AND inside JobsPageInner.
+// Googlebot's renderer executes JS, replacing the fallback with JobsPageInner —
+// so if the SEO content only lived in the fallback, the indexed DOM would be
+// thin. Keeping it permanently inside the real component fixes the Soft 404.
+function JobsSeoBlock() {
   return (
-    <main className="min-h-screen bg-white">
-      <section className="bg-white">
-        <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-          <h1 className="text-3xl md:text-5xl font-bold text-[#1d1d20] leading-tight">
-            Find jobs matched to your resume
-          </h1>
-          <p className="mt-5 text-[#52525a] text-lg max-w-2xl mx-auto leading-relaxed">
-            Search thousands of live job postings, see exactly how each role matches your saved
-            resume, and apply in seconds. ResumeMint pulls openings from Greenhouse, Lever,
-            Ashby, Workable, LinkedIn and Indeed — all in one place.
-          </p>
-          <p className="mt-3 text-sm text-[#a1a1aa]">Loading the job board…</p>
-        </div>
-      </section>
-
-      <section className="bg-[#f8fbfc]">
+    <>
+      <section className="bg-white border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <h2 className="text-2xl font-bold text-center text-[#1d1d20]">How matching works</h2>
           <div className="mt-8 grid md:grid-cols-3 gap-5 text-sm">
@@ -109,7 +87,7 @@ function JobsFallback() {
         </div>
       </section>
 
-      <section className="bg-white">
+      <section className="bg-[#f8fbfc]">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <div className="grid md:grid-cols-2 gap-8">
             <div>
@@ -140,7 +118,7 @@ function JobsFallback() {
         </div>
       </section>
 
-      <section className="bg-[#f8fbfc]">
+      <section className="bg-white">
         <div className="max-w-3xl mx-auto px-4 py-12">
           <h2 className="text-2xl font-bold text-[#1d1d20]">Frequently asked</h2>
           <div className="mt-6 space-y-4 text-sm text-[#52525a]">
@@ -168,6 +146,27 @@ function JobsFallback() {
           </div>
         </div>
       </section>
+    </>
+  );
+}
+
+function JobsFallback() {
+  return (
+    <main className="min-h-screen bg-white">
+      <section className="bg-white">
+        <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-3xl md:text-5xl font-bold text-[#1d1d20] leading-tight">
+            Find jobs matched to your resume
+          </h1>
+          <p className="mt-5 text-[#52525a] text-lg max-w-2xl mx-auto leading-relaxed">
+            Search thousands of live job postings, see exactly how each role matches your saved
+            resume, and apply in seconds. ResumeMint pulls openings from Greenhouse, Lever,
+            Ashby, Workable, LinkedIn and Indeed — all in one place.
+          </p>
+          <p className="mt-3 text-sm text-[#a1a1aa]">Loading the job board…</p>
+        </div>
+      </section>
+      <JobsSeoBlock />
     </main>
   );
 }
@@ -196,6 +195,9 @@ function JobsPageInner() {
   const [country, setCountry] = React.useState<string>("us");
   const [jobs, setJobs] = React.useState<JobCard[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [page, setPage] = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<JobCard | null>(null);
   const [bootstrapped, setBootstrapped] = React.useState(false);
@@ -390,11 +392,14 @@ function JobsPageInner() {
         location: (next?.location ?? location ?? "").trim(),
         country: (next?.country ?? country ?? "us").toLowerCase(),
         count: 30,
+        page: 1,
       };
       setError(null);
       setLoading(true);
       setMatchesByIndex({});
       setMatchWarning(null);
+      setPage(1);
+      setHasMore(false);
       try {
         const res = await fetch(
           "/api/jobs",
@@ -409,6 +414,7 @@ function JobsPageInner() {
         const newJobs: JobCard[] = Array.isArray(j?.jobs) ? j.jobs : [];
         setJobs(newJobs);
         setSelected(null);
+        setHasMore(!!j?.hasMore);
 
         // Fire and forget — match score is a progressive enhancement, only
         // for signed-in users (it scores against THEIR resume).
@@ -442,6 +448,40 @@ function JobsPageInner() {
     },
     [role, location, country]
   );
+
+  const loadMore = React.useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        "/api/jobs",
+        await withAuthOptional({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role: (role || "generalist").trim() || "generalist",
+            location: (location || "").trim(),
+            country: (country || "us").toLowerCase(),
+            count: 30,
+            page: nextPage,
+          }),
+        })
+      );
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.detail || j?.error || "Failed to load more");
+      const more: JobCard[] = Array.isArray(j?.jobs) ? j.jobs : [];
+      if (more.length) {
+        setJobs((prev) => [...prev, ...more]);
+        setPage(nextPage);
+      }
+      setHasMore(!!j?.hasMore && more.length > 0);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [country, hasMore, loadingMore, location, page, role]);
 
   React.useEffect(() => {
     if (bootstrapped) return;
@@ -786,6 +826,19 @@ function JobsPageInner() {
                 {!jobs.length && !loading && (
                   <div className="rounded-xl border bg-white p-6 text-sm text-gray-600">
                     No jobs found for current filters. Try another country or role.
+                  </div>
+                )}
+
+                {jobs.length > 0 && hasMore && !requireUpgrade && (
+                  <div className="pt-2 pb-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="rounded-full bg-white border border-gray-300 hover:border-gray-400 text-sm font-medium px-5 py-2.5 disabled:opacity-60"
+                    >
+                      {loadingMore ? "Loading more…" : "Load more jobs"}
+                    </button>
                   </div>
                 )}
               </section>
