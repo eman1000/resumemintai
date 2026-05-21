@@ -2,18 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 
-// Replace this with the real Chrome Web Store URL once the listing is live.
-const CHROME_STORE_URL =
-  process.env.NEXT_PUBLIC_CHROME_STORE_URL ||
-  "https://chromewebstore.google.com/search/resumemint";
-
 export default function ExtensionLandingClient() {
+  const router = useRouter();
   const { isAuthenticated, isSubscribed, loading } = useAuthStatus();
   const [loginOpen, setLoginOpen] = React.useState(false);
   const [subscribeOpen, setSubscribeOpen] = React.useState(false);
@@ -27,7 +24,7 @@ export default function ExtensionLandingClient() {
       setSubscribeOpen(true);
       return;
     }
-    window.open(CHROME_STORE_URL, "_blank", "noopener");
+    router.push("/extension/install");
   };
 
   return (
@@ -58,7 +55,7 @@ export default function ExtensionLandingClient() {
                 ? "Sign in to install"
                 : !isSubscribed
                   ? "Unlock with PRO"
-                  : "Install from Chrome Web Store"}
+                  : "Download for Chrome →"}
             </button>
             <Link href="/pricing" className="text-sm text-brand hover:underline">
               See pricing →
@@ -75,8 +72,8 @@ export default function ExtensionLandingClient() {
           <div className="mt-10 grid md:grid-cols-3 gap-6 text-sm">
             <Step
               n="1"
-              title="Install + sign in"
-              body="One-click install from the Chrome Web Store, then pair the extension to your ResumeMint account."
+              title="Download + install"
+              body="Download the extension from our site and follow the 4-step install guide. Takes about a minute."
             />
             <Step
               n="2"
