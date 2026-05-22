@@ -153,14 +153,11 @@ function flattenResume(row: { data: any; title?: string | null }): FlatResume {
 export async function GET(req: Request) {
   try {
     const userId = userIdFromExtensionRequest(req);
-    const [row, account] = await Promise.all([
-      prisma.resume.findFirst({
-        where: { userId, archived: false },
-        orderBy: [{ updatedAt: "desc" }],
-        select: { data: true, title: true },
-      }),
-      prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } }),
-    ]);
+    const row = await prisma.resume.findFirst({
+      where: { userId, archived: false },
+      orderBy: [{ updatedAt: "desc" }],
+      select: { data: true, title: true },
+    });
     if (!row) {
       return NextResponse.json(
         { error: "no_resume", detail: "Create a resume on resumemintai.com first." },
@@ -168,15 +165,18 @@ export async function GET(req: Request) {
       );
     }
     const flat = flattenResume(row);
-    // Fallback: when the resume left a contact field blank, fall back to the
-    // ResumeMint account's email/name so the agent still has SOMETHING to
-    // fill rather than pestering the user for things we already know.
-    if (!flat.email && account?.email) flat.email = account.email;
-    if (!flat.fullName && account?.name) {
-      flat.fullName = account.name;
-      const parts = account.name.trim().split(/\s+/);
-      if (!flat.firstName) flat.firstName = parts[0] || "";
-      if (!flat.lastName) flat.lastName = parts.slice(1).join(" ") || "";
+    // Fallback: when the resume left email blank, use the ResumeMint
+    // account email so the agent still has something to fill.
+    if (!flat.email) {
+      try {
+        const account = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true },
+        });
+        if (account?.email) flat.email = account.email;
+      } catch {
+        // Non-fatal — still return the resume.
+      }
     }
     return NextResponse.json(flat);
   } catch (e: any) {
