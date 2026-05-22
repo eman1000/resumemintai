@@ -16,10 +16,40 @@
 import { agentPlan, fetchResume, fetchResumes, type ResumeSummary } from "../lib/api";
 import type {
   AgentAction,
+  AgentGoal,
   AgentJobContext,
   AgentSnapshot,
   FlatResume,
 } from "../types";
+
+/** Extract a stable job identifier from a URL so we can detect drift. */
+function parseGoalFromUrl(url: string): AgentGoal["pinned"] {
+  try {
+    const u = new URL(url);
+    const params = u.searchParams;
+    const jobId =
+      params.get("currentJobId") ||  // LinkedIn Easy Apply
+      params.get("gh_jid") ||         // Greenhouse
+      params.get("jobId") ||
+      params.get("job_id") ||
+      // Workday / Workable embed the id in the path (…/job/<id> or …/jobs/<id>)
+      u.pathname.match(/\/(?:job|jobs)\/(\d+|[a-z0-9-]+)/i)?.[1] ||
+      undefined;
+    return { host: u.host, jobId };
+  } catch {
+    return { host: "" };
+  }
+}
+
+function urlHasDrifted(goal: AgentGoal, currentUrl: string): boolean {
+  if (!goal.originalUrl) return false;
+  if (currentUrl === goal.originalUrl) return false;
+  const now = parseGoalFromUrl(currentUrl);
+  if (now.host !== goal.pinned.host) return true;
+  // If we pinned a job id and it now differs, that's drift to a different job.
+  if (goal.pinned.jobId && now.jobId && now.jobId !== goal.pinned.jobId) return true;
+  return false;
+}
 
 export type AgentEvent =
   | { kind: "thinking" }
@@ -31,6 +61,7 @@ export type AgentEvent =
   | { kind: "ask_tailor_base"; resumes: ResumeSummary[]; suggestedId?: string }
   | { kind: "resume_selected"; resumeId: string; reason?: string }
   | { kind: "tailoring" }
+  | { kind: "drift"; from: string; to: string }
   | { kind: "done"; message?: string }
   | { kind: "error"; error: string };
 
@@ -51,7 +82,32 @@ export type AgentLoopOptions = {
   awaitTailorBaseChoice: () => Promise<{ baseResumeId: string } | null>;
 };
 
-const MAX_TURNS = 12;
+const MAX_TURNS = 14;
+const MAX_NO_PROGRESS_TURNS = 3;
+
+async function captureScreenshot(): Promise<string | undefined> {
+  try {
+    // captureVisibleTab returns "data:image/png;base64,...." — strip the prefix.
+    // chrome.tabs.captureVisibleTab in MV3 returns a Promise when no callback
+    // is given. The type signature is fussy about the first arg, so call the
+    // single-arg form to capture the currently-focused window.
+    const dataUrl = (await (chrome.tabs as any).captureVisibleTab({
+      format: "png",
+    })) as string | undefined;
+    return dataUrl?.replace(/^data:image\/png;base64,/, "") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function getCurrentTabUrl(tabId: number): Promise<string> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    return tab.url || "";
+  } catch {
+    return "";
+  }
+}
 
 async function snapshotTab(tabId: number): Promise<AgentSnapshot> {
   const resp = (await chrome.tabs.sendMessage(tabId, { type: "AGENT_SNAPSHOT" })) as
@@ -89,8 +145,52 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
   const userAnswers: Record<string, string> = {};
   let selectedResumeId: string | undefined;
 
+  // GOAL ANCHOR — capture once at start. Used every turn to detect drift.
+  const startUrl = await getCurrentTabUrl(opts.tabId);
+  const startSnapshot = await snapshotTab(opts.tabId).catch(() => null);
+  const goal: AgentGoal = {
+    originalUrl: startUrl,
+    originalTitle: startSnapshot?.title || opts.jobContext?.title || "",
+    pinned: parseGoalFromUrl(startUrl),
+  };
+
+  // Track progress to break out of stuck loops.
+  let noProgressStreak = 0;
+  let lastSignature = "";
+
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     opts.onEvent({ kind: "thinking" });
+
+    // Drift check BEFORE taking another action.
+    const currentUrl = await getCurrentTabUrl(opts.tabId);
+    let drift: { from: string; to: string } | undefined;
+    if (urlHasDrifted(goal, currentUrl)) {
+      drift = { from: goal.originalUrl, to: currentUrl };
+      opts.onEvent({ kind: "drift", from: drift.from, to: drift.to });
+      // Try to recover: navigate back to the goal URL once. If we drift again
+      // after that, give up rather than fight the page.
+      const alreadyTriedRecover = history.some((h) => h.note === "drifted_back");
+      if (!alreadyTriedRecover) {
+        try {
+          await chrome.tabs.update(opts.tabId, { url: goal.originalUrl });
+          // Give the page a moment to load.
+          await new Promise((r) => setTimeout(r, 1200));
+          history.push({
+            action: { type: "click", selector: "back-to-goal", reason: "url drifted" },
+            result: "success",
+            note: "drifted_back",
+          });
+          continue;
+        } catch {
+          // fall through to a hard stop
+        }
+      }
+      opts.onEvent({
+        kind: "done",
+        message: `Tab navigated away from the original job (${new URL(goal.originalUrl).pathname} → ${new URL(currentUrl).pathname}). Stopping to avoid applying to the wrong job.`,
+      });
+      return;
+    }
 
     let snapshot: AgentSnapshot;
     try {
@@ -100,6 +200,31 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       opts.onEvent({ kind: "error", error: e?.message || "snapshot_failed" });
       return;
     }
+
+    // No-progress detection: if the snapshot's "signature" (fields + filled
+    // count + url) hasn't changed for several turns, we're stuck.
+    const signature = JSON.stringify({
+      url: currentUrl,
+      fieldIds: snapshot.fields.map((f) => f.id).sort(),
+      filled: snapshot.fields.filter((f) => f.currentValue).length,
+    });
+    if (signature === lastSignature) {
+      noProgressStreak++;
+    } else {
+      noProgressStreak = 0;
+      lastSignature = signature;
+    }
+    if (noProgressStreak >= MAX_NO_PROGRESS_TURNS) {
+      opts.onEvent({
+        kind: "done",
+        message: `Stuck after ${noProgressStreak} turns with no page change. Review the form and continue manually.`,
+      });
+      return;
+    }
+
+    // Vision: capture a screenshot of the visible tab so a vision-aware
+    // planner (Claude Sonnet) can see what the user sees. Best-effort.
+    const screenshot = await captureScreenshot();
 
     // Fetch the resume + resumes list each turn. Both are cached on the
     // server side so this is cheap; we re-read in case a previous "tailor"
@@ -122,10 +247,13 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       plan = await agentPlan({
         snapshot,
         jobContext: opts.jobContext,
+        goal,
+        drift,
         history,
         userAnswers,
         resume,
         resumes,
+        screenshot,
       });
     } catch (e: any) {
       opts.onEvent({ kind: "error", error: e?.message || "agent_plan_failed" });

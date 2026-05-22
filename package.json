@@ -19,6 +19,7 @@
     "build:extension": "node scripts/build-extension-zip.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
     "@fortawesome/free-brands-svg-icons": "^7.1.0",
     "@fortawesome/free-regular-svg-icons": "^7.1.0",

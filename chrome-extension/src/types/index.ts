@@ -108,6 +108,20 @@ export type AgentJobContext = {
   sourceUrl?: string;
 };
 
+/** Captured at "Apply with AI" click — the agent must not drift off this. */
+export type AgentGoal = {
+  /** URL the user was on when they clicked Apply with AI. */
+  originalUrl: string;
+  /** Page title at start. */
+  originalTitle: string;
+  /** Parsed identifying signals (used to detect drift mid-loop). */
+  pinned: {
+    host: string;
+    /** Job ID extracted from the URL (LinkedIn: currentJobId, Greenhouse: gh_jid, etc.). */
+    jobId?: string;
+  };
+};
+
 /** Single agent decision. Side panel iterates this loop. */
 export type AgentAction =
   | { type: "fill"; fields: Record<string, string>; reasoning?: string }
@@ -133,6 +147,10 @@ export type AgentAction =
 export type AgentRequest = {
   snapshot: AgentSnapshot;
   jobContext?: AgentJobContext;
+  /** Captured at agent-loop start; passed every turn so the LLM stays on-task. */
+  goal?: AgentGoal;
+  /** Set when the active tab's URL has drifted off the goal. */
+  drift?: { from: string; to: string };
   /** Previous actions + their results, oldest first. */
   history: Array<{
     action: AgentAction;
@@ -141,6 +159,8 @@ export type AgentRequest = {
   }>;
   /** Answers the user has given to previous ask_user prompts. */
   userAnswers?: Record<string, string>;
+  /** Optional PNG screenshot (base64, no data URL prefix) for vision-aware planners. */
+  screenshot?: string;
 };
 
 /** Response from /api/extension/agent. */
@@ -150,6 +170,8 @@ export type AgentResponse = {
   reasoning?: string;
   /** Which resume the agent thinks should be used (for the side panel to display). */
   selectedResumeId?: string;
+  /** Which model planned this turn (e.g. "claude-sonnet-4-6" or "gpt-4o"). */
+  modelUsed?: string;
 };
 
 /** Stored agent run — kept in chrome.storage.local during a single application. */

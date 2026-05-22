@@ -1,15 +1,18 @@
 // app/api/extension/agent/route.ts
 //
-// LLM "planner" for the Chrome extension agent loop. Given a DOM snapshot,
-// job context, history of prior actions, and user-provided answers, returns
-// the next single action the extension should take.
+// Multi-turn LLM planner for the Chrome extension agent.
 //
-// Action union (see chrome-extension/src/types/index.ts AgentAction):
-//   fill | select_resume | tailor | needs_login | use_google_signin |
-//   click | ask_user | submit | done
+// Vision-aware: if a screenshot is supplied AND ANTHROPIC_API_KEY is set, we
+// use Claude Sonnet 4.6 (vision input + DOM) for substantially better page
+// reasoning. Otherwise we fall back to gpt-4o (full, not mini) on DOM only.
+//
+// Returns the NEXT single action the extension should take. Action union:
+// fill | select_resume | tailor | needs_login | use_google_signin |
+// click | ask_user | submit | done
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import prisma from "@/lib/prisma";
 import { userIdFromExtensionRequest } from "@/lib/extensionToken";
 import {
@@ -20,77 +23,111 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 
-const SYSTEM = `You are the ResumeMint Apply agent. You drive a Chrome extension that auto-fills job application forms on behalf of the user.
+const OPENAI_MODEL = process.env.OPENAI_AGENT_MODEL || "gpt-4o";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_AGENT_MODEL || "claude-sonnet-4-6";
 
-You are given:
-- a DOM snapshot of the current page (fields with currentValue, buttons, page type, body text),
-- the user's resume (flat shape),
-- a list of the user's saved resumes (base + tailored),
-- the job context,
-- a history of actions you've already taken on this page,
-- answers the user has given to previous ask_user prompts.
+const SYSTEM = `You are the ResumeMint Apply agent — an autonomous loop that fills and submits job application forms on behalf of the user. You take ONE action per turn.
 
-Pick the NEXT single action. Output ONLY a JSON object matching this schema:
+ANCHOR
+- You have a "goal" object pinned at the start: the original URL and job the user wanted to apply to. NEVER navigate to a different job, listing, or page. If the current page has drifted off the goal, return done with the reason.
+- If a "drift" object is set on the request, the tab has navigated away from the goal — return done immediately with a clear message; do not try to act on a wrong page.
+- You are not a general browser agent — you operate on one application form. Do NOT click on "Easy Apply" buttons in job listings, do NOT scroll endlessly looking for things, do NOT click links that navigate away from the goal URL.
 
+INPUT
+You receive each turn:
+- snapshot: { url, title, pageType, fields[ { id, label, type, required, options, currentValue } ], buttons[ { id, text } ], bodyText, ssoProviders[] }
+- screenshot: (optional) PNG of the visible tab — use it to disambiguate when the DOM is unclear.
+- goal: { originalUrl, originalTitle, pinned: { host, jobId? } }
+- drift: present when the tab has wandered off goal
+- jobContext: the user's intent (title, company, description, sourceUrl)
+- resume: flat user resume (fullName, email, phone, location, etc.)
+- resumes: list of saved resumes with isTailored + tailoredFor metadata
+- history: previous actions + their results
+- userAnswers: answers to previous ask_user prompts
+
+OUTPUT — strict JSON, ONE action:
 {
-  "action": one of:
-    { "type": "fill",            "fields": { "<fieldId>": "<value>", ... }, "reasoning": "..." }
-    { "type": "select_resume",   "resumeId": "...",  "reason": "..." }
-    { "type": "tailor",          "baseResumeId": "...", "jobText": "..." }
-    { "type": "needs_login",     "providers": [...], "message": "..." }
-    { "type": "use_google_signin", "email": "..." }
-    { "type": "click",           "selector": "<button id or 'text:<exact button text>'>", "reason": "..." }
-    { "type": "ask_user",        "questions": [{ "fieldId": "...", "label": "...", "type": "text"|"select"|"yesno", "options": [...], "required": true|false }] }
-    { "type": "submit",          "confidence": 0..1 }
-    { "type": "done",            "message": "..." }
-  ,
+  "action": {
+    "type": "fill"|"select_resume"|"tailor"|"needs_login"|"use_google_signin"|"click"|"ask_user"|"submit"|"done",
+    ...(action-specific fields)
+  },
   "confidence": 0..1,
   "reasoning": "<one short sentence>",
   "selectedResumeId": "<id if known>"
 }
 
-CRITICAL — read every field's currentValue before deciding:
-- A field with a non-empty currentValue is already filled. Do NOT include it in a fill action and do NOT ask_user about it. Treat it as done.
-- The first thing to check each turn is "are all required fields filled?". If yes, advance the form — find the Next / Continue / Review / Apply / Submit button and return a click action with selector "text:<that exact button text>". On the LAST step of a multi-step form return submit instead.
-- Many application forms are multi-step (LinkedIn Easy Apply, Workday, Workable). Treat each step's "Next" / "Continue" / "Review" button as the goal once that step's required fields are filled. The form is only "done" after the final Submit/Apply.
+Click actions MUST use selector "text:<exact button label>" — only these labels are allowed: Next, Continue, Review, Apply, Easy Apply, Submit, Submit application, Send, I agree, I accept, Save. Anything else will be refused by the executor.
 
-Filling rules:
-- BEFORE asking the user anything, scan the resume for the answer. The resume always contains: fullName, firstName, lastName, email, phone, location, city, country, website, linkedIn, github, headline, summary, experience[], education[], skills[]. If the resume has a non-empty value for the field, FILL IT — never ask.
-  - "Email" / "Email address" / "Work email" → resume.email
-  - "Phone" / "Phone number" / "Mobile" / "Telephone" / "Cell" → resume.phone
-  - "First name" / "Given name" → resume.firstName
-  - "Last name" / "Surname" / "Family name" → resume.lastName
-  - "Full name" / "Name" → resume.fullName
-  - "Location" / "City" / "Where do you live" → resume.location or resume.city
-  - "Country" → resume.country
-  - "LinkedIn" / "LinkedIn URL" / "LinkedIn profile" → resume.linkedIn
-  - "Website" / "Portfolio" / "Personal site" → resume.website
-  - "GitHub" → resume.github
-  - "Headline" / "Title" / "Current role" → resume.headline
-  - "Summary" / "About" / "Tell us about yourself" → resume.summary
-  - "Most recent role" / "Current company" → resume.experience[0]
-- Only return ask_user when the value is GENUINELY missing from the resume AND can't be derived from it.
-- For yes/no eligibility (work authorization, sponsorship, desired salary, available start date, citizenship, veteran status, disability disclosure, willingness to relocate, notice period, etc.) always ask_user — never guess.
-- For select / radio fields, only fill if one option clearly matches the resume; otherwise ask_user.
-- Skip resume / cover-letter file uploads — return done with a message asking the user to attach manually if no auto-upload is wired.
-- Never invent facts not in the resume.
+CRITICAL FILL BEHAVIOUR
+- Before deciding, scan every field for non-empty currentValue — those are DONE. Do NOT include them in fill and do NOT ask_user about them.
+- If all required fields on the current step are filled, the next action is click "text:Next" (or whatever the form's advance button is labelled — see snapshot.buttons). On the FINAL step, prefer click "text:Submit application" / "text:Submit" or, if you are highly confident, submit.
+- A field's value comes from the resume FIRST. Aliases:
+  - Email / Email address / Work email → resume.email
+  - Phone / Mobile / Telephone / Cell → resume.phone
+  - First name / Given name → resume.firstName
+  - Last name / Surname / Family name → resume.lastName
+  - Full name / Name → resume.fullName
+  - Location / City / Where do you live → resume.location or resume.city
+  - Country → resume.country
+  - LinkedIn / LinkedIn URL → resume.linkedIn
+  - Website / Portfolio → resume.website
+  - GitHub → resume.github
+  - Headline / Title / Current role → resume.headline
+  - Summary / About → resume.summary
+- Only ask_user when the resume genuinely lacks the value AND it can't be derived.
+- ALWAYS ask_user for yes/no eligibility (work authorization, sponsorship, salary expectation, start date, citizenship, willingness to relocate, notice period, veteran status, disability disclosure).
+- For select / radio: fill only when one option clearly matches; else ask_user.
+- File uploads: skip. Return done with a message that the user should attach the resume PDF manually.
 
-Resume selection:
-- If a tailored resume in the list clearly matches the job context, return select_resume with its id.
-- If no tailored resume fits and you would benefit from one, return tailor (the user will be asked to pick a base resume).
+RESUME SELECTION
+- If a tailored resume in the list clearly matches the job, select_resume with its id.
+- If no tailored resume fits, tailor (the side panel will ask the user to pick a base resume).
 
-Login + auth:
-- If the page is a login screen, return needs_login. If the resume email is gmail/Google and a Google sign-in button is visible, prefer use_google_signin.
+LOGIN
+- If the page is a login wall, needs_login. If resume.email is gmail/Google AND a "Sign in with Google" provider is detected, prefer use_google_signin.
 
-Submission:
-- Only return submit when this is the final step of the form AND every required field on this step has a value AND your confidence ≥ 0.95. Otherwise prefer click on the explicit "Submit application" button text, or done with a "review and click submit" message.
+SUBMIT
+- Only submit when you are 100% sure this is the final step AND every required field is filled AND your confidence ≥ 0.95. Otherwise prefer click on a labelled Submit button or done.
 
-When confused or you've made progress and the next step needs human review, return done with a useful message.`;
+STUCK?
+- If you've taken the same action twice with no change, return done with a clear message asking the user to review the form.`;
+
+function isAllowedAction(t: string): boolean {
+  return ["fill", "select_resume", "tailor", "needs_login", "use_google_signin", "click", "ask_user", "submit", "done"].includes(t);
+}
+
+function clampConfidence(n: number): number {
+  if (!isFinite(n)) return 0.5;
+  return Math.max(0, Math.min(1, n));
+}
+
+function trimSnapshot(snapshot: any): any {
+  return {
+    ...snapshot,
+    fields: Array.isArray(snapshot.fields)
+      ? snapshot.fields.slice(0, 80).map((f: any) => ({
+          id: f.id,
+          label: (f.label || "").slice(0, 200),
+          type: f.type,
+          required: !!f.required,
+          options: Array.isArray(f.options) ? f.options.slice(0, 30) : undefined,
+          placeholder: f.placeholder?.slice(0, 100),
+          currentValue: f.currentValue?.slice(0, 200),
+        }))
+      : [],
+    buttons: Array.isArray(snapshot.buttons)
+      ? snapshot.buttons.slice(0, 30)
+      : [],
+    bodyText: (snapshot.bodyText || "").slice(0, 3000),
+  };
+}
 
 export async function POST(req: Request) {
   let userId: string;
@@ -107,9 +144,7 @@ export async function POST(req: Request) {
   if (!me) return NextResponse.json({ error: "no_user" }, { status: 403 });
 
   const quota = await checkAiUsage(userId, "extension-agent");
-  if (!quota.ok) {
-    return NextResponse.json(quotaBlockedResponse(quota), { status: 429 });
-  }
+  if (!quota.ok) return NextResponse.json(quotaBlockedResponse(quota), { status: 429 });
 
   let body: any;
   try {
@@ -119,7 +154,12 @@ export async function POST(req: Request) {
   }
 
   const snapshot = body?.snapshot;
+  const screenshot: string | undefined = typeof body?.screenshot === "string" && body.screenshot.length > 100
+    ? body.screenshot
+    : undefined;
   const jobContext = body?.jobContext;
+  const goal = body?.goal;
+  const drift = body?.drift;
   const history = Array.isArray(body?.history) ? body.history.slice(-20) : [];
   const userAnswers = body?.userAnswers || {};
   const resume = body?.resume;
@@ -129,87 +169,103 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "missing_input" }, { status: 400 });
   }
 
-  // Trim DOM snapshot — we don't need every field's currentValue, and bodyText
-  // can be long. The LLM sees enough to plan but not enough to drown.
-  const trimmedSnapshot = {
-    ...snapshot,
-    fields: Array.isArray(snapshot.fields)
-      ? snapshot.fields.slice(0, 80).map((f: any) => ({
-          id: f.id,
-          label: (f.label || "").slice(0, 200),
-          type: f.type,
-          required: !!f.required,
-          options: Array.isArray(f.options) ? f.options.slice(0, 30) : undefined,
-          placeholder: f.placeholder?.slice(0, 100),
-          currentValue: f.currentValue?.slice(0, 200),
-        }))
-      : [],
-    buttons: Array.isArray(snapshot.buttons)
-      ? snapshot.buttons.slice(0, 30)
-      : [],
-    bodyText: (snapshot.bodyText || "").slice(0, 4000),
-  };
-
-  const userMsg = JSON.stringify({
-    snapshot: trimmedSnapshot,
+  const trimmed = trimSnapshot(snapshot);
+  const turnContext = {
+    snapshot: trimmed,
     jobContext,
+    goal,
+    drift,
     history,
     userAnswers,
     resume,
     resumes,
-  }).slice(0, 60_000);
+  };
+  const turnJson = JSON.stringify(turnContext).slice(0, 50_000);
 
   let aiOut: any = {};
-  try {
-    const resp = await client.chat.completions.create({
-      model: MODEL,
-      temperature: 0.1,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: userMsg },
-      ],
-    });
-    aiOut = JSON.parse(resp.choices[0].message.content || "{}");
-  } catch (e: any) {
-    console.error("[extension/agent] AI error", e?.message);
-    return NextResponse.json(
-      { error: "ai_failed", detail: e?.message },
-      { status: 502 },
-    );
+  let modelUsed = OPENAI_MODEL;
+
+  // Prefer Claude Sonnet 4.6 when we have a screenshot AND an Anthropic key.
+  // Vision input meaningfully helps on dynamic SPAs (LinkedIn, Workday).
+  if (anthropic && screenshot) {
+    modelUsed = ANTHROPIC_MODEL;
+    try {
+      const resp = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 1024,
+        system: SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: { type: "base64", media_type: "image/png", data: screenshot },
+              },
+              {
+                type: "text",
+                text:
+                  `Here is the current page state. Choose the next single action and reply with strict JSON only (no prose).\n\n${turnJson}`,
+              },
+            ],
+          },
+        ],
+      });
+      const text = resp.content
+        .filter((c): c is { type: "text"; text: string } => c.type === "text")
+        .map((c) => c.text)
+        .join("");
+      const match = text.match(/\{[\s\S]*\}/);
+      aiOut = match ? JSON.parse(match[0]) : {};
+    } catch (e: any) {
+      console.error("[extension/agent] anthropic error", e?.message);
+      // Fall back to OpenAI so the run still completes.
+      modelUsed = OPENAI_MODEL;
+    }
+  }
+
+  if (!aiOut.action) {
+    try {
+      const resp = await openai.chat.completions.create({
+        model: OPENAI_MODEL,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM },
+          {
+            role: "user",
+            content:
+              `Here is the current page state. Choose the next single action and reply with strict JSON only.\n\n${turnJson}`,
+          },
+        ],
+      });
+      aiOut = JSON.parse(resp.choices[0].message.content || "{}");
+    } catch (e: any) {
+      console.error("[extension/agent] openai error", e?.message);
+      return NextResponse.json({ error: "ai_failed", detail: e?.message }, { status: 502 });
+    }
   }
 
   await recordAiUsage(userId, "extension-agent");
 
-  // Lightweight validation — refuse malformed actions.
   const action = aiOut?.action;
-  if (!action || typeof action !== "object" || typeof action.type !== "string") {
+  if (!action || typeof action !== "object" || !isAllowedAction(action.type)) {
     return NextResponse.json(
-      { error: "invalid_action", raw: aiOut },
+      { error: "invalid_action", raw: aiOut, modelUsed },
       { status: 502 },
     );
   }
 
-  const confidence = clampConfidence(
-    typeof aiOut?.confidence === "number" ? aiOut.confidence : 0.5,
-  );
-
   return NextResponse.json({
     action,
-    confidence,
+    confidence: clampConfidence(typeof aiOut?.confidence === "number" ? aiOut.confidence : 0.7),
     reasoning: typeof aiOut?.reasoning === "string" ? aiOut.reasoning : undefined,
     selectedResumeId:
-      typeof aiOut?.selectedResumeId === "string"
-        ? aiOut.selectedResumeId
-        : undefined,
+      typeof aiOut?.selectedResumeId === "string" ? aiOut.selectedResumeId : undefined,
+    modelUsed,
     quota: {
       remainingDay: Math.max(0, quota.remainingDay - 1),
       remainingMonth: Math.max(0, quota.remainingMonth - 1),
     },
   });
-}
-
-function clampConfidence(n: number): number {
-  if (!isFinite(n)) return 0.5;
-  return Math.max(0, Math.min(1, n));
 }

@@ -5,6 +5,27 @@ import type { AgentAction } from "../types";
 
 type ExecResult = { ok: boolean; note?: string };
 
+/** Wait until the DOM has stopped mutating for `quietMs`, or `maxMs` elapses.
+ * Used after clicks so SPAs (LinkedIn, Workday) get a chance to render the
+ * next form step before we re-snapshot. */
+function waitForSettled(quietMs = 600, maxMs = 4000): Promise<void> {
+  return new Promise((resolve) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const obs = new MutationObserver(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(done, quietMs);
+    });
+    const done = () => {
+      obs.disconnect();
+      if (timer) clearTimeout(timer);
+      resolve();
+    };
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    timer = setTimeout(done, quietMs);
+    setTimeout(done, maxMs);
+  });
+}
+
 const FIELD_SELECTOR = [
   "input:not([type=hidden]):not([type=password]):not([type=submit]):not([type=button])",
   "select",
@@ -133,22 +154,34 @@ export async function executeAction(action: AgentAction): Promise<ExecResult> {
         setValue(el, String(value ?? ""));
         filled++;
       }
+      // Short settle — some forms run validation/format on each input.
+      await waitForSettled(250, 1500);
       return {
         ok: filled > 0,
         note: `filled ${filled} field${filled === 1 ? "" : "s"}${missing ? `, ${missing} missing` : ""}`,
       };
     }
     case "click": {
+      // Guardrail: only allow clicks on forward-progression buttons. The LLM
+      // sometimes wanders to job listings or random links — we refuse.
+      const allowed = /^(next|continue|review|apply|easy apply|submit( application)?|send|i agree|i accept|sign in with google|use google|save)$/i;
+      const selectorText = action.selector.startsWith("text:")
+        ? action.selector.slice("text:".length).trim()
+        : "";
+      if (selectorText && !allowed.test(selectorText)) {
+        return { ok: false, note: `refused click on "${selectorText}" (not a recognised form-progression button)` };
+      }
       const btn = findButton(action.selector);
       if (!btn) return { ok: false, note: `button not found: ${action.selector}` };
       btn.click();
+      await waitForSettled();
       return { ok: true, note: `clicked ${action.selector}` };
     }
     case "use_google_signin": {
       const ok = clickGoogleSignIn();
-      return ok
-        ? { ok: true, note: "clicked Sign in with Google" }
-        : { ok: false, note: "no Google sign-in button found" };
+      if (!ok) return { ok: false, note: "no Google sign-in button found" };
+      await waitForSettled();
+      return { ok: true, note: "clicked Sign in with Google" };
     }
     case "submit": {
       // Find a likely submit button — prefer type=submit, then text match.
@@ -157,12 +190,13 @@ export async function executeAction(action: AgentAction): Promise<ExecResult> {
         Array.from(
           document.querySelectorAll<HTMLElement>("button, a[role=button]"),
         ).find((b) =>
-          /^(submit|apply|send( application)?)$/i.test(
+          /^(submit|apply|send( application)?|submit application)$/i.test(
             (b.textContent || "").trim(),
           ),
         );
       if (!candidate) return { ok: false, note: "no submit button found" };
       candidate.click();
+      await waitForSettled();
       return { ok: true, note: "clicked submit" };
     }
     // These don't touch the page — side panel handles them. We just acknowledge.

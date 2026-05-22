@@ -499,6 +499,14 @@ function renderLogLine(e: AgentEvent): string {
       return `• needs login (${e.providers.join(", ")})`;
     case "ask_tailor_base":
       return `• pick a base resume to tailor (${e.resumes.filter((r) => !r.isTailored).length} available)`;
+    case "drift":
+      try {
+        const from = new URL(e.from).pathname;
+        const to = new URL(e.to).pathname;
+        return `⚠ tab drifted: ${from} → ${to}`;
+      } catch {
+        return `⚠ tab drifted off the original job`;
+      }
     case "resume_selected":
       return `• selected resume ${e.resumeId.slice(0, 8)}…${e.reason ? ` — ${e.reason}` : ""}`;
     case "tailoring":
