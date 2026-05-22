@@ -77,19 +77,57 @@ function bulletsFromHtml(html: string | undefined): string[] {
 
 function flattenResume(row: { data: any; title?: string | null }): FlatResume {
   const td = row.data || {};
-  const fullName = td.title || td.fullName || "";
-  const { first, last } = splitName(fullName);
-  const pd = td.personalDetails || {};
 
   const sections: any[] = Array.isArray(td.sections) ? td.sections : [];
   const sec = (key: string) => sections.find((s) => String(s.key || "").toLowerCase() === key);
 
+  // Personal details live inside the personalDetails section's first record's
+  // `values` map (keyed by field name: givenName, familyName, email, phone,
+  // address, city, postalCode, website, linkedin, desiredJobPosition, …).
+  const pdSec = sec("personaldetails");
+  const pdValues: Record<string, any> = pdSec?.records?.[0]?.values || {};
+
+  // Older / alternate shapes leaked these to the top level — keep them as
+  // fallbacks so we don't regress for resumes saved before this fix.
+  const topLevel = td as Record<string, any>;
+  const pdAlt = (td.personalDetails && typeof td.personalDetails === "object")
+    ? td.personalDetails
+    : {};
+
+  const pickPd = (k: string): string =>
+    String(pdValues[k] || pdAlt[k] || topLevel[k] || "").trim();
+
+  const fullName =
+    [pickPd("givenName"), pickPd("familyName")].filter(Boolean).join(" ").trim() ||
+    String(td.title || td.fullName || "").trim();
+  const { first, last } = splitName(fullName);
+
   const profile = sec("profile");
-  const summary = stripHtml(profile?.records?.[0]?.fields?.richtextValue);
+  const profileRecord = profile?.records?.[0] || {};
+  // `values` can be array (indexed by field position) or object map; try both.
+  const profileValues = profileRecord.values || {};
+  const profileFields = profile?.fields || [];
+  const headerIdx = profileFields.findIndex((f: any) => (f?.role || f?.key) === "header");
+  const richTextIdx = profileFields.findIndex(
+    (f: any) => (f?.role || f?.key) === "richtextValue" || (f?.role || f?.key) === "richtext",
+  );
+  const profileHeadline =
+    (Array.isArray(profileValues) ? profileValues[headerIdx] : profileValues.header) ||
+    profileRecord.fields?.header ||
+    "";
+  const profileSummaryHtml =
+    (Array.isArray(profileValues) ? profileValues[richTextIdx] : profileValues.richtextValue) ||
+    profileRecord.fields?.richtextValue ||
+    "";
+  const summary = stripHtml(profileSummaryHtml);
+
+  // Each section stores its records as either `fields: { header, … }` or
+  // `values: { header, … }`. Use whichever is present.
+  const recordMap = (r: any): Record<string, any> => r?.fields || r?.values || {};
 
   const employment = sec("employment");
   const experience = (employment?.records || []).map((r: any) => {
-    const f = r.fields || {};
+    const f = recordMap(r);
     const period = String(f.period || "");
     const [startDate = "", endDate = ""] = period.split(/\s*[-–—]\s*|\s*to\s*/i);
     return {
@@ -104,7 +142,7 @@ function flattenResume(row: { data: any; title?: string | null }): FlatResume {
 
   const educationSec = sec("educations") || sec("education");
   const education = (educationSec?.records || []).map((r: any) => {
-    const f = r.fields || {};
+    const f = recordMap(r);
     const period = String(f.period || "");
     const [startDate = "", endDate = ""] = period.split(/\s*[-–—]\s*|\s*to\s*/i);
     return {
@@ -117,31 +155,37 @@ function flattenResume(row: { data: any; title?: string | null }): FlatResume {
 
   const skillsSec = sec("skills");
   const skills = (skillsSec?.records || [])
-    .map((r: any) => r.fields?.header || "")
+    .map((r: any) => recordMap(r).header || "")
     .filter(Boolean);
 
   const langSec = sec("languages");
-  const languages = (langSec?.records || []).map((r: any) => ({
-    name: r.fields?.header || "",
-    level: r.fields?.level || "",
-  })).filter((l: any) => l.name);
+  const languages = (langSec?.records || []).map((r: any) => {
+    const f = recordMap(r);
+    return { name: f.header || "", level: f.level || "" };
+  }).filter((l: any) => l.name);
 
-  const addr = Array.isArray(td.address) ? td.address.join(", ") : td.address || "";
-  const location = [td.city, addr].filter(Boolean).join(", ") || addr || "";
+  // Address can be a string (from personalDetails.address) OR a top-level
+  // array of [address, city, postalCode] (from older render-time data).
+  const addrStr = pickPd("address");
+  const cityStr = pickPd("city");
+  const postalStr = pickPd("postalCode");
+  const topAddr = Array.isArray(td.address) ? td.address.filter(Boolean).join(", ") : "";
+  const location =
+    [addrStr, cityStr, postalStr].filter(Boolean).join(", ") || topAddr || "";
 
   return {
     fullName,
-    firstName: pd.givenName || first,
-    lastName: pd.familyName || last,
-    email: td.emailaddress || pd.email || "",
-    phone: td.phonenumber || pd.phone || "",
+    firstName: pickPd("givenName") || first,
+    lastName: pickPd("familyName") || last,
+    email: pickPd("email"),
+    phone: pickPd("phone"),
     location,
-    city: td.city || pd.city || "",
-    country: td.country || pd.country || "",
-    website: td.website || pd.website || "",
-    linkedIn: td.linkedin || pd.linkedin || "",
-    github: pd.github || "",
-    headline: td.headline || pd.desiredJobPosition || "",
+    city: cityStr,
+    country: pickPd("country"),
+    website: pickPd("website"),
+    linkedIn: pickPd("linkedin") || pickPd("linkedIn"),
+    github: pickPd("github"),
+    headline: String(profileHeadline || "").trim() || pickPd("desiredJobPosition") || pickPd("headline"),
     summary,
     experience,
     education,
