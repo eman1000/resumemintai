@@ -153,18 +153,32 @@ function flattenResume(row: { data: any; title?: string | null }): FlatResume {
 export async function GET(req: Request) {
   try {
     const userId = userIdFromExtensionRequest(req);
-    const row = await prisma.resume.findFirst({
-      where: { userId, archived: false },
-      orderBy: [{ updatedAt: "desc" }],
-      select: { data: true, title: true },
-    });
+    const [row, account] = await Promise.all([
+      prisma.resume.findFirst({
+        where: { userId, archived: false },
+        orderBy: [{ updatedAt: "desc" }],
+        select: { data: true, title: true },
+      }),
+      prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } }),
+    ]);
     if (!row) {
       return NextResponse.json(
         { error: "no_resume", detail: "Create a resume on resumemintai.com first." },
         { status: 404 },
       );
     }
-    return NextResponse.json(flattenResume(row));
+    const flat = flattenResume(row);
+    // Fallback: when the resume left a contact field blank, fall back to the
+    // ResumeMint account's email/name so the agent still has SOMETHING to
+    // fill rather than pestering the user for things we already know.
+    if (!flat.email && account?.email) flat.email = account.email;
+    if (!flat.fullName && account?.name) {
+      flat.fullName = account.name;
+      const parts = account.name.trim().split(/\s+/);
+      if (!flat.firstName) flat.firstName = parts[0] || "";
+      if (!flat.lastName) flat.lastName = parts.slice(1).join(" ") || "";
+    }
+    return NextResponse.json(flat);
   } catch (e: any) {
     if (e?.code === "UNAUTHORIZED") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     console.error("[GET /api/extension/resume]", e);

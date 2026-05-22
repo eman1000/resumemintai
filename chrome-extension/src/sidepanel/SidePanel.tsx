@@ -310,8 +310,44 @@ export default function SidePanel() {
                     <div style={{ fontSize: 12, color: COLORS.meta, marginTop: 2 }}>{resume.headline}</div>
                   )}
                   <div style={{ fontSize: 11, color: COLORS.meta, marginTop: 6 }}>
-                    {resume.email} {resume.phone ? `· ${resume.phone}` : ""}
+                    {resume.email || <span style={{ color: "#c08600" }}>no email</span>}
+                    {resume.phone ? ` · ${resume.phone}` : (
+                      <span style={{ color: "#c08600" }}> · no phone</span>
+                    )}
                   </div>
+                  {(!resume.email || !resume.phone || !resume.location) && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: 8,
+                        background: "#fff8e6",
+                        border: "1px solid #f5e0a0",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        color: "#6b5400",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Your resume is missing{" "}
+                      {[
+                        !resume.email && "email",
+                        !resume.phone && "phone",
+                        !resume.location && "location",
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}{" "}
+                      — the agent will have to ask you each time. Fill them in at{" "}
+                      <a
+                        href="https://www.resumemintai.com/builder"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: COLORS.brand, fontWeight: 600 }}
+                      >
+                        resumemintai.com/builder
+                      </a>{" "}
+                      and click Refresh below.
+                    </div>
+                  )}
                   <button
                     onClick={refreshResume}
                     style={{

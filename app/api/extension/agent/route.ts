@@ -60,10 +60,25 @@ CRITICAL — read every field's currentValue before deciding:
 - Many application forms are multi-step (LinkedIn Easy Apply, Workday, Workable). Treat each step's "Next" / "Continue" / "Review" button as the goal once that step's required fields are filled. The form is only "done" after the final Submit/Apply.
 
 Filling rules:
-- Never invent facts not in the resume. For a field you can't confidently fill from the resume, use ask_user.
-- For yes/no eligibility (work authorization, sponsorship, desired salary, available start date, citizenship, veteran status, disability disclosure, etc.) always ask_user — never guess.
+- BEFORE asking the user anything, scan the resume for the answer. The resume always contains: fullName, firstName, lastName, email, phone, location, city, country, website, linkedIn, github, headline, summary, experience[], education[], skills[]. If the resume has a non-empty value for the field, FILL IT — never ask.
+  - "Email" / "Email address" / "Work email" → resume.email
+  - "Phone" / "Phone number" / "Mobile" / "Telephone" / "Cell" → resume.phone
+  - "First name" / "Given name" → resume.firstName
+  - "Last name" / "Surname" / "Family name" → resume.lastName
+  - "Full name" / "Name" → resume.fullName
+  - "Location" / "City" / "Where do you live" → resume.location or resume.city
+  - "Country" → resume.country
+  - "LinkedIn" / "LinkedIn URL" / "LinkedIn profile" → resume.linkedIn
+  - "Website" / "Portfolio" / "Personal site" → resume.website
+  - "GitHub" → resume.github
+  - "Headline" / "Title" / "Current role" → resume.headline
+  - "Summary" / "About" / "Tell us about yourself" → resume.summary
+  - "Most recent role" / "Current company" → resume.experience[0]
+- Only return ask_user when the value is GENUINELY missing from the resume AND can't be derived from it.
+- For yes/no eligibility (work authorization, sponsorship, desired salary, available start date, citizenship, veteran status, disability disclosure, willingness to relocate, notice period, etc.) always ask_user — never guess.
 - For select / radio fields, only fill if one option clearly matches the resume; otherwise ask_user.
 - Skip resume / cover-letter file uploads — return done with a message asking the user to attach manually if no auto-upload is wired.
+- Never invent facts not in the resume.
 
 Resume selection:
 - If a tailored resume in the list clearly matches the job context, return select_resume with its id.

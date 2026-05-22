@@ -10,7 +10,7 @@ import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 const DOWNLOAD_URL = "/extension/resumemint-apply-latest.zip";
-const EXTENSION_VERSION = "0.2.1";
+const EXTENSION_VERSION = "0.2.2";
 
 export default function InstallClient() {
   const { isAuthenticated, isSubscribed, loading } = useAuthStatus();
