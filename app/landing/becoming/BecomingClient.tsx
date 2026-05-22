@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { auth } from "@/app/firebase";
 import { track } from "@/lib/track";
-import LoginSlidePanel from "@/components/LoginSlidePanel";
+import LandingSubscribe from "@/components/LandingSubscribe";
 
 // Each question is a micro-commitment. By the time the user reaches the end,
 // they've publicly (to themselves) named the version of themselves they want
@@ -113,7 +113,6 @@ const brand = "#2a72d7";
 export default function BecomingClient() {
   const [step, setStep] = React.useState(0); // 0..QUESTIONS.length
   const [answers, setAnswers] = React.useState<Record<string, string>>({});
-  const [loginOpen, setLoginOpen] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -136,18 +135,6 @@ export default function BecomingClient() {
     });
     // Tiny delay so the user sees the highlight before transitioning.
     setTimeout(() => setStep((s) => s + 1), 220);
-  }
-
-  function startSignup() {
-    track({
-      event: "landing_quiz_cta",
-      props: { variant: "becoming", answers },
-    });
-    if (auth?.currentUser) {
-      window.location.href = "/pricing";
-      return;
-    }
-    setLoginOpen(true);
   }
 
   return (
@@ -174,18 +161,8 @@ export default function BecomingClient() {
           </>
         )}
 
-        {isFinished && <Reveal answers={answers} onCta={startSignup} />}
+        {isFinished && <Reveal answers={answers} />}
       </main>
-
-      <LoginSlidePanel
-        open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onSuccess={() => {
-          setLoginOpen(false);
-          window.location.href = "/pricing";
-        }}
-        reason="Lock in this version of yourself — start your 14-day free trial."
-      />
     </div>
   );
 }
@@ -284,15 +261,23 @@ function QuestionCard({
 
 function Reveal({
   answers,
-  onCta,
 }: {
   answers: Record<string, string>;
-  onCta: () => void;
 }) {
   const becomeLabel = BECOMES[answers.become] || "the person you said you want to become";
   const avoidLabel = AVOIDS[answers.avoid] || "stuck where you are";
   const storyObstacle = STORY_OBSTACLE[answers.story] || "Your resume isn't working as hard as it should.";
   const durationLabel = DURATION_LABEL[answers.duration] || "a while";
+
+  const [showPay, setShowPay] = React.useState(false);
+  const payRef = React.useRef<HTMLDivElement>(null);
+
+  function revealPayment() {
+    setShowPay(true);
+    track({ event: "landing_quiz_cta", props: { variant: "becoming", answers } });
+    // Scroll the payment form into view on the next paint.
+    setTimeout(() => payRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  }
 
   return (
     <section>
@@ -356,16 +341,36 @@ function Reveal({
           First 14 days free. Cancel anytime.<br />
           You don't lock yourself in — you lock in the version of yourself that doesn't settle.
         </p>
-        <button
-          onClick={onCta}
-          style={{ marginTop: 22, background: "white", color: brand, border: 0, borderRadius: 10, padding: "14px 32px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", maxWidth: 360 }}
-        >
-          Become {becomeLabel.split(" ").slice(0, 4).join(" ")}…
-        </button>
-        <p style={{ fontSize: 11, marginTop: 12, opacity: 0.75 }}>
-          14-day free trial · No credit card to start the trial · Cancel anytime
-        </p>
+        {!showPay && (
+          <>
+            <button
+              onClick={revealPayment}
+              style={{ marginTop: 22, background: "white", color: brand, border: 0, borderRadius: 10, padding: "14px 32px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", maxWidth: 360 }}
+            >
+              Become {becomeLabel.split(" ").slice(0, 4).join(" ")}…
+            </button>
+            <p style={{ fontSize: 11, marginTop: 12, opacity: 0.75 }}>
+              14-day free trial · Cancel anytime
+            </p>
+          </>
+        )}
       </div>
+
+      {/* Inline guest checkout — monthly subscription, no separate login step.
+          LandingSubscribe creates its own SetupIntent and merges the guest
+          account into an authed user later, so the card form appears right
+          here at the emotional peak. */}
+      {showPay && (
+        <div ref={payRef} style={{ marginTop: 20, padding: 22, background: "white", border: "1px solid #ececef", borderRadius: 16 }}>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>Start your 14-day free trial</div>
+            <div style={{ fontSize: 13, color: meta, marginTop: 4 }}>
+              $19/month after the trial · Cancel anytime
+            </div>
+          </div>
+          <LandingSubscribe />
+        </div>
+      )}
 
       <div style={{ marginTop: 36, padding: "18px 20px", borderLeft: `3px solid ${brand}`, background: "white", borderRadius: 6, fontSize: 14, color: ink, lineHeight: 1.55 }}>
         <strong>One last question:</strong> 30 days from now, are you going to be glad you took 3 minutes to be honest with yourself today — or going to wish you had?
