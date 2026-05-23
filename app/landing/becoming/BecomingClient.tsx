@@ -4,7 +4,50 @@ import * as React from "react";
 import Link from "next/link";
 import { auth } from "@/app/firebase";
 import { track } from "@/lib/track";
-import LandingSubscribe from "@/components/LandingSubscribe";
+import LandingSubscribe, { formatPrice } from "@/components/LandingSubscribe";
+
+type Pricing = {
+  priceAmount: number | null;
+  priceCurrency: string | null;
+  priceInterval: "day" | "week" | "month" | "year" | null;
+  priceIntervalCount: number | null;
+  trialDays: number;
+};
+
+/** Read-only price + trial from Stripe (same source as the other landings). */
+function usePricing(): Pricing | null {
+  const [p, setP] = React.useState<Pricing | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/billing/pricing-info", { method: "GET" });
+        const j = await r.json();
+        if (!cancelled && r.ok) {
+          setP({
+            priceAmount: j.priceAmount ?? null,
+            priceCurrency: j.priceCurrency ?? null,
+            priceInterval: j.priceInterval ?? null,
+            priceIntervalCount: j.priceIntervalCount ?? null,
+            trialDays: j.trialDays ?? 0,
+          });
+        }
+      } catch {
+        /* silent — fallback copy renders */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return p;
+}
+
+function trialLabel(days: number): string {
+  if (!days || days < 1) return "";
+  if (days === 1) return "1-day free trial";
+  return `${days}-day free trial`;
+}
 
 // Each question is a micro-commitment. By the time the user reaches the end,
 // they've publicly (to themselves) named the version of themselves they want
@@ -271,6 +314,11 @@ function Reveal({
 
   const [showPay, setShowPay] = React.useState(false);
   const payRef = React.useRef<HTMLDivElement>(null);
+  const pricing = usePricing();
+
+  const priceStr = formatPrice(pricing?.priceAmount ?? null, pricing?.priceCurrency ?? null);
+  const intervalStr = pricing?.priceInterval || "month";
+  const trialStr = trialLabel(pricing?.trialDays ?? 0);
 
   function revealPayment() {
     setShowPay(true);
@@ -331,28 +379,22 @@ function Reveal({
       </ol>
 
       <div style={{ marginTop: 36, padding: 28, borderRadius: 16, background: "linear-gradient(145deg, #0a2d50 0%, #2a72d7 100%)", color: "white", textAlign: "center" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", opacity: 0.85 }}>
-          The commitment
+        <div style={{ fontSize: 38, fontWeight: 800, lineHeight: 1 }}>
+          {priceStr || "—"}
+          <span style={{ fontSize: 16, fontWeight: 500, opacity: 0.85 }}>/{intervalStr}</span>
         </div>
-        <div style={{ fontSize: 38, fontWeight: 800, marginTop: 12, lineHeight: 1 }}>
-          $19<span style={{ fontSize: 16, fontWeight: 500, opacity: 0.85 }}>/month</span>
-        </div>
-        <p style={{ fontSize: 14, marginTop: 8, opacity: 0.9, lineHeight: 1.5 }}>
-          First 14 days free. Cancel anytime.<br />
-          You don't lock yourself in — you lock in the version of yourself that doesn't settle.
-        </p>
+        {trialStr && (
+          <p style={{ fontSize: 14, marginTop: 10, opacity: 0.9 }}>
+            {trialStr} · Cancel anytime
+          </p>
+        )}
         {!showPay && (
-          <>
-            <button
-              onClick={revealPayment}
-              style={{ marginTop: 22, background: "white", color: brand, border: 0, borderRadius: 10, padding: "14px 32px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", maxWidth: 360 }}
-            >
-              Become {becomeLabel.split(" ").slice(0, 4).join(" ")}…
-            </button>
-            <p style={{ fontSize: 11, marginTop: 12, opacity: 0.75 }}>
-              14-day free trial · Cancel anytime
-            </p>
-          </>
+          <button
+            onClick={revealPayment}
+            style={{ marginTop: 20, background: "white", color: brand, border: 0, borderRadius: 10, padding: "14px 32px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", maxWidth: 360 }}
+          >
+            Start now →
+          </button>
         )}
       </div>
 
@@ -363,17 +405,22 @@ function Reveal({
       {showPay && (
         <div ref={payRef} style={{ marginTop: 20, padding: 22, background: "white", border: "1px solid #ececef", borderRadius: 16 }}>
           <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>Start your 14-day free trial</div>
-            <div style={{ fontSize: 13, color: meta, marginTop: 4 }}>
-              $19/month after the trial · Cancel anytime
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {trialStr ? `Start your ${trialStr}` : "Start now"}
             </div>
+            {priceStr && (
+              <div style={{ fontSize: 13, color: meta, marginTop: 4 }}>
+                {priceStr}/{intervalStr}
+                {trialStr ? " after the trial" : ""} · Cancel anytime
+              </div>
+            )}
           </div>
           <LandingSubscribe />
         </div>
       )}
 
-      <div style={{ marginTop: 36, padding: "18px 20px", borderLeft: `3px solid ${brand}`, background: "white", borderRadius: 6, fontSize: 14, color: ink, lineHeight: 1.55 }}>
-        <strong>One last question:</strong> 30 days from now, are you going to be glad you took 3 minutes to be honest with yourself today — or going to wish you had?
+      <div style={{ marginTop: 32, padding: "16px 18px", borderLeft: `3px solid ${brand}`, background: "white", borderRadius: 6, fontSize: 15, color: ink, lineHeight: 1.5 }}>
+        30 days from now, will you be glad you started today?
       </div>
 
       <div style={{ marginTop: 28, fontSize: 12, color: meta, textAlign: "center", lineHeight: 1.6 }}>
