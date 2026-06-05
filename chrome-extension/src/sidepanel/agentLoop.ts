@@ -130,12 +130,28 @@ async function listFrames(tabId: number): Promise<number[]> {
   }
 }
 
-/** Snapshot every reachable frame and merge: the frame with the most fields
- * is usually the application form (Greenhouse embed, Workday iframe). Fields
- * carry their frameId so actions route back to the right frame (G4). */
-async function snapshotTab(
+/** Inject the content script on demand. Needed when the tab was already open
+ * before the extension was installed/updated — Chrome only auto-injects at
+ * page load, so an existing tab has no listener until refresh. We read the
+ * script files from the manifest so this stays correct across builds. */
+async function injectContentScript(tabId: number): Promise<void> {
+  try {
+    const files = chrome.runtime.getManifest().content_scripts?.[0]?.js || [];
+    if (!files.length) return;
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files,
+    });
+    // Give the script a beat to register its message listener.
+    await new Promise((r) => setTimeout(r, 300));
+  } catch {
+    // Page not in host_permissions (unsupported site) — caller reports it.
+  }
+}
+
+async function collectFrameSnapshots(
   tabId: number,
-): Promise<AgentSnapshot & { __frameId: number }> {
+): Promise<Array<{ frameId: number; snapshot: AgentSnapshot }>> {
   const frameIds = await listFrames(tabId);
   const snaps: Array<{ frameId: number; snapshot: AgentSnapshot }> = [];
   for (const frameId of frameIds) {
@@ -151,7 +167,27 @@ async function snapshotTab(
       // for, about:blank, etc.) — skip.
     }
   }
-  if (!snaps.length) throw new Error("snapshot_failed");
+  return snaps;
+}
+
+/** Snapshot every reachable frame and merge: the frame with the most fields
+ * is usually the application form (Greenhouse embed, Workday iframe). Fields
+ * carry their frameId so actions route back to the right frame (G4). */
+async function snapshotTab(
+  tabId: number,
+): Promise<AgentSnapshot & { __frameId: number }> {
+  let snaps = await collectFrameSnapshots(tabId);
+  if (!snaps.length) {
+    // Self-heal: the tab probably predates the extension load — inject the
+    // content script now and retry once.
+    await injectContentScript(tabId);
+    snaps = await collectFrameSnapshots(tabId);
+  }
+  if (!snaps.length) {
+    throw new Error(
+      "Could not read this page. Refresh the job page tab and try again — and make sure it's a supported job site (Greenhouse, Lever, Ashby, Workable, LinkedIn Jobs, Indeed, Workday).",
+    );
+  }
 
   // Primary frame = the one with the most form fields (top frame wins ties).
   snaps.sort(
