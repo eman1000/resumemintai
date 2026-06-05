@@ -277,19 +277,57 @@ async function tailorNow(
   await agentTailorPassThrough(jobContext, baseResumeId);
 }
 
+/** Wait for a tab to finish loading (status === "complete"), bounded. */
+async function waitForTabComplete(tabId: number, maxMs = 15000): Promise<void> {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.status === "complete") return;
+    } catch {
+      return; // tab gone
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+}
+
 export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
   const history: Array<{ action: AgentAction; result?: "success" | "failed" | "skipped"; note?: string }> = [];
   const userAnswers: Record<string, string> = {};
   let selectedResumeId: string | undefined;
 
+  // AGENTIC NAVIGATION: the tab the loop drives can CHANGE when an external
+  // apply flow opens the company's site in a new tab. Track tabs spawned by
+  // our tab so we can follow them.
+  let tabId = opts.tabId;
+  let spawnedTabId: number | null = null;
+  const onTabCreated = (tab: chrome.tabs.Tab) => {
+    if (tab.openerTabId === tabId && tab.id) spawnedTabId = tab.id;
+  };
+  chrome.tabs.onCreated.addListener(onTabCreated);
+  const cleanup = () => chrome.tabs.onCreated.removeListener(onTabCreated);
+
+  try {
+    await runAgentLoopInner();
+  } finally {
+    cleanup();
+  }
+
+  async function runAgentLoopInner(): Promise<void> {
   // GOAL ANCHOR — capture once at start. Used every turn to detect drift.
-  const startUrl = await getCurrentTabUrl(opts.tabId);
-  const startSnapshot = await snapshotTab(opts.tabId).catch(() => null);
-  const goal: AgentGoal = {
+  // Re-anchored ONCE when an apply click legitimately leaves for the
+  // company's own application site (external apply).
+  const startUrl = await getCurrentTabUrl(tabId);
+  const startSnapshot = await snapshotTab(tabId).catch(() => null);
+  let goal: AgentGoal = {
     originalUrl: startUrl,
     originalTitle: startSnapshot?.title || opts.jobContext?.title || "",
     pinned: parseGoalFromUrl(startUrl),
   };
+  // One-shot permission to re-anchor: armed by clicking an Apply-type button,
+  // consumed by the first navigation that follows it.
+  let applyNavArmed = false;
+  let reanchored = false;
 
   // Track progress to break out of stuck loops.
   let noProgressStreak = 0;
@@ -298,10 +336,41 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     opts.onEvent({ kind: "thinking" });
 
+    // AGENTIC FOLLOW: if the last apply-click spawned a new tab (external
+    // apply opening the company site), switch the loop to that tab.
+    if (applyNavArmed && spawnedTabId) {
+      const newTab = spawnedTabId;
+      spawnedTabId = null;
+      tabId = newTab;
+      await waitForTabComplete(tabId);
+      try {
+        await chrome.tabs.update(tabId, { active: true });
+      } catch {}
+    }
+
     // Drift check BEFORE taking another action.
-    const currentUrl = await getCurrentTabUrl(opts.tabId);
+    const currentUrl = await getCurrentTabUrl(tabId);
     let drift: { from: string; to: string } | undefined;
     if (urlHasDrifted(goal, currentUrl)) {
+      // EXTERNAL APPLY RE-ANCHOR: the navigation was caused by OUR OWN
+      // apply-button click (applyNavArmed) — this is the job's real
+      // application site, not drift. Re-pin the goal there, once.
+      if (applyNavArmed && !reanchored && currentUrl) {
+        applyNavArmed = false;
+        reanchored = true;
+        await waitForTabComplete(tabId);
+        goal = {
+          originalUrl: currentUrl,
+          originalTitle: goal.originalTitle,
+          pinned: parseGoalFromUrl(currentUrl),
+        };
+        history.push({
+          action: { type: "click", selector: "followed-apply-redirect", reason: "external apply" },
+          result: "success",
+          note: `re-anchored on ${new URL(currentUrl).host}`,
+        });
+        continue;
+      }
       drift = { from: goal.originalUrl, to: currentUrl };
       opts.onEvent({ kind: "drift", from: drift.from, to: drift.to });
       // Try to recover: navigate back to the goal URL once. If we drift again
@@ -309,7 +378,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       const alreadyTriedRecover = history.some((h) => h.note === "drifted_back");
       if (!alreadyTriedRecover) {
         try {
-          await chrome.tabs.update(opts.tabId, { url: goal.originalUrl });
+          await chrome.tabs.update(tabId, { url: goal.originalUrl });
           // Give the page a moment to load.
           await new Promise((r) => setTimeout(r, 1200));
           history.push({
@@ -328,10 +397,13 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       });
       return;
     }
+    // A successful apply-click that did NOT navigate (in-page modal, e.g.
+    // LinkedIn Easy Apply) shouldn't stay armed forever.
+    if (applyNavArmed && turn > 0) applyNavArmed = false;
 
     let snapshot: AgentSnapshot & { __frameId: number };
     try {
-      snapshot = await snapshotTab(opts.tabId);
+      snapshot = await snapshotTab(tabId);
       opts.onEvent({ kind: "snapshot", snapshot });
     } catch (e: any) {
       opts.onEvent({ kind: "error", error: e?.message || "snapshot_failed" });
@@ -417,12 +489,12 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       if (a.type === "upload_resume") {
         try {
           const pdf = await fetchResumePdf(a.resumeId || selectedResumeId);
-          return await executeOnTab(opts.tabId, a, frameId, pdf);
+          return await executeOnTab(tabId, a, frameId, pdf);
         } catch (e: any) {
           return { ok: false, note: e?.message || "resume_pdf_failed" };
         }
       }
-      return await executeOnTab(opts.tabId, a, frameId);
+      return await executeOnTab(tabId, a, frameId);
     };
 
     /** Log the completed application to the user's tracker (G11). */
@@ -466,7 +538,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
         break;
       }
       case "use_google_signin": {
-        const result = await executeOnTab(opts.tabId, action);
+        const result = await executeOnTab(tabId, action);
         opts.onEvent({ kind: "executed", ...result });
         history.push({ action, result: result.ok ? "success" : "failed", note: result.note });
         break;
@@ -521,7 +593,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
           history.push({ action, result: "skipped", note: "auto-submit blocked" });
           return;
         }
-        const result = await executeOnTab(opts.tabId, action, snapshot.__frameId);
+        const result = await executeOnTab(tabId, action, snapshot.__frameId);
         opts.onEvent({ kind: "executed", ...result });
         if (result.ok) await logCompletion();
         opts.onEvent({ kind: "done", message: result.ok ? "Submitted." : "Submit failed — please click manually." });
@@ -543,9 +615,23 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       case "click_at":
       case "type_text":
       case "press_key": {
+        // Arm the external-apply follower: a successful click on an
+        // Apply-type button may navigate (same tab or a new tab) to the
+        // company's own application site. The next turn is allowed to
+        // re-anchor the goal there instead of treating it as drift.
+        if (
+          action.type === "click" &&
+          /^text:\s*(easy apply|apply)/i.test(action.selector)
+        ) {
+          spawnedTabId = null; // only follow tabs spawned by THIS click
+          applyNavArmed = true;
+        }
         const result = await execPageAction(action);
         opts.onEvent({ kind: "executed", ...result });
         history.push({ action, result: result.ok ? "success" : "failed", note: result.note });
+        if (action.type === "click" && applyNavArmed && !result.ok) {
+          applyNavArmed = false; // click failed — nothing to follow
+        }
 
         // BATCHED follow-ups (v0.5): execute same-step actions in order,
         // stopping at the first failure so the planner can reassess.
@@ -568,6 +654,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
     kind: "done",
     message: `Stopped after ${MAX_TURNS} turns. Review the form and submit manually.`,
   });
+  } // end runAgentLoopInner
 }
 
 // Re-export so the side panel can mention the selected resume.

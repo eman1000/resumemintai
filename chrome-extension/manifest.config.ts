@@ -17,18 +17,12 @@ export default defineManifest({
   // webNavigation: lets the side panel enumerate a tab's frames so the agent
   // can snapshot/execute inside ATS iframes (Greenhouse embeds, Workday).
   permissions: ["storage", "activeTab", "scripting", "sidePanel", "tabs", "identity", "identity.email", "webNavigation"],
-  host_permissions: [
-    "https://www.resumemintai.com/*",
-    "https://*.greenhouse.io/*",
-    "https://boards.greenhouse.io/*",
-    "https://job-boards.greenhouse.io/*",
-    "https://*.lever.co/*",
-    "https://jobs.ashbyhq.com/*",
-    "https://*.workable.com/*",
-    "https://www.linkedin.com/*",
-    "https://*.indeed.com/*",
-    "https://*.myworkdayjobs.com/*",
-  ],
+  // <all_urls>: external-apply flows (LinkedIn "Responses managed off
+  // LinkedIn") redirect to arbitrary company career sites — the agent
+  // follows the redirect and injects its content script there on demand.
+  // Fine for self-hosted distribution; for a future Chrome Web Store
+  // submission this needs justification or optional_host_permissions.
+  host_permissions: ["<all_urls>"],
   content_scripts: [
     {
       matches: [
