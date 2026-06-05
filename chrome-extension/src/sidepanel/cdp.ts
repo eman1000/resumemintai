@@ -30,12 +30,17 @@ const DEBUGGER_VERSION = "1.3";
 export class CdpSession {
   tabId: number;
   attached = false;
-  /** Display size we tell the model about; screenshots are scaled to this. */
+  /** Max width of the image we send the model (keeps tokens + targeting sane). */
   displayW: number;
   displayH: number;
-  /** Actual device-pixel screenshot size, for scaling action coords back. */
-  private shotW = 0;
-  private shotH = 0;
+  /** Dimensions of the LAST image we actually sent the model (model aims in
+   * this space). */
+  private imgW = 0;
+  private imgH = 0;
+  /** CSS viewport size of the page (what CDP Input expects). Model coords are
+   * mapped from imgW/imgH → cssW/cssH before dispatch. */
+  private cssW = 0;
+  private cssH = 0;
   /** The resume PDF to feed into native file choosers, set by the loop. */
   filePayload: { base64: string; filename: string } | null = null;
   private fileChooserArmed = false;
@@ -150,29 +155,57 @@ export class CdpSession {
     });
   }
 
-  /** Capture a screenshot, downscaled to (displayW × displayH). Returns
-   * base64 PNG (no data: prefix) for the model. */
+  /** Capture a screenshot and return base64 PNG (no data: prefix) for the
+   * model. CRITICAL: on Retina/HiDPI displays Page.captureScreenshot returns
+   * a DEVICE-pixel image (e.g. 2× the CSS size). We must (a) tell the model
+   * the image's real pixel size and (b) map the model's coordinates from
+   * IMAGE space back to CSS space (what CDP Input expects) — otherwise clicks
+   * land at the wrong place. We resize the capture to a fixed CSS-pixel width
+   * via Page.captureScreenshot's clip+scale so image space == CSS space and
+   * the mapping is 1:1. */
   async screenshot(): Promise<string> {
-    const res = await this.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
-    const b64: string = res.data;
-    // Record actual capture size for coordinate scaling. We read it from the
-    // layout metrics rather than decoding the PNG.
+    // Read the CSS viewport so we know the page's logical coordinate space.
+    let cssW = this.displayW;
+    let cssH = this.displayH;
     try {
       const metrics = await this.send("Page.getLayoutMetrics");
-      const vp = metrics.cssVisualViewport || metrics.visualViewport || {};
-      this.shotW = Math.round(vp.clientWidth || metrics.layoutViewport?.clientWidth || this.displayW);
-      this.shotH = Math.round(vp.clientHeight || metrics.layoutViewport?.clientHeight || this.displayH);
+      const vp = metrics.cssVisualViewport || metrics.cssLayoutViewport || metrics.layoutViewport || {};
+      cssW = Math.round(vp.clientWidth || this.displayW);
+      cssH = Math.round(vp.clientHeight || this.displayH);
     } catch {
-      this.shotW = this.displayW;
-      this.shotH = this.displayH;
+      /* keep defaults */
     }
-    return b64;
+    this.cssW = cssW;
+    this.cssH = cssH;
+
+    // Normalise the capture to a FIXED width (displayW) regardless of the
+    // page's real viewport or the device pixel ratio. clip.scale resizes the
+    // output, so the image the model sees is always displayW px wide. This
+    // keeps the model's coordinate space constant and sidesteps Retina 2×.
+    const factor = cssW > 0 ? this.displayW / cssW : 1;
+    const outW = this.displayW;
+    const outH = Math.round(cssH * factor);
+    const res = await this.send("Page.captureScreenshot", {
+      format: "png",
+      captureBeyondViewport: false,
+      clip: { x: 0, y: 0, width: cssW, height: cssH, scale: factor },
+    });
+    this.imgW = outW;
+    this.imgH = outH;
+    return res.data;
   }
 
-  /** Scale a model coordinate (in displayW×displayH space) to real CSS px. */
+  /** The image size the model is looking at (report to the planner so the
+   * tool's coordinate space matches the image exactly). */
+  get imageSize(): { width: number; height: number } {
+    return { width: this.imgW || this.displayW, height: this.imgH || this.displayH };
+  }
+
+  /** Map a model coordinate (in image space = displayW-wide) to CSS px for
+   * CDP Input. Inverse of the capture scale factor. */
   private scale(x: number, y: number): { x: number; y: number } {
-    const sx = this.shotW && this.displayW ? this.shotW / this.displayW : 1;
-    const sy = this.shotH && this.displayH ? this.shotH / this.displayH : 1;
+    const sx = this.imgW ? this.cssW / this.imgW : 1;
+    const sy = this.imgH ? this.cssH / this.imgH : 1;
     return { x: Math.round(x * sx), y: Math.round(y * sy) };
   }
 

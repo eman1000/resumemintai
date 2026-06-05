@@ -52,8 +52,8 @@ GOAL
 - Never start applying to a DIFFERENT job. If you find yourself on a search results page or a different posting, navigate back toward the goal application, or call task_complete explaining the situation.
 
 HOW TO WORK
-- You drive the page with the "computer" tool. A fresh screenshot of the current page is provided after every action, so you do NOT need to request screenshots explicitly — just look at the latest image and take the next action. Coordinates are in a ${DISPLAY_WIDTH}×${DISPLAY_HEIGHT} space with (0,0) at the top-left.
-- Act one step at a time.
+- You drive the page with the "computer" tool. A fresh screenshot of the current page is provided after every action, so you do NOT need to request screenshots explicitly — just look at the latest image and take the next action. Coordinates are in the SAME pixel space as the screenshot you are shown (its width/height are given with the tool). (0,0) is the top-left. Click the visual CENTER of buttons and fields.
+- Act one step at a time. If a click produced no visible change in the next screenshot, the target was likely slightly off — look carefully at where the element actually is and adjust your coordinates, don't just repeat the same point.
 - Fill fields from the user's resume data (provided in the first message). Click into a field before typing. Use realistic, accurate values only — never invent employment history, dates, or credentials.
 - For dropdowns/comboboxes: click to open, then click the matching option.
 - Scroll to reach fields below the fold.
@@ -214,8 +214,16 @@ export async function POST(req: Request) {
   const displayW = Number(body?.display?.width) || DISPLAY_WIDTH;
   const displayH = Number(body?.display?.height) || DISPLAY_HEIGHT;
 
-  void displayW;
-  void displayH; // the tool description carries the display size; coords are scaled client-side
+  // Tell the model the EXACT pixel space of the screenshots it's seeing, so
+  // its coordinates line up with the image (and thus the page after the
+  // client maps them to CSS px).
+  const computerTool: Anthropic.Tool = {
+    ...COMPUTER_TOOL,
+    description:
+      `Control the browser page with mouse and keyboard, like a human applicant. ` +
+      `After each action you receive an updated screenshot that is ${displayW}x${displayH} pixels. ` +
+      `Give coordinates in that exact pixel space, origin top-left. Click the visual center of targets.`,
+  };
   try {
     const resp = await anthropic.messages.create({
       model: MODEL,
@@ -223,7 +231,7 @@ export async function POST(req: Request) {
       system: [
         { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
       ],
-      tools: [COMPUTER_TOOL, ...CUSTOM_TOOLS],
+      tools: [computerTool, ...CUSTOM_TOOLS],
       messages: messages as Anthropic.MessageParam[],
     });
 

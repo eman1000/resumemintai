@@ -116,9 +116,12 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
 
       let plan;
       try {
+        // Report the ACTUAL image size the model is looking at so the tool's
+        // coordinate space matches the screenshot exactly (Retina-safe).
+        const img = cdp.imageSize;
         plan = await computerPlan({
           messages,
-          display: { width: DISPLAY_W, height: DISPLAY_H },
+          display: { width: img.width, height: img.height },
         });
       } catch (e: any) {
         opts.onEvent({ kind: "error", error: e?.message || "planner_failed" });
