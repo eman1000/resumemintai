@@ -91,10 +91,23 @@ export function trackResumeExported(args: {
 
 export async function track({ event, props = {}, dedupeKey, includeAuth = true }: TrackOpts) {
   try {
-    // Push to GTM (non-blocking)
     if (typeof window !== 'undefined') {
+      // 1. Push to dataLayer in GTM-container format (no-op today since no GTM
+      //    container is loaded, but future-proof if one is added later).
       (window as any).dataLayer = (window as any).dataLayer || [];
       (window as any).dataLayer.push({ event, ...props });
+
+      // 2. Send the event to GA4 + Google Ads via gtag directly. This is the
+      //    path that actually works: gtag.js is loaded in layout.tsx but only
+      //    understands gtag('event', ...) calls, NOT raw dataLayer object
+      //    pushes. Without this, conversion events (subscribe/trial_start/
+      //    resume_exported) never reach GA4 or Google Ads, so Ads cannot
+      //    optimize toward them. value/currency in props map to GA4 monetary
+      //    conversions automatically.
+      const gtag = (window as any).gtag;
+      if (typeof gtag === 'function') {
+        gtag('event', event, { ...props });
+      }
     }
 
     // Prefer ?km=... from URL, fall back to persisted/generated id
