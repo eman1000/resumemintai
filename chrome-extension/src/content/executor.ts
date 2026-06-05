@@ -183,7 +183,12 @@ export function clickGoogleSignIn(): boolean {
 
 /** Attach a PDF to an <input type=file> via DataTransfer. The side panel
  * fetched the rendered resume PDF and passed it as base64. Works on hidden
- * inputs too (ATSes hide the native input behind a styled button). */
+ * inputs too (ATSes hide the native input behind a styled button).
+ *
+ * IMPORTANT verification order: check files BEFORE dispatching events. Many
+ * ATS uploaders consume the file on `change` (read it, start async upload,
+ * then CLEAR the input as part of processing) — checking afterwards reports
+ * a false "did not stick" even though the page accepted the file. */
 function attachFile(
   el: HTMLInputElement,
   base64: string,
@@ -195,12 +200,25 @@ function attachFile(
     const dt = new DataTransfer();
     dt.items.add(file);
     el.files = dt.files;
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    const attached = el.files?.[0]?.name === filename;
-    return attached
-      ? { ok: true, note: `attached ${filename}` }
-      : { ok: false, note: "file did not stick on the input" };
+    const assigned = el.files?.[0]?.name === filename;
+    if (assigned) {
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return { ok: true, note: `attached ${filename}` };
+    }
+    // Assignment itself failed (some frameworks lock .files). Fallback:
+    // simulate a drag-and-drop onto the input's dropzone container.
+    const dropzone =
+      (el.closest("[class*='drop' i], [class*='upload' i], [data-dropzone]") as HTMLElement) ||
+      el.parentElement ||
+      el;
+    const dropEvt = new DragEvent("drop", { bubbles: true, cancelable: true });
+    // DragEvent constructor ignores dataTransfer — define it directly.
+    Object.defineProperty(dropEvt, "dataTransfer", { value: dt });
+    dropzone.dispatchEvent(new DragEvent("dragenter", { bubbles: true }));
+    dropzone.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true }));
+    dropzone.dispatchEvent(dropEvt);
+    return { ok: true, note: `dropped ${filename} on dropzone (input rejected direct assignment)` };
   } catch (e: any) {
     return { ok: false, note: `attach failed: ${e?.message || e}` };
   }
