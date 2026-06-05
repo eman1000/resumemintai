@@ -32,14 +32,16 @@ const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 
-// Sonnet 4.6 supports the computer-use tool (computer_20250124) under the
-// 2025-01-24 tools beta.
+// NOTE: claude-sonnet-4-6 does NOT support Anthropic's built-in
+// `computer_20250124` tool type. Instead of relying on that, we define our
+// OWN custom "computer" tool with the same action grammar and feed
+// screenshots as image blocks. The model reasons over the screenshot and
+// calls the tool with coordinates; the extension's CDP layer executes them.
 const MODEL = process.env.ANTHROPIC_COMPUTER_MODEL || "claude-sonnet-4-6";
-const COMPUTER_BETA = "computer-use-2025-01-24";
 
 // The extension downscales its screenshots to this logical display size and
-// scales action coordinates back up. Keeping it ≤ XGA is Anthropic's
-// recommendation for best targeting accuracy + lower image-token cost.
+// scales action coordinates back up. Keeping it ≤ XGA is best for targeting
+// accuracy + lower image-token cost.
 const DISPLAY_WIDTH = Number(process.env.COMPUTER_DISPLAY_W || 1280);
 const DISPLAY_HEIGHT = Number(process.env.COMPUTER_DISPLAY_H || 800);
 
@@ -50,7 +52,8 @@ GOAL
 - Never start applying to a DIFFERENT job. If you find yourself on a search results page or a different posting, navigate back toward the goal application, or call task_complete explaining the situation.
 
 HOW TO WORK
-- Take a screenshot first to see the page. Then act one step at a time, taking a fresh screenshot after actions that change the page.
+- You drive the page with the "computer" tool. A fresh screenshot of the current page is provided after every action, so you do NOT need to request screenshots explicitly — just look at the latest image and take the next action. Coordinates are in a ${DISPLAY_WIDTH}×${DISPLAY_HEIGHT} space with (0,0) at the top-left.
+- Act one step at a time.
 - Fill fields from the user's resume data (provided in the first message). Click into a field before typing. Use realistic, accurate values only — never invent employment history, dates, or credentials.
 - For dropdowns/comboboxes: click to open, then click the matching option.
 - Scroll to reach fields below the fold.
@@ -66,9 +69,59 @@ SAFETY
 - Do not interact with anything outside completing this application (no messaging, no settings, no other jobs, no purchases).
 - Prefer accuracy over completion: if unsure about a required answer, ask_user.`;
 
-// Custom (non-computer) tools the model uses to hand control back to the
-// extension UI. The computer tool itself is injected by name+type.
-const CUSTOM_TOOLS: Anthropic.Beta.BetaTool[] = [
+// Our custom "computer" tool — same action vocabulary as Anthropic's built-in
+// computer tool, but model-agnostic (works on claude-sonnet-4-6). The
+// extension's CDP layer (cdp.ts) executes each action.
+const COMPUTER_TOOL: Anthropic.Tool = {
+  name: "computer",
+  description:
+    "Control the browser page with mouse and keyboard, like a human applicant. " +
+    "After each action you receive an updated screenshot. Coordinates are pixels " +
+    `in a ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} space, origin top-left.`,
+  input_schema: {
+    type: "object",
+    properties: {
+      action: {
+        type: "string",
+        enum: [
+          "left_click",
+          "right_click",
+          "double_click",
+          "triple_click",
+          "mouse_move",
+          "left_click_drag",
+          "type",
+          "key",
+          "scroll",
+          "wait",
+          "screenshot",
+        ],
+        description: "The action to perform.",
+      },
+      coordinate: {
+        type: "array",
+        items: { type: "number" },
+        description: "[x, y] target for click/move/scroll actions.",
+      },
+      start_coordinate: {
+        type: "array",
+        items: { type: "number" },
+        description: "[x, y] start point for left_click_drag.",
+      },
+      text: {
+        type: "string",
+        description: "Text to type (action=type) or key combo like 'Return', 'Tab', 'ctrl+a' (action=key).",
+      },
+      scroll_direction: { type: "string", enum: ["up", "down", "left", "right"] },
+      scroll_amount: { type: "number", description: "Number of scroll steps (≈100px each)." },
+      duration: { type: "number", description: "Seconds to wait (action=wait)." },
+    },
+    required: ["action"],
+  },
+};
+
+// Custom tools the model uses to hand control back to the extension UI.
+const CUSTOM_TOOLS: Anthropic.Tool[] = [
   {
     name: "ask_user",
     description:
@@ -161,25 +214,17 @@ export async function POST(req: Request) {
   const displayW = Number(body?.display?.width) || DISPLAY_WIDTH;
   const displayH = Number(body?.display?.height) || DISPLAY_HEIGHT;
 
+  void displayW;
+  void displayH; // the tool description carries the display size; coords are scaled client-side
   try {
-    const resp = await anthropic.beta.messages.create({
+    const resp = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 1536,
-      betas: [COMPUTER_BETA],
       system: [
         { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
       ],
-      tools: [
-        {
-          type: "computer_20250124",
-          name: "computer",
-          display_width_px: displayW,
-          display_height_px: displayH,
-          display_number: 1,
-        } as any,
-        ...CUSTOM_TOOLS,
-      ],
-      messages: messages as Anthropic.Beta.BetaMessageParam[],
+      tools: [COMPUTER_TOOL, ...CUSTOM_TOOLS],
+      messages: messages as Anthropic.MessageParam[],
     });
 
     await recordAiUsage(userId, "extension-agent");
