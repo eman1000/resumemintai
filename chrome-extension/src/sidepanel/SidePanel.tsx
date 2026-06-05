@@ -21,6 +21,7 @@ export default function SidePanel() {
   const [auth, setAuth] = useState<StoredAuth | null>(null);
   const [resume, setResume] = useState<FlatResume | null>(null);
   const [autoSubmit, setAutoSubmit] = useState(false);
+  const [sendScreenshot, setSendScreenshot] = useState(true);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>(null);
   const [filling, setFilling] = useState(false);
@@ -45,6 +46,7 @@ export default function SidePanel() {
       setResume((out[STORAGE_KEYS.RESUME] as FlatResume) ?? null);
       const s = await getSettings();
       setAutoSubmit(s.autoSubmit);
+      setSendScreenshot(s.sendScreenshot !== false);
       setLoading(false);
       readActiveTab();
     })();
@@ -118,6 +120,7 @@ export default function SidePanel() {
       await runAgentLoop({
         tabId: activeTab.id,
         autoSubmit,
+        sendScreenshot,
         chromeEmail,
         jobContext: { sourceUrl: activeTab.url, title: activeTab.title },
         onEvent: (e) => setAgentLog((prev) => [...prev, e]),
@@ -387,6 +390,17 @@ export default function SidePanel() {
                   }}
                 />
                 <span>Auto-submit after fill (use with care)</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "6px 0" }}>
+                <input
+                  type="checkbox"
+                  checked={sendScreenshot}
+                  onChange={async (e) => {
+                    setSendScreenshot(e.target.checked);
+                    await setSettings({ autoSubmit, sendScreenshot: e.target.checked });
+                  }}
+                />
+                <span>Send page screenshot to AI (better accuracy)</span>
               </label>
             </Section>
 

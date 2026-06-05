@@ -6,9 +6,10 @@
 // use Claude Sonnet 4.6 (vision input + DOM) for substantially better page
 // reasoning. Otherwise we fall back to gpt-4o (full, not mini) on DOM only.
 //
-// Returns the NEXT single action the extension should take. Action union:
-// fill | select_resume | tailor | needs_login | use_google_signin |
-// click | ask_user | submit | done
+// Returns the next action (plus an optional same-step batch). Action union:
+// fill | select_resume | tailor | needs_login | use_google_signin | click |
+// ask_user | submit | done | upload_resume | set_checkbox | select_option |
+// scroll | click_at | type_text | press_key
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
@@ -20,6 +21,9 @@ import {
   recordAiUsage,
   quotaBlockedResponse,
 } from "@/lib/aiUsage";
+// Single source of truth for the click allowlist — shared with the extension
+// executor so the prompt and the guardrail can never drift apart (G9).
+import { allowedButtonsForPrompt } from "@/chrome-extension/src/shared/allowedButtons";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,17 +37,17 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 const OPENAI_MODEL = process.env.OPENAI_AGENT_MODEL || "gpt-4o";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_AGENT_MODEL || "claude-sonnet-4-6";
 
-const SYSTEM = `You are the ResumeMint Apply agent — an autonomous loop that fills and submits job application forms on behalf of the user. You take ONE action per turn.
+const SYSTEM = `You are the ResumeMint Apply agent — an autonomous loop that fills and submits job application forms on behalf of the user. Each turn you return ONE primary action, optionally followed by a short ordered batch of follow-up actions for the same form step.
 
 ANCHOR
 - You have a "goal" object pinned at the start: the original URL and job the user wanted to apply to. NEVER navigate to a different job, listing, or page. If the current page has drifted off the goal, return done with the reason.
 - If a "drift" object is set on the request, the tab has navigated away from the goal — return done immediately with a clear message; do not try to act on a wrong page.
-- You are not a general browser agent — you operate on one application form. Do NOT click on "Easy Apply" buttons in job listings, do NOT scroll endlessly looking for things, do NOT click links that navigate away from the goal URL.
+- You are not a general browser agent — you operate on one application form. Do NOT click on "Easy Apply" buttons in job listings, do NOT click links that navigate away from the goal URL. You MAY scroll within the page to reach form fields (scroll action), but never to explore other content.
 
 INPUT
 You receive each turn:
-- snapshot: { url, title, pageType, fields[ { id, label, type, required, options, currentValue } ], buttons[ { id, text } ], bodyText, ssoProviders[] }
-- screenshot: (optional) PNG of the visible tab — use it to disambiguate when the DOM is unclear.
+- snapshot: { url, title, pageType, ats, fields[ { id, label, type, required, options, currentValue, checked, custom, rect } ], fileFields[ { id, label, accept, required, currentFile } ], buttons[ { id, text } ], bodyText, ssoProviders[], scroll: { y, max, viewportH } }
+- screenshot: (optional) PNG of the visible tab — use it to disambiguate when the DOM is unclear. The screenshot shows only the visible viewport; snapshot.scroll tells you if more page exists below (scroll.y < scroll.max).
 - goal: { originalUrl, originalTitle, pinned: { host, jobId? } }
 - drift: present when the tab has wandered off goal
 - jobContext: the user's intent (title, company, description, sourceUrl)
@@ -52,18 +56,30 @@ You receive each turn:
 - history: previous actions + their results
 - userAnswers: answers to previous ask_user prompts
 
-OUTPUT — strict JSON, ONE action:
+OUTPUT — strict JSON:
 {
-  "action": {
-    "type": "fill"|"select_resume"|"tailor"|"needs_login"|"use_google_signin"|"click"|"ask_user"|"submit"|"done",
-    ...(action-specific fields)
-  },
+  "action": { "type": "...", ...action-specific fields },
+  "actions": [ ...optional ordered follow-ups for the SAME form step... ],
   "confidence": 0..1,
   "reasoning": "<one short sentence>",
   "selectedResumeId": "<id if known>"
 }
 
-Click actions MUST use selector "text:<exact button label>" — only these labels are allowed: Next, Continue, Review, Apply, Easy Apply, Submit, Submit application, Send, I agree, I accept, Save. Anything else will be refused by the executor.
+ACTION TYPES
+- fill { fields: {fieldId: value} } — text inputs/textareas only.
+- set_checkbox { fieldId, checked } — consent boxes, agreements. Check required consent boxes; never check marketing opt-ins unless required.
+- select_option { fieldId, value } — native selects, custom comboboxes, radio groups. Use the visible option text as value.
+- upload_resume { fieldId, resumeId? } — attach the user's resume PDF to a file input from snapshot.fileFields. Use the selected/tailored resumeId when known.
+- scroll { direction?, toFieldId? } — bring below-fold fields into view (the next screenshot will show them).
+- click { selector: "text:<label>" } — form-progression buttons only (allowlist below).
+- click_at { x, y, fieldId } — LAST-RESORT click at coordinates INSIDE the named field's rect, for custom widgets select_option couldn't drive. Refused outside the rect.
+- type_text { text } / press_key { key } — only immediately after click_at opened a widget.
+- select_resume / tailor / needs_login / use_google_signin / ask_user / submit / done — unchanged semantics.
+
+BATCHING
+- When a step has several independent inputs (e.g. 5 text fields + 1 consent checkbox), return the first action in "action" and the rest in "actions" — they execute in order with verification between each. Do NOT batch across a step boundary (never include click Next in a batch after fills; wait for the next turn to confirm the fills stuck).
+
+Click actions MUST use selector "text:<exact button label>" — allowed labels: ${allowedButtonsForPrompt()}. Anything else will be refused by the executor.
 
 CRITICAL FILL BEHAVIOUR
 - Before deciding, scan every field for non-empty currentValue — those are DONE. Do NOT include them in fill and do NOT ask_user about them.
@@ -83,8 +99,10 @@ CRITICAL FILL BEHAVIOUR
   - Summary / About → resume.summary
 - Only ask_user when the resume genuinely lacks the value AND it can't be derived.
 - ALWAYS ask_user for yes/no eligibility (work authorization, sponsorship, salary expectation, start date, citizenship, willingness to relocate, notice period, veteran status, disability disclosure).
-- For select / radio: fill only when one option clearly matches; else ask_user.
-- File uploads: skip. Return done with a message that the user should attach the resume PDF manually.
+- For select / radio: use select_option when one option clearly matches; else ask_user.
+- Required consent checkboxes ("I agree to the privacy policy"): set_checkbox checked=true. Optional marketing opt-ins: leave unchecked.
+- File uploads: when snapshot.fileFields shows a resume/CV upload, use upload_resume with that fieldId (and the selected resume's id). Do NOT skip it — the application cannot be completed without the resume. Only if upload_resume failed twice, ask the user to attach manually via done.
+- If a history entry shows a fill "did not stick", retry that field ONCE via the click_at + type_text path before asking the user.
 
 RESUME SELECTION
 - If a tailored resume in the list clearly matches the job, select_resume with its id.
@@ -100,7 +118,25 @@ STUCK?
 - If you've taken the same action twice with no change, return done with a clear message asking the user to review the form.`;
 
 function isAllowedAction(t: string): boolean {
-  return ["fill", "select_resume", "tailor", "needs_login", "use_google_signin", "click", "ask_user", "submit", "done"].includes(t);
+  return [
+    "fill",
+    "select_resume",
+    "tailor",
+    "needs_login",
+    "use_google_signin",
+    "click",
+    "ask_user",
+    "submit",
+    "done",
+    // v0.4+ vocabulary
+    "upload_resume",
+    "set_checkbox",
+    "select_option",
+    "scroll",
+    "click_at",
+    "type_text",
+    "press_key",
+  ].includes(t);
 }
 
 function clampConfidence(n: number): number {
@@ -112,7 +148,7 @@ function trimSnapshot(snapshot: any): any {
   return {
     ...snapshot,
     fields: Array.isArray(snapshot.fields)
-      ? snapshot.fields.slice(0, 80).map((f: any) => ({
+      ? snapshot.fields.slice(0, 100).map((f: any) => ({
           id: f.id,
           label: (f.label || "").slice(0, 200),
           type: f.type,
@@ -120,13 +156,45 @@ function trimSnapshot(snapshot: any): any {
           options: Array.isArray(f.options) ? f.options.slice(0, 30) : undefined,
           placeholder: f.placeholder?.slice(0, 100),
           currentValue: f.currentValue?.slice(0, 200),
+          checked: typeof f.checked === "boolean" ? f.checked : undefined,
+          custom: f.custom || undefined,
+          rect: f.rect,
         }))
       : [],
+    fileFields: Array.isArray(snapshot.fileFields)
+      ? snapshot.fileFields.slice(0, 10).map((f: any) => ({
+          id: f.id,
+          label: (f.label || "").slice(0, 200),
+          accept: f.accept?.slice(0, 100),
+          required: !!f.required,
+          currentFile: f.currentFile?.slice(0, 100),
+        }))
+      : undefined,
     buttons: Array.isArray(snapshot.buttons)
       ? snapshot.buttons.slice(0, 30)
       : [],
     bodyText: (snapshot.bodyText || "").slice(0, 3000),
   };
+}
+
+/** Validate an optional follow-up batch: every entry must be an allowed,
+ * non-terminal page action (no submit/done/ask_user inside a batch). */
+function sanitizeBatch(raw: any): any[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const PAGE_ACTIONS = new Set([
+    "fill",
+    "set_checkbox",
+    "select_option",
+    "upload_resume",
+    "scroll",
+    "click_at",
+    "type_text",
+    "press_key",
+  ]);
+  const out = raw
+    .filter((a) => a && typeof a === "object" && PAGE_ACTIONS.has(a.type))
+    .slice(0, 8);
+  return out.length ? out : undefined;
 }
 
 export async function POST(req: Request) {
@@ -192,8 +260,11 @@ export async function POST(req: Request) {
     try {
       const resp = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,
-        max_tokens: 1024,
-        system: SYSTEM,
+        max_tokens: 2048, // batches need more room than single actions
+        // Prompt caching: the system prompt is large and identical across all
+        // turns/users — cache it so multi-turn applications get ~90% off
+        // input-token cost on every turn after the first.
+        system: [{ type: "text" as const, text: SYSTEM, cache_control: { type: "ephemeral" as const } }],
         messages: [
           {
             role: "user",
@@ -258,6 +329,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     action,
+    actions: sanitizeBatch(aiOut?.actions),
     confidence: clampConfidence(typeof aiOut?.confidence === "number" ? aiOut.confidence : 0.7),
     reasoning: typeof aiOut?.reasoning === "string" ? aiOut.reasoning : undefined,
     selectedResumeId:

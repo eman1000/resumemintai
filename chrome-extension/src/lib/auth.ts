@@ -13,7 +13,9 @@ export async function setStoredAuth(auth: StoredAuth | null): Promise<void> {
 
 export async function getSettings(): Promise<Settings> {
   const out = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-  return (out[STORAGE_KEYS.SETTINGS] as Settings) || { autoSubmit: false };
+  return (
+    (out[STORAGE_KEYS.SETTINGS] as Settings) || { autoSubmit: false, sendScreenshot: true }
+  );
 }
 
 export async function setSettings(s: Settings): Promise<void> {

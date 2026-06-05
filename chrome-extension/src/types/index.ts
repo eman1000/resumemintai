@@ -43,7 +43,12 @@ export type ExtensionMessage =
   | { type: "LOG_APPLY"; ats: string; jobUrl: string; jobSnapshot?: any }
   // Agent loop messages (side panel ↔ content script)
   | { type: "AGENT_SNAPSHOT" }
-  | { type: "AGENT_EXECUTE"; action: AgentAction }
+  | {
+      type: "AGENT_EXECUTE";
+      action: AgentAction;
+      /** Rendered resume PDF for upload_resume actions. */
+      filePayload?: { base64: string; filename: string };
+    }
   | { type: "AGENT_CLICK_GOOGLE_SIGNIN" }
   // Sent from /extension/connect on resumemintai.com via externally_connectable
   | { type: "EXTENSION_TOKEN"; token: string; user: { email: string; uid: string } };
@@ -70,6 +75,9 @@ export const STORAGE_KEYS = {
 
 export type Settings = {
   autoSubmit: boolean; // default false
+  /** Send a screenshot of the page to the planner. Default true — required
+   * for vision planning; privacy-sensitive users can turn it off (G12). */
+  sendScreenshot?: boolean;
 };
 
 // ---- Agent loop -----------------------------------------------------------
@@ -83,6 +91,29 @@ export type AgentField = {
   options?: string[]; // for select/radio
   placeholder?: string;
   currentValue?: string;
+  /** For checkbox/radio: current checked state. */
+  checked?: boolean;
+  /** True when this is a custom (non-native) control — combobox/listbox/etc.
+   * Tells the planner select_option may need the click-driven path. */
+  custom?: boolean;
+  /** Viewport rect (x,y,w,h) — lets the planner aim gated click_at actions
+   * and reason about what the screenshot shows. */
+  rect?: { x: number; y: number; w: number; h: number };
+  /** Which frame this field lives in ("top" or the frame's rm token). */
+  frameId?: number;
+};
+
+/** File-upload input discovered on the page (kept separate from `fields`
+ * so the click-allowlist and fill logic never touch them). */
+export type AgentFileField = {
+  id: string;
+  label: string;
+  /** The input's accept attribute, e.g. ".pdf,.doc,.docx". */
+  accept?: string;
+  required?: boolean;
+  /** Name of the file already attached, if any. */
+  currentFile?: string;
+  frameId?: number;
 };
 
 /** Slimmed page snapshot the side panel sends to /api/extension/agent. */
@@ -92,12 +123,18 @@ export type AgentSnapshot = {
   /** "application_form" | "login" | "post_submit" | "unknown" — content-script's best guess. */
   pageType: string;
   fields: AgentField[];
+  /** File-upload inputs (resume attach etc.) — separate from fields. */
+  fileFields?: AgentFileField[];
   /** Visible button labels (subset; helps the LLM choose which to click). */
-  buttons: Array<{ id: string; text: string }>;
+  buttons: Array<{ id: string; text: string; frameId?: number }>;
   /** First ~2000 chars of relevant page text. */
   bodyText: string;
   /** "Sign in with Google"-style provider buttons the agent can request a click on. */
   ssoProviders?: Array<"google" | "linkedin" | "github" | "apple" | "microsoft">;
+  /** Detected ATS ("greenhouse" | "lever" | …) — stable hint for the planner. */
+  ats?: string | null;
+  /** Scroll state so the planner knows whether content exists below the fold. */
+  scroll?: { y: number; max: number; viewportH: number };
 };
 
 /** Job context the user attaches to this agent run. */
@@ -141,7 +178,31 @@ export type AgentAction =
       }>;
     }
   | { type: "submit"; confidence: number }
-  | { type: "done"; message?: string };
+  | { type: "done"; message?: string }
+  // ---- v0.4+ vocabulary ----------------------------------------------------
+  /** Attach the user's resume PDF to a file input. The side panel fetches the
+   * rendered PDF from the server and hands the bytes to the executor. */
+  | { type: "upload_resume"; fieldId: string; resumeId?: string }
+  /** Tick/untick a checkbox (consent boxes etc.). */
+  | { type: "set_checkbox"; fieldId: string; checked: boolean }
+  /** Choose an option in a native OR custom dropdown / radio group. */
+  | { type: "select_option"; fieldId: string; value: string }
+  /** Scroll the page (or to a specific field) so below-fold content becomes
+   * visible to the next screenshot. NEVER navigates. */
+  | { type: "scroll"; direction?: "down" | "up"; toFieldId?: string }
+  /** GATED escape hatch: click at viewport coordinates. Only honoured when
+   * the point falls inside a rect the snapshot reported for a known field
+   * (custom widgets the DOM executor can't drive). */
+  | { type: "click_at"; x: number; y: number; fieldId: string; reason?: string }
+  /** Type literal text into the currently-focused element (after click_at
+   * opened a custom combobox, for example). */
+  | { type: "type_text"; text: string }
+  /** Press a single key (Enter, Escape, ArrowDown, Tab). */
+  | { type: "press_key"; key: "Enter" | "Escape" | "ArrowDown" | "ArrowUp" | "Tab" };
+
+/** Ordered multi-action plan — server may return this instead of a single
+ * action to cut round-trips (fill 6 fields + tick consent in one turn). */
+export type AgentActionBatch = AgentAction[];
 
 /** What the side panel POSTs to /api/extension/agent each turn. */
 export type AgentRequest = {
@@ -166,6 +227,9 @@ export type AgentRequest = {
 /** Response from /api/extension/agent. */
 export type AgentResponse = {
   action: AgentAction;
+  /** Optional ordered follow-up actions executed client-side after `action`
+   * (same turn, settle+verify between each). Server batching (v0.5). */
+  actions?: AgentAction[];
   confidence: number; // 0..1
   reasoning?: string;
   /** Which resume the agent thinks should be used (for the side panel to display). */

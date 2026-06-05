@@ -13,7 +13,14 @@
 //      - done → exit.
 //   4. Loop until done, ask_user, needs_login, or hard error.
 
-import { agentPlan, fetchResume, fetchResumes, type ResumeSummary } from "../lib/api";
+import {
+  agentPlan,
+  fetchResume,
+  fetchResumePdf,
+  fetchResumes,
+  logApply,
+  type ResumeSummary,
+} from "../lib/api";
 import type {
   AgentAction,
   AgentGoal,
@@ -72,6 +79,8 @@ export type AgentLoopOptions = {
   chromeEmail?: string;
   /** Allow auto-submit when LLM confidence ≥ 0.95. Mirrors user setting. */
   autoSubmit: boolean;
+  /** Send page screenshots to the planner (vision). Defaults to true. */
+  sendScreenshot?: boolean;
   /** Called for every loop event so the side panel can render. */
   onEvent: (e: AgentEvent) => void;
   /** Side panel sets this to a Promise that resolves with answers when the user submits. */
@@ -109,25 +118,117 @@ async function getCurrentTabUrl(tabId: number): Promise<string> {
   }
 }
 
-async function snapshotTab(tabId: number): Promise<AgentSnapshot> {
-  const resp = (await chrome.tabs.sendMessage(tabId, { type: "AGENT_SNAPSHOT" })) as
-    | { ok: boolean; snapshot?: AgentSnapshot; error?: string }
-    | undefined;
-  if (!resp?.ok || !resp.snapshot) {
-    throw new Error(resp?.error || "snapshot_failed");
+/** All frames in the tab that have our content script (top + ATS iframes). */
+async function listFrames(tabId: number): Promise<number[]> {
+  try {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+    return (frames || [])
+      .filter((f) => /^https?:/.test(f.url))
+      .map((f) => f.frameId);
+  } catch {
+    return [0];
   }
-  return resp.snapshot;
+}
+
+/** Snapshot every reachable frame and merge: the frame with the most fields
+ * is usually the application form (Greenhouse embed, Workday iframe). Fields
+ * carry their frameId so actions route back to the right frame (G4). */
+async function snapshotTab(
+  tabId: number,
+): Promise<AgentSnapshot & { __frameId: number }> {
+  const frameIds = await listFrames(tabId);
+  const snaps: Array<{ frameId: number; snapshot: AgentSnapshot }> = [];
+  for (const frameId of frameIds) {
+    try {
+      const resp = (await chrome.tabs.sendMessage(
+        tabId,
+        { type: "AGENT_SNAPSHOT" },
+        { frameId },
+      )) as { ok: boolean; snapshot?: AgentSnapshot; error?: string } | undefined;
+      if (resp?.ok && resp.snapshot) snaps.push({ frameId, snapshot: resp.snapshot });
+    } catch {
+      // Frame without our content script (cross-origin we lack permission
+      // for, about:blank, etc.) — skip.
+    }
+  }
+  if (!snaps.length) throw new Error("snapshot_failed");
+
+  // Primary frame = the one with the most form fields (top frame wins ties).
+  snaps.sort(
+    (a, b) =>
+      b.snapshot.fields.length +
+      (b.snapshot.fileFields?.length || 0) * 2 -
+      (a.snapshot.fields.length + (a.snapshot.fileFields?.length || 0) * 2),
+  );
+  const primary = snaps[0];
+  const top = snaps.find((s) => s.frameId === 0) || primary;
+
+  // Merge: primary frame's form + top frame's url/title/context.
+  const merged: AgentSnapshot & { __frameId: number } = {
+    ...primary.snapshot,
+    url: top.snapshot.url,
+    title: top.snapshot.title,
+    bodyText: primary.snapshot.bodyText || top.snapshot.bodyText,
+    fields: primary.snapshot.fields.map((f) => ({ ...f, frameId: primary.frameId })),
+    fileFields: primary.snapshot.fileFields?.map((f) => ({
+      ...f,
+      frameId: primary.frameId,
+    })),
+    buttons: [
+      ...primary.snapshot.buttons.map((b) => ({ ...b, frameId: primary.frameId })),
+      // Keep top-frame buttons too (e.g. cookie banners are top-frame).
+      ...(primary.frameId !== 0
+        ? top.snapshot.buttons.slice(0, 10).map((b) => ({ ...b, frameId: 0 }))
+        : []),
+    ],
+    __frameId: primary.frameId,
+  };
+  return merged;
 }
 
 async function executeOnTab(
   tabId: number,
   action: AgentAction,
+  frameId = 0,
+  filePayload?: { base64: string; filename: string },
 ): Promise<{ ok: boolean; note?: string }> {
-  const resp = (await chrome.tabs.sendMessage(tabId, {
-    type: "AGENT_EXECUTE",
-    action,
-  })) as { ok: boolean; note?: string } | undefined;
-  return resp || { ok: false, note: "no response" };
+  try {
+    const resp = (await chrome.tabs.sendMessage(
+      tabId,
+      { type: "AGENT_EXECUTE", action, filePayload },
+      { frameId },
+    )) as { ok: boolean; note?: string } | undefined;
+    return resp || { ok: false, note: "no response" };
+  } catch (e: any) {
+    return { ok: false, note: e?.message || "frame unreachable" };
+  }
+}
+
+/** Route an action to the frame that owns its target field. */
+function frameForAction(
+  action: AgentAction,
+  snapshot: AgentSnapshot & { __frameId: number },
+): number {
+  const fieldId =
+    (action as any).fieldId ||
+    ((action as any).fields ? Object.keys((action as any).fields)[0] : undefined) ||
+    (action as any).toFieldId;
+  if (fieldId) {
+    const f =
+      snapshot.fields.find((x) => x.id === fieldId) ||
+      snapshot.fileFields?.find((x) => x.id === fieldId);
+    if (f?.frameId !== undefined) return f.frameId;
+  }
+  if (action.type === "click") {
+    const label = action.selector.startsWith("text:")
+      ? action.selector.slice(5).trim().toLowerCase()
+      : action.selector;
+    const b = snapshot.buttons.find(
+      (x) => x.text.trim().toLowerCase() === label || x.id === action.selector,
+    );
+    if (b?.frameId !== undefined) return b.frameId;
+  }
+  return snapshot.__frameId;
 }
 
 async function tailorNow(
@@ -192,7 +293,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
       return;
     }
 
-    let snapshot: AgentSnapshot;
+    let snapshot: AgentSnapshot & { __frameId: number };
     try {
       snapshot = await snapshotTab(opts.tabId);
       opts.onEvent({ kind: "snapshot", snapshot });
@@ -202,11 +303,16 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
     }
 
     // No-progress detection: if the snapshot's "signature" (fields + filled
-    // count + url) hasn't changed for several turns, we're stuck.
+    // count + url) hasn't changed for several turns, we're stuck. Includes
+    // checkbox state, file attachment, and scroll position so the new action
+    // types register as progress.
     const signature = JSON.stringify({
       url: currentUrl,
       fieldIds: snapshot.fields.map((f) => f.id).sort(),
       filled: snapshot.fields.filter((f) => f.currentValue).length,
+      checked: snapshot.fields.filter((f) => f.checked).length,
+      files: (snapshot.fileFields || []).filter((f) => f.currentFile).length,
+      scrollY: snapshot.scroll?.y ?? 0,
     });
     if (signature === lastSignature) {
       noProgressStreak++;
@@ -224,7 +330,9 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
 
     // Vision: capture a screenshot of the visible tab so a vision-aware
     // planner (Claude Sonnet) can see what the user sees. Best-effort.
-    const screenshot = await captureScreenshot();
+    // Privacy setting can disable it (G12) — the planner falls back to DOM.
+    const screenshot =
+      opts.sendScreenshot === false ? undefined : await captureScreenshot();
 
     // Fetch the resume + resumes list each turn. Both are cached on the
     // server side so this is cheap; we re-read in case a previous "tailor"
@@ -262,6 +370,41 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
 
     const { action, confidence, reasoning } = plan;
     opts.onEvent({ kind: "action", action, reasoning, confidence });
+
+    /** Execute one page action, routing to its frame and fetching the PDF
+     * payload for upload_resume. Shared by the single-action path and the
+     * batched-actions path. */
+    const execPageAction = async (
+      a: AgentAction,
+    ): Promise<{ ok: boolean; note?: string }> => {
+      const frameId = frameForAction(a, snapshot);
+      if (a.type === "upload_resume") {
+        try {
+          const pdf = await fetchResumePdf(a.resumeId || selectedResumeId);
+          return await executeOnTab(opts.tabId, a, frameId, pdf);
+        } catch (e: any) {
+          return { ok: false, note: e?.message || "resume_pdf_failed" };
+        }
+      }
+      return await executeOnTab(opts.tabId, a, frameId);
+    };
+
+    /** Log the completed application to the user's tracker (G11). */
+    const logCompletion = async () => {
+      try {
+        const ats = snapshot.ats || parseGoalFromUrl(goal.originalUrl).host || "unknown";
+        await logApply({
+          ats: String(ats),
+          jobUrl: goal.originalUrl,
+          jobSnapshot: {
+            title: opts.jobContext?.title || goal.originalTitle,
+            company: opts.jobContext?.company,
+          },
+        });
+      } catch {
+        // Non-fatal — tracking only.
+      }
+    };
 
     switch (action.type) {
       case "ask_user": {
@@ -342,21 +485,44 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<void> {
           history.push({ action, result: "skipped", note: "auto-submit blocked" });
           return;
         }
-        const result = await executeOnTab(opts.tabId, action);
+        const result = await executeOnTab(opts.tabId, action, snapshot.__frameId);
         opts.onEvent({ kind: "executed", ...result });
+        if (result.ok) await logCompletion();
         opts.onEvent({ kind: "done", message: result.ok ? "Submitted." : "Submit failed — please click manually." });
         return;
       }
       case "done": {
+        // If the page looks submitted, log the application (G11).
+        if (snapshot.pageType === "post_submit") await logCompletion();
         opts.onEvent({ kind: "done", message: action.message });
         history.push({ action, result: "success" });
         return;
       }
       case "fill":
-      case "click": {
-        const result = await executeOnTab(opts.tabId, action);
+      case "click":
+      case "upload_resume":
+      case "set_checkbox":
+      case "select_option":
+      case "scroll":
+      case "click_at":
+      case "type_text":
+      case "press_key": {
+        const result = await execPageAction(action);
         opts.onEvent({ kind: "executed", ...result });
         history.push({ action, result: result.ok ? "success" : "failed", note: result.note });
+
+        // BATCHED follow-ups (v0.5): execute same-step actions in order,
+        // stopping at the first failure so the planner can reassess.
+        for (const followUp of plan.actions || []) {
+          const r = await execPageAction(followUp);
+          opts.onEvent({ kind: "executed", ...r });
+          history.push({
+            action: followUp,
+            result: r.ok ? "success" : "failed",
+            note: r.note,
+          });
+          if (!r.ok) break;
+        }
         break;
       }
     }

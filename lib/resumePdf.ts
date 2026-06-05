@@ -7,6 +7,10 @@
 
 async function launchBrowser() {
   try {
+    // @sparticuz/chromium ships a LINUX binary — correct on Vercel, but on a
+    // local mac/windows dev machine it extracts an unrunnable Chromium and
+    // the render hangs until timeout. Only use it on Linux.
+    if (process.platform !== 'linux') throw new Error('local dev: use full puppeteer');
     const chromium = await import('@sparticuz/chromium');
     const puppeteerCore = await import('puppeteer-core');
     const executablePath = await chromium.default.executablePath();
@@ -46,11 +50,12 @@ export async function renderResumePdfFromId({
   try {
     const page = await browser.newPage();
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20_000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
 
     // Print client sets document.title to PRINT_READY once the resume has
-    // had one paint to settle.
-    await page.waitForFunction(() => document.title === 'PRINT_READY', { timeout: 10_000 });
+    // had one paint to settle. 30s, not 10s: x64-Node-under-Rosetta dev
+    // machines render Chrome through translation and routinely take >10s.
+    await page.waitForFunction(() => document.title === 'PRINT_READY', { timeout: 30_000 });
 
     // Fonts + images settle.
     await page.evaluate(async () => {

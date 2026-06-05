@@ -97,6 +97,20 @@ export async function agentPlan(
   return (await r.json()) as AgentResponse;
 }
 
+/** Fetch the user's resume rendered as a PDF (for upload_resume actions).
+ * Metered server-side (extension-resume-pdf feature). */
+export async function fetchResumePdf(
+  resumeId?: string,
+): Promise<{ filename: string; base64: string }> {
+  const qs = resumeId ? `?resumeId=${encodeURIComponent(resumeId)}` : "";
+  const r = await authedFetch(`/api/extension/resume-pdf${qs}`);
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j?.detail || j?.error || "resume_pdf_failed");
+  }
+  return (await r.json()) as { filename: string; base64: string };
+}
+
 export async function logApply(args: {
   ats: string;
   jobUrl: string;

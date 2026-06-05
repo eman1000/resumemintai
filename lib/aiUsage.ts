@@ -20,7 +20,8 @@ export type AiFeature =
   | 'ats-optimize'
   | 'section-suggest'
   | 'extension-fill'
-  | 'extension-agent';
+  | 'extension-agent'
+  | 'extension-resume-pdf';
 
 type Limit = { day: number; month: number };
 
@@ -41,6 +42,9 @@ const LIMITS: Record<AiFeature, Limit> = {
   // Chrome extension: agent loop turns (gpt-4o-mini, multi-turn).
   // Each application is typically 3–8 turns, so cap at ~30 applications/day.
   'extension-agent':     { day: 250, month: 3000 },
+  // Chrome extension: Puppeteer PDF render for upload_resume. Heavyweight
+  // (full headless-Chrome render) — one per application is the normal rate.
+  'extension-resume-pdf': { day: 40, month: 400 },
 };
 
 export function getAiLimit(feature: AiFeature): Limit {

@@ -20,11 +20,12 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, _sender, sendRespon
     }
     return false;
   }
-  // Agent loop: execute one action
+  // Agent loop: execute one action. For upload_resume the side panel sends
+  // the rendered PDF along with the action (base64 + filename).
   if (msg.type === "AGENT_EXECUTE") {
     (async () => {
       try {
-        const result = await executeAction(msg.action);
+        const result = await executeAction(msg.action, (msg as any).filePayload);
         sendResponse(result);
       } catch (e: any) {
         sendResponse({ ok: false, note: e?.message || String(e) });
@@ -61,6 +62,9 @@ chrome.runtime.onMessage.addListener((msg: ExtensionMessage, _sender, sendRespon
 
 // ---- Floating helper button on the page --------------------------------
 (function injectFloatingButton() {
+  // With all_frames:true the content script runs in every iframe — only the
+  // top frame should show the button (the agent still reaches iframe forms).
+  if (window !== window.top) return;
   if ((window as any).__rmInjected) return;
   (window as any).__rmInjected = true;
 
