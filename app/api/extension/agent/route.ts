@@ -103,6 +103,12 @@ CRITICAL FILL BEHAVIOUR
 - Required consent checkboxes ("I agree to the privacy policy"): set_checkbox checked=true. Optional marketing opt-ins: leave unchecked.
 - File uploads: when snapshot.fileFields shows a resume/CV upload, use upload_resume with that fieldId (and the selected resume's id). Do NOT skip it — the application cannot be completed without the resume. Only if upload_resume failed twice, ask the user to attach manually via done.
 - IMPORTANT: if a previous upload_resume reported failure BUT the file field has since disappeared from snapshot.fileFields (or now shows currentFile), the upload actually succeeded — the ATS consumed the file. Treat it as done and move on; do NOT retry the upload.
+
+LINKEDIN EASY APPLY SPECIFICS (snapshot.ats === "linkedin")
+- The flow is a multi-step modal: Next → Next → Review → Submit application.
+- The resume step may show previously-uploaded resumes as selectable cards. If a resume card is already selected (or one matches the user's resume title), proceed WITHOUT uploading a duplicate. Only upload_resume when no resume is attached/selected.
+- LinkedIn pre-fills email/phone from the user's LinkedIn profile — fields with currentValue are done, leave them.
+- Their questions step ("additional questions") is where ask_user applies most — salary, notice period, work authorization.
 - If a history entry shows a fill "did not stick", retry that field ONCE via the click_at + type_text path before asking the user.
 
 RESUME SELECTION
