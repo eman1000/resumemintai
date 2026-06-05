@@ -23,7 +23,10 @@ export type ComputerAction =
   | { action: "hold_key"; text: string; duration: number }
   | { action: "scroll"; coordinate: [number, number]; scroll_direction: "up" | "down" | "left" | "right"; scroll_amount: number }
   | { action: "wait"; duration: number }
-  | { action: "cursor_position" };
+  | { action: "cursor_position" }
+  // Set-of-marks (element-targeted) — reliable; preferred over coordinates.
+  | { action: "click_element"; index: number }
+  | { action: "type_in_element"; index: number; text: string };
 
 const DEBUGGER_VERSION = "1.3";
 
@@ -144,6 +147,97 @@ export class CdpSession {
     });
     this.resumePath = path;
     return path;
+  }
+
+  /** Interactive elements on the page, discovered fresh each turn. Index in
+   * this array is the "mark" the model selects (set-of-marks). Rects are in
+   * CSS px (viewport-relative). */
+  marks: Array<{ idx: number; label: string; role: string; x: number; y: number; w: number; h: number }> = [];
+
+  /** Enumerate clickable/typeable elements (set-of-marks). Runs in the page
+   * via Runtime.evaluate so it pierces shadow DOM and same-origin iframes,
+   * returns viewport-relative CSS-px rects + a label/role for each. */
+  async enumerateElements(): Promise<typeof this.marks> {
+    const expression = `(() => {
+      const out = [];
+      const SEL = "a[href], button, input:not([type=hidden]), select, textarea, [role=button], [role=link], [role=checkbox], [role=radio], [role=combobox], [role=tab], [role=menuitem], [contenteditable=true], label, summary";
+      const seen = new Set();
+      function visible(el){
+        const r = el.getBoundingClientRect();
+        if (r.width < 4 || r.height < 4) return null;
+        if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return null;
+        const s = getComputedStyle(el);
+        if (s.visibility === "hidden" || s.display === "none" || s.opacity === "0") return null;
+        return r;
+      }
+      function label(el){
+        let t = (el.getAttribute("aria-label") || el.textContent || el.value || el.placeholder || el.getAttribute("title") || el.name || "").trim().replace(/\\s+/g, " ");
+        if (!t && el.tagName === "INPUT") t = (el.type || "text") + " field";
+        return t.slice(0, 80);
+      }
+      function walk(root){
+        let nodes;
+        try { nodes = root.querySelectorAll(SEL); } catch(e){ return; }
+        for (const el of nodes){
+          if (seen.has(el)) continue; seen.add(el);
+          const r = visible(el);
+          if (!r) continue;
+          out.push({
+            label: label(el),
+            role: el.getAttribute("role") || el.tagName.toLowerCase() + (el.type ? ":"+el.type : ""),
+            x: Math.round(r.left), y: Math.round(r.top),
+            w: Math.round(r.width), h: Math.round(r.height),
+          });
+        }
+        // shadow roots
+        root.querySelectorAll("*").forEach(el => { if (el.shadowRoot) walk(el.shadowRoot); });
+      }
+      walk(document);
+      // same-origin iframes (offset by their frame rect)
+      for (const f of document.querySelectorAll("iframe")){
+        try {
+          const doc = f.contentDocument; if (!doc) continue;
+          const fr = f.getBoundingClientRect();
+          const before = out.length;
+          walk(doc);
+          for (let i = before; i < out.length; i++){ out[i].x += Math.round(fr.left); out[i].y += Math.round(fr.top); }
+        } catch(e){ /* cross-origin */ }
+      }
+      return out;
+    })()`;
+    try {
+      const res = await this.send("Runtime.evaluate", {
+        expression,
+        returnByValue: true,
+      });
+      const raw = (res?.result?.value || []) as Array<any>;
+      this.marks = raw.slice(0, 120).map((m, idx) => ({ idx, ...m }));
+    } catch {
+      this.marks = [];
+    }
+    return this.marks;
+  }
+
+  /** Click the center of element #idx using trusted CDP input. */
+  async clickElement(idx: number): Promise<{ ok: boolean; note?: string }> {
+    const m = this.marks[idx];
+    if (!m) return { ok: false, note: `no element #${idx}` };
+    const x = m.x + m.w / 2;
+    const y = m.y + m.h / 2;
+    // Bring it into view first if it's near an edge, then click center.
+    if (this.filePayload) this.fileChooserArmed = true;
+    await this.click(Math.round(x), Math.round(y), "left", 1);
+    return { ok: true, note: `clicked #${idx} "${m.label}"` };
+  }
+
+  /** Focus element #idx and type into it (click center, select-all, type). */
+  async typeInElement(idx: number, text: string): Promise<{ ok: boolean; note?: string }> {
+    const m = this.marks[idx];
+    if (!m) return { ok: false, note: `no element #${idx}` };
+    await this.click(Math.round(m.x + m.w / 2), Math.round(m.y + m.h / 2), "left", 1);
+    await this.pressKey("ctrl+a");
+    await this.typeText(text);
+    return { ok: true, note: `typed into #${idx} "${m.label}"` };
   }
 
   send(method: string, params?: any): Promise<any> {
@@ -284,9 +378,9 @@ export class CdpSession {
     }
   }
 
-  /** Execute one computer-use action. Returns a screenshot for screenshot/
-   * action results, or null for actions that don't need one. */
-  async execute(a: ComputerAction): Promise<{ screenshot?: string }> {
+  /** Execute one computer-use action. May return a screenshot (for the
+   * screenshot action) and/or ok/note (for element actions). */
+  async execute(a: ComputerAction): Promise<{ screenshot?: string; ok?: boolean; note?: string }> {
     switch (a.action) {
       case "screenshot":
         return { screenshot: await this.screenshot() };
@@ -364,6 +458,14 @@ export class CdpSession {
         return {};
       case "cursor_position":
         return {};
+      case "click_element": {
+        const r = await this.clickElement(a.index);
+        return { note: r.note, ok: r.ok };
+      }
+      case "type_in_element": {
+        const r = await this.typeInElement(a.index, a.text);
+        return { note: r.note, ok: r.ok };
+      }
       default:
         return {};
     }

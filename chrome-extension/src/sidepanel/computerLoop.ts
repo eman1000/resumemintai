@@ -71,6 +71,7 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
 
     const goalUrl = opts.jobContext?.sourceUrl || "";
     const firstShot = await cdp.screenshot();
+    const firstMarks = await cdp.enumerateElements();
 
     // Seed the conversation: instructions + resume + first screenshot.
     const messages: Array<{ role: "user" | "assistant"; content: Block[] }> = [
@@ -88,7 +89,11 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
               "```json\n" +
               JSON.stringify(opts.resume, null, 2).slice(0, 6000) +
               "\n```\n\n" +
-              `Apply to this job. Start by taking a screenshot.`,
+              `Apply to this job. The screenshot below shows the page; the numbered ` +
+              `list is the clickable/typeable elements on it. PREFER click_element / ` +
+              `type_in_element with an element number — it's far more reliable than ` +
+              `pixel coordinates.\n\n` +
+              renderMarks(firstMarks),
           },
           {
             type: "image",
@@ -224,20 +229,20 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
             detail: describeAction(action),
           });
           try {
-            const { screenshot } = await cdp.execute(action);
-            // Settle a beat after page-changing actions, then snap.
-            const needsShot =
-              action.action !== "screenshot" &&
-              action.action !== "cursor_position" &&
-              action.action !== "mouse_move";
-            const shot =
-              action.action === "screenshot"
-                ? screenshot!
-                : needsShot
-                  ? (await wait(500), await cdp.screenshot())
-                  : undefined;
+            const execRes: any = await cdp.execute(action);
+            // Settle a beat after page-changing actions, then snap + re-enumerate.
+            const noViewChange =
+              action.action === "cursor_position" || action.action === "mouse_move";
             const resultContent: Block[] = [];
-            if (shot) {
+            if (!noViewChange) {
+              await wait(500);
+              const shot = action.action === "screenshot" && execRes.screenshot
+                ? execRes.screenshot
+                : await cdp.screenshot();
+              const marks = await cdp.enumerateElements();
+              const note =
+                execRes && typeof execRes.note === "string" ? execRes.note + "\n\n" : "";
+              resultContent.push({ type: "text", text: note + renderMarks(marks) });
               resultContent.push({
                 type: "image",
                 source: { type: "base64", media_type: "image/png", data: shot },
@@ -300,6 +305,17 @@ function wait(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Render the set-of-marks element list for the model. */
+function renderMarks(
+  marks: Array<{ idx: number; label: string; role: string; x: number; y: number; w: number; h: number }>,
+): string {
+  if (!marks.length) return "INTERACTIVE ELEMENTS: (none detected — use coordinates from the screenshot)";
+  const lines = marks
+    .map((m) => `#${m.idx} [${m.role}] "${m.label}"`)
+    .join("\n");
+  return `INTERACTIVE ELEMENTS (use click_element/type_in_element with the number):\n${lines}`;
+}
+
 function hostOf(url: string): string {
   try {
     return new URL(url).host;
@@ -309,6 +325,8 @@ function hostOf(url: string): string {
 }
 
 function describeAction(a: ComputerAction): string {
+  if (a.action === "click_element") return `click #${(a as any).index}`;
+  if (a.action === "type_in_element") return `type into #${(a as any).index}: ${(a as any).text?.slice(0, 40)}`;
   if ("coordinate" in a && a.coordinate) return `${a.action} @ (${a.coordinate[0]},${a.coordinate[1]})`;
   if (a.action === "type" || a.action === "key") return `${a.action}: ${(a as any).text?.slice(0, 40)}`;
   return a.action;

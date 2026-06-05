@@ -52,8 +52,11 @@ GOAL
 - Never start applying to a DIFFERENT job. If you find yourself on a search results page or a different posting, navigate back toward the goal application, or call task_complete explaining the situation.
 
 HOW TO WORK
-- You drive the page with the "computer" tool. A fresh screenshot of the current page is provided after every action, so you do NOT need to request screenshots explicitly — just look at the latest image and take the next action. Coordinates are in the SAME pixel space as the screenshot you are shown (its width/height are given with the tool). (0,0) is the top-left. Click the visual CENTER of buttons and fields.
-- Act one step at a time. If a click produced no visible change in the next screenshot, the target was likely slightly off — look carefully at where the element actually is and adjust your coordinates, don't just repeat the same point.
+- You drive the page with the "computer" tool. Each turn you get a screenshot AND a numbered "INTERACTIVE ELEMENTS" list of the clickable/typeable elements on the page.
+- STRONGLY PREFER element actions: click_element {index} and type_in_element {index, text}. They click the element's true center via trusted input and almost never miss. Match the element you want from the list (by its label/role) and use its number.
+- Use coordinate actions (left_click {coordinate}, type, scroll, key) ONLY when no list element matches what you see in the screenshot (e.g. a canvas, an unlabeled custom widget). Coordinates are in the same pixel space as the screenshot.
+- Act one step at a time. After each action you get a fresh screenshot + element list — verify the result before the next step. If an element action did nothing, re-read the updated list (the page may have changed) rather than blindly repeating.
+- Cookie/consent banners: find the Accept button in the element list and click_element it before proceeding.
 - Fill fields from the user's resume data (provided in the first message). Click into a field before typing. Use realistic, accurate values only — never invent employment history, dates, or credentials.
 - For dropdowns/comboboxes: click to open, then click the matching option.
 - Scroll to reach fields below the fold.
@@ -84,6 +87,10 @@ const COMPUTER_TOOL: Anthropic.Tool = {
       action: {
         type: "string",
         enum: [
+          // PREFERRED — reliable element-targeted actions (set-of-marks):
+          "click_element",
+          "type_in_element",
+          // Coordinate fallback (only when no element matches):
           "left_click",
           "right_click",
           "double_click",
@@ -96,12 +103,17 @@ const COMPUTER_TOOL: Anthropic.Tool = {
           "wait",
           "screenshot",
         ],
-        description: "The action to perform.",
+        description:
+          "The action. PREFER click_element/type_in_element with an element number from the INTERACTIVE ELEMENTS list — coordinate clicks are a last resort.",
+      },
+      index: {
+        type: "number",
+        description: "Element number (from the INTERACTIVE ELEMENTS list) for click_element / type_in_element.",
       },
       coordinate: {
         type: "array",
         items: { type: "number" },
-        description: "[x, y] target for click/move/scroll actions.",
+        description: "[x, y] target for coordinate-based click/move/scroll actions.",
       },
       start_coordinate: {
         type: "array",
