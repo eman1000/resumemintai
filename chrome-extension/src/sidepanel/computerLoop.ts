@@ -17,6 +17,7 @@ import { CdpSession, type ComputerAction } from "./cdp";
 export type ComputerEvent =
   | { kind: "thinking" }
   | { kind: "text"; text: string }
+  | { kind: "user_said"; text: string }
   | { kind: "action"; action: string; detail?: string }
   | { kind: "ask_user"; questions: Array<{ label: string; type?: string; options?: string[] }> }
   | { kind: "needs_login"; message?: string }
@@ -36,6 +37,9 @@ export type ComputerLoopOptions = {
   awaitLoginCompleted: () => Promise<void>;
   /** Resolve true to submit, false to stop, when auto-submit is off. */
   awaitSubmitConfirm: () => Promise<boolean>;
+  /** Drain any messages the user typed in the chat box since last turn. The
+   * loop injects them so the user can steer the agent while it works. */
+  drainUserMessages?: () => string[];
 };
 
 const MAX_TURNS = 40; // computer-use takes more, smaller steps than DOM
@@ -105,6 +109,23 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       opts.onEvent({ kind: "thinking" });
+
+      // Inject any chat messages the user typed while the agent was working,
+      // so they steer the very next decision (like Claude for Chrome).
+      const queued = opts.drainUserMessages?.() || [];
+      if (queued.length) {
+        const last = messages[messages.length - 1];
+        const note = {
+          type: "text",
+          text: "USER (live instruction): " + queued.join("\n"),
+        };
+        if (last && last.role === "user" && Array.isArray(last.content)) {
+          last.content.push(note);
+        } else {
+          messages.push({ role: "user", content: [note] });
+        }
+        for (const m of queued) opts.onEvent({ kind: "user_said", text: m });
+      }
 
       // Follow a newly-spawned tab (external apply opened a new tab).
       if (spawnedTabId) {

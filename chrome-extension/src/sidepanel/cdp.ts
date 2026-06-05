@@ -440,16 +440,35 @@ export class CdpSession {
         return {};
       }
       case "scroll": {
-        const { x, y } = this.scale(...a.coordinate);
+        const { x, y } = this.scale(...(a.coordinate || [this.cssW / 2, this.cssH / 2]));
         const dist = (a.scroll_amount || 3) * 100;
         const dx = a.scroll_direction === "left" ? -dist : a.scroll_direction === "right" ? dist : 0;
         const dy = a.scroll_direction === "up" ? -dist : a.scroll_direction === "down" ? dist : 0;
+        // Trusted wheel event at the point.
         await this.send("Input.dispatchMouseEvent", {
           type: "mouseWheel",
           x,
           y,
           deltaX: dx,
           deltaY: dy,
+        });
+        // Fallback: some sites scroll an inner container, not the window, and
+        // ignore synthetic wheel deltas. Programmatically scroll whatever
+        // scrollable ancestor is under the cursor (and the window) so the
+        // view actually moves. This is what unsticks pages the wheel can't.
+        await this.send("Runtime.evaluate", {
+          expression: `(() => {
+            const x=${x}, y=${y}, dx=${dx}, dy=${dy};
+            let el = document.elementFromPoint(x, y);
+            const scrollable = (n) => { while (n && n !== document.body) {
+              const s = getComputedStyle(n);
+              if (/(auto|scroll)/.test(s.overflowY + s.overflowX) && (n.scrollHeight > n.clientHeight || n.scrollWidth > n.clientWidth)) return n;
+              n = n.parentElement;
+            } return null; };
+            const target = scrollable(el);
+            if (target) { target.scrollBy(dx, dy); }
+            else { window.scrollBy(dx, dy); }
+          })()`,
         });
         return {};
       }

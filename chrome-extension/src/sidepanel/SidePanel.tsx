@@ -18,6 +18,12 @@ const COLORS = {
   line: "#e5e7eb",
 };
 
+function fmtElapsed(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
 const linkBtnStyle: React.CSSProperties = {
   background: "transparent",
   color: COLORS.meta,
@@ -43,6 +49,9 @@ export default function SidePanel() {
   // Agent state
   const [agentRunning, setAgentRunning] = useState(false);
   const [agentLog, setAgentLog] = useState<AgentEvent[]>([]);
+  const [elapsed, setElapsed] = useState(0); // seconds, while a run is active
+  const [chatInput, setChatInput] = useState("");
+  const userMsgQueueRef = useRef<string[]>([]);
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
@@ -167,6 +176,7 @@ export default function SidePanel() {
     setPendingQuestions(null);
     setPendingLogin(null);
     setPendingSubmit(null);
+    userMsgQueueRef.current = [];
 
     let resume: Record<string, any> = {};
     try {
@@ -193,6 +203,11 @@ export default function SidePanel() {
           new Promise<boolean>((resolve) => {
             submitConfirmResolverRef.current = resolve;
           }),
+        drainUserMessages: () => {
+          const msgs = userMsgQueueRef.current;
+          userMsgQueueRef.current = [];
+          return msgs;
+        },
       });
     } finally {
       setAgentRunning(false);
@@ -205,6 +220,24 @@ export default function SidePanel() {
     const r = submitConfirmResolverRef.current;
     submitConfirmResolverRef.current = null;
     r?.(go);
+  }
+
+  // Elapsed-time ticker while the agent runs.
+  useEffect(() => {
+    if (!agentRunning) return;
+    setElapsed(0);
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [agentRunning]);
+
+  function sendChat() {
+    const t = chatInput.trim();
+    if (!t) return;
+    userMsgQueueRef.current.push(t);
+    // Optimistically show it in the log immediately.
+    setAgentLog((prev) => [...prev, { kind: "user_said", text: t } as unknown as AgentEvent]);
+    setChatInput("");
   }
 
   function submitAnswers(answers: Record<string, string>) {
@@ -361,7 +394,12 @@ export default function SidePanel() {
             </Section>
 
             {(agentRunning || agentLog.length > 0) && (
-              <Section title={agentRunning ? "Agent — working" : "Agent — finished"}>
+              <Section
+                title={
+                  (agentRunning ? "Agent — working" : "Agent — finished") +
+                  (elapsed > 0 ? `  ·  ${fmtElapsed(elapsed)}` : "")
+                }
+              >
                 {pendingLogin && (
                   <LoginPrompt
                     providers={pendingLogin.providers}
@@ -402,6 +440,41 @@ export default function SidePanel() {
                   />
                 )}
                 <AgentLog events={agentLog} />
+                {agentRunning && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                    <input
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") sendChat();
+                      }}
+                      placeholder="Tell the agent something… (e.g. skip cover letter)"
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        padding: "8px 10px",
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 8,
+                        outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={sendChat}
+                      style={{
+                        background: COLORS.brand,
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "0 14px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                )}
               </Section>
             )}
 
@@ -611,6 +684,8 @@ function renderLogLine(ev: AgentEvent | ComputerEvent): string {
         : `• action: ${e.action.type}${e.reasoning ? ` — ${e.reasoning}` : ""}`;
     case "text":
       return `• ${e.text}`;
+    case "user_said":
+      return `🗣 you: ${e.text}`;
     case "banner":
       return e.on ? "• controlling the page (debugger attached)" : "• released the page";
     case "confirm_submit":
