@@ -111,6 +111,23 @@ export async function fetchResumePdf(
   return (await r.json()) as { filename: string; base64: string };
 }
 
+/** Computer-use planner turn. Sends the running message history; returns the
+ * assistant turn's content blocks (tool_use actions + text). */
+export async function computerPlan(req: {
+  messages: Array<{ role: "user" | "assistant"; content: any[] }>;
+  display?: { width: number; height: number };
+}): Promise<{ content: any[]; stopReason?: string; modelUsed?: string }> {
+  const r = await authedFetch("/api/extension/computer", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j?.detail || j?.error || "computer_failed");
+  }
+  return (await r.json()) as { content: any[]; stopReason?: string; modelUsed?: string };
+}
+
 export async function logApply(args: {
   ats: string;
   jobUrl: string;

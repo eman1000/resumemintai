@@ -7,16 +7,30 @@ import { defineManifest } from "@crxjs/vite-plugin";
 export default defineManifest({
   manifest_version: 3,
   name: "ResumeMint Apply",
-  version: "0.4.0",
-  description: "Auto-fill job application forms using your ResumeMint resume.",
+  version: "0.5.0",
+  description: "Apply to jobs on any site with an AI agent that controls the page like you would.",
   icons: { 16: "icons/16.png", 48: "icons/48.png", 128: "icons/128.png" },
   // Clicking the toolbar icon opens the side panel — no popup.
   action: { default_title: "ResumeMint Apply" },
   side_panel: { default_path: "src/sidepanel/index.html" },
   background: { service_worker: "src/background/service-worker.ts", type: "module" },
-  // webNavigation: lets the side panel enumerate a tab's frames so the agent
-  // can snapshot/execute inside ATS iframes (Greenhouse embeds, Workday).
-  permissions: ["storage", "activeTab", "scripting", "sidePanel", "tabs", "identity", "identity.email", "webNavigation"],
+  // webNavigation: enumerate frames for the DOM agent.
+  // debugger: CDP trusted-input for the computer-use agent (works on any
+  //   site that ignores synthetic events — Workday, custom portals).
+  // downloads: materialise the resume PDF on disk so native file choosers
+  //   can be satisfied via DOM.setFileInputFiles.
+  permissions: [
+    "storage",
+    "activeTab",
+    "scripting",
+    "sidePanel",
+    "tabs",
+    "identity",
+    "identity.email",
+    "webNavigation",
+    "debugger",
+    "downloads",
+  ],
   // <all_urls>: external-apply flows (LinkedIn "Responses managed off
   // LinkedIn") redirect to arbitrary company career sites — the agent
   // follows the redirect and injects its content script there on demand.

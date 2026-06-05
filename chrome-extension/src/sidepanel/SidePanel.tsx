@@ -3,6 +3,8 @@ import type { StoredAuth, FlatResume, AgentAction } from "../types";
 import { STORAGE_KEYS } from "../types";
 import { openConnectFlow, getSettings, setSettings } from "../lib/auth";
 import { runAgentLoop, type AgentEvent } from "./agentLoop";
+import { runComputerLoop, type ComputerEvent } from "./computerLoop";
+import { fetchResume } from "../lib/api";
 import type { ResumeSummary } from "../lib/api";
 
 const COLORS = {
@@ -13,6 +15,17 @@ const COLORS = {
   meta: "#52525a",
   pillBg: "#eaf3fc",
   border: "#e5e7eb",
+  line: "#e5e7eb",
+};
+
+const linkBtnStyle: React.CSSProperties = {
+  background: "transparent",
+  color: COLORS.meta,
+  border: "none",
+  cursor: "pointer",
+  fontSize: 11,
+  textDecoration: "underline",
+  padding: 0,
 };
 
 type ActiveTab = { url: string; title: string; id?: number } | null;
@@ -142,6 +155,58 @@ export default function SidePanel() {
     }
   }
 
+  // ---- Computer-use (CDP trusted input) agent --------------------------
+  const submitConfirmResolverRef = useRef<((go: boolean) => void) | null>(null);
+  const [pendingSubmit, setPendingSubmit] = useState<{ summary: string; confidence?: number } | null>(null);
+  const [debuggerBanner, setDebuggerBanner] = useState(false);
+
+  async function runComputerAgent() {
+    if (!activeTab?.id) return;
+    setAgentRunning(true);
+    setAgentLog([]);
+    setPendingQuestions(null);
+    setPendingLogin(null);
+    setPendingSubmit(null);
+
+    let resume: Record<string, any> = {};
+    try {
+      resume = (await fetchResume()) || {};
+    } catch {}
+
+    try {
+      await runComputerLoop({
+        tabId: activeTab.id,
+        autoSubmit,
+        selectedResumeId: undefined,
+        resume,
+        jobContext: { sourceUrl: activeTab.url, title: activeTab.title },
+        onEvent: (e) => setAgentLog((prev) => [...prev, e as unknown as AgentEvent]),
+        awaitAnswers: () =>
+          new Promise<Record<string, string>>((resolve) => {
+            answersResolverRef.current = resolve;
+          }),
+        awaitLoginCompleted: () =>
+          new Promise<void>((resolve) => {
+            loginResolverRef.current = resolve;
+          }),
+        awaitSubmitConfirm: () =>
+          new Promise<boolean>((resolve) => {
+            submitConfirmResolverRef.current = resolve;
+          }),
+      });
+    } finally {
+      setAgentRunning(false);
+      setDebuggerBanner(false);
+    }
+  }
+
+  function confirmSubmit(go: boolean) {
+    setPendingSubmit(null);
+    const r = submitConfirmResolverRef.current;
+    submitConfirmResolverRef.current = null;
+    r?.(go);
+  }
+
   function submitAnswers(answers: Record<string, string>) {
     setPendingQuestions(null);
     const r = answersResolverRef.current;
@@ -171,13 +236,23 @@ export default function SidePanel() {
     // Don't auto-continue — let the user complete the sign-in then click "I'm in".
   }
 
-  // React to ask_user / needs_login / ask_tailor_base events from the loop.
+  // React to ask_user / needs_login / ask_tailor_base / computer-use events.
   useEffect(() => {
-    const last = agentLog[agentLog.length - 1];
+    const last = agentLog[agentLog.length - 1] as AgentEvent | ComputerEvent | undefined;
     if (!last) return;
-    if (last.kind === "ask_user") setPendingQuestions(last.questions);
-    if (last.kind === "needs_login") setPendingLogin({ providers: last.providers, message: last.message, suggestGoogle: last.suggestGoogle });
-    if (last.kind === "ask_tailor_base") setPendingTailorChoice({ resumes: last.resumes, suggestedId: last.suggestedId });
+    if (last.kind === "ask_user") setPendingQuestions(last.questions as any);
+    if (last.kind === "needs_login")
+      setPendingLogin({
+        providers: (last as any).providers || [],
+        message: last.message,
+        suggestGoogle: (last as any).suggestGoogle,
+      });
+    if (last.kind === "ask_tailor_base")
+      setPendingTailorChoice({ resumes: (last as any).resumes, suggestedId: (last as any).suggestedId });
+    // Computer-use specific:
+    if (last.kind === "confirm_submit")
+      setPendingSubmit({ summary: (last as any).summary, confidence: (last as any).confidence });
+    if (last.kind === "banner") setDebuggerBanner((last as any).on);
   }, [agentLog]);
 
   async function refreshResume() {
@@ -248,23 +323,28 @@ export default function SidePanel() {
                     </Badge>
                   </div>
                   <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                    <PrimaryButton onClick={runAgent} disabled={agentRunning || filling}>
-                      {agentRunning ? "Agent running…" : "Apply with AI"}
+                    <PrimaryButton onClick={runComputerAgent} disabled={agentRunning || filling}>
+                      {agentRunning ? "Agent running…" : "Apply with AI (any site)"}
                     </PrimaryButton>
                   </div>
-                  <div style={{ marginTop: 6 }}>
+                  {debuggerBanner && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: COLORS.meta, lineHeight: 1.4 }}>
+                      Chrome shows a “ResumeMint Apply is debugging this browser” bar while the
+                      agent controls the page — that’s expected and disappears when it finishes.
+                    </div>
+                  )}
+                  <div style={{ marginTop: 8, display: "flex", gap: 12 }}>
+                    <button
+                      onClick={runAgent}
+                      disabled={filling || agentRunning}
+                      style={linkBtnStyle}
+                    >
+                      Form-fill mode (DOM)
+                    </button>
                     <button
                       onClick={fillCurrent}
                       disabled={filling || agentRunning}
-                      style={{
-                        background: "transparent",
-                        color: COLORS.meta,
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: 11,
-                        textDecoration: "underline",
-                        padding: 0,
-                      }}
+                      style={linkBtnStyle}
                     >
                       {filling ? "Filling…" : "Just fill (no AI loop)"}
                     </button>
@@ -293,6 +373,26 @@ export default function SidePanel() {
                 )}
                 {pendingQuestions && (
                   <QuestionForm questions={pendingQuestions} onSubmit={submitAnswers} />
+                )}
+                {pendingSubmit && (
+                  <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Ready to submit</div>
+                    <div style={{ fontSize: 12, color: COLORS.ink, marginBottom: 10, lineHeight: 1.4 }}>
+                      {pendingSubmit.summary}
+                      {typeof pendingSubmit.confidence === "number" && (
+                        <span style={{ color: COLORS.meta }}>
+                          {" "}
+                          (confidence {(pendingSubmit.confidence * 100).toFixed(0)}%)
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <PrimaryButton onClick={() => confirmSubmit(true)}>Submit application</PrimaryButton>
+                      <button onClick={() => confirmSubmit(false)} style={linkBtnStyle}>
+                        Stop, I’ll review
+                      </button>
+                    </div>
+                  </div>
                 )}
                 {pendingTailorChoice && (
                   <TailorBasePicker
@@ -497,22 +597,32 @@ function AgentLog({ events }: { events: AgentEvent[] }) {
   );
 }
 
-function renderLogLine(e: AgentEvent): string {
+function renderLogLine(ev: AgentEvent | ComputerEvent): string {
+  const e = ev as any;
   switch (e.kind) {
     case "thinking":
       return "• thinking…";
     case "snapshot":
       return `• read page (${e.snapshot.fields.length} fields, ${e.snapshot.pageType})`;
     case "action":
-      return `• action: ${e.action.type}${e.reasoning ? ` — ${e.reasoning}` : ""}`;
+      // DOM agent emits {action:{type}}; computer agent emits {action:string,detail}.
+      return typeof e.action === "string"
+        ? `• ${e.action}${e.detail ? ` — ${e.detail}` : ""}`
+        : `• action: ${e.action.type}${e.reasoning ? ` — ${e.reasoning}` : ""}`;
+    case "text":
+      return `• ${e.text}`;
+    case "banner":
+      return e.on ? "• controlling the page (debugger attached)" : "• released the page";
+    case "confirm_submit":
+      return `• ready to submit — awaiting your OK`;
     case "executed":
       return `  → ${e.ok ? "✓" : "✗"} ${e.note || ""}`;
     case "ask_user":
       return `• needs ${e.questions.length} answer${e.questions.length === 1 ? "" : "s"} from you`;
     case "needs_login":
-      return `• needs login (${e.providers.join(", ")})`;
+      return `• needs login${e.providers ? ` (${e.providers.join(", ")})` : ""}`;
     case "ask_tailor_base":
-      return `• pick a base resume to tailor (${e.resumes.filter((r) => !r.isTailored).length} available)`;
+      return `• pick a base resume to tailor (${e.resumes.filter((r: ResumeSummary) => !r.isTailored).length} available)`;
     case "drift":
       try {
         const from = new URL(e.from).pathname;
@@ -529,6 +639,8 @@ function renderLogLine(e: AgentEvent): string {
       return `✓ ${e.message || "done"}`;
     case "error":
       return `✗ error: ${e.error}`;
+    default:
+      return "•";
   }
 }
 
