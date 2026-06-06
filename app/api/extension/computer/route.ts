@@ -66,7 +66,7 @@ HOW TO WORK
 
 WHEN TO STOP AND ASK (use the custom tools, do NOT guess)
 - ask_user: for any answer not derivable from the resume — work authorization, visa sponsorship, salary expectations, start date, notice period, demographic/EEO questions, custom screening questions.
-- needs_login: if a login wall blocks progress.
+- needs_login: if a login wall blocks progress. NOTE: the user may reply (via a live instruction) telling you to create an account instead of signing in — if so, do it: find the "Create an account" / "Register" link, click it, and fill the registration form from the resume (name, email, phone). For a required password, generate a strong one and tell the user what it is via task_complete or by typing it where visible; never reuse a known password.
 - submit_application: when the form is complete and ready to submit. Describe what will be submitted. NEVER click the final submit button yourself — call this tool and the system enforces the user's auto-submit preference.
 - task_complete: when the application is submitted, or you cannot proceed (and explain why).
 

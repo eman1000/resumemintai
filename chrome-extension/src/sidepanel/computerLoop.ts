@@ -40,6 +40,10 @@ export type ComputerLoopOptions = {
   /** Drain any messages the user typed in the chat box since last turn. The
    * loop injects them so the user can steer the agent while it works. */
   drainUserMessages?: () => string[];
+  /** Resolves when the user sends a chat message — lets a chat message break
+   * the agent out of a pause (needs_login / ask_user) so it can be redirected
+   * (e.g. "create an account for me" instead of signing in). */
+  awaitUserMessage?: () => Promise<void>;
 };
 
 const MAX_TURNS = 40; // computer-use takes more, smaller steps than DOM
@@ -174,32 +178,84 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
       const toolResults: Block[] = [];
       let pausedOrEnded = false;
 
+      // Race a pause (login / questions) against the user sending a chat
+      // message. If the user types instead of clicking the pause button, we
+      // resume immediately and feed their message back to the model — so
+      // "create an account for me" redirects the agent instead of being
+      // stuck behind a 'sign in' wait. Returns the queued messages (if any).
+      const racePauseOrChat = async (waitForButton: () => Promise<void>): Promise<string[]> => {
+        const chat = opts.awaitUserMessage ? opts.awaitUserMessage() : new Promise<void>(() => {});
+        await Promise.race([waitForButton(), chat]);
+        return opts.drainUserMessages?.() || [];
+      };
+
       for (const tu of toolUses) {
         // ---- Custom tools (hand control to the UI) -----------------------
         if (tu.name === "ask_user") {
           opts.onEvent({ kind: "ask_user", questions: tu.input?.questions || [] });
-          const answers = await opts.awaitAnswers();
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: tu.id,
-            content: [
-              {
-                type: "text",
-                text: "User answered:\n" + JSON.stringify(answers, null, 2),
-              },
-            ],
+          // Race the structured answer form against a free-text chat message.
+          let answers: Record<string, string> | null = null;
+          const formP = opts.awaitAnswers().then((a) => {
+            answers = a;
           });
+          const chatP = opts.awaitUserMessage ? opts.awaitUserMessage() : new Promise<void>(() => {});
+          await Promise.race([formP, chatP]);
+          const typed = opts.drainUserMessages?.() || [];
+          const shot = await cdp.screenshot();
+          const marks = await cdp.enumerateElements();
+          if (answers) {
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: [
+                { type: "text", text: "User answered:\n" + JSON.stringify(answers, null, 2) },
+              ],
+            });
+          } else {
+            for (const m of typed) opts.onEvent({ kind: "user_said", text: m });
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: [
+                {
+                  type: "text",
+                  text: "USER (live instruction): " + typed.join("\n") + "\n\n" + renderMarks(marks),
+                },
+                { type: "image", source: { type: "base64", media_type: "image/png", data: shot } },
+              ],
+            });
+          }
           continue;
         }
         if (tu.name === "needs_login") {
           opts.onEvent({ kind: "needs_login", message: tu.input?.message });
-          await opts.awaitLoginCompleted();
+          const typed = await racePauseOrChat(opts.awaitLoginCompleted);
           const shot = await cdp.screenshot();
+          const marks = await cdp.enumerateElements();
+          if (typed.length) {
+            for (const m of typed) opts.onEvent({ kind: "user_said", text: m });
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: [
+                {
+                  type: "text",
+                  text:
+                    "The user did not sign in. Instead they instructed: " +
+                    typed.join("\n") +
+                    "\nAct on this (e.g. create an account using the resume details). Here is the page:\n\n" +
+                    renderMarks(marks),
+                },
+                { type: "image", source: { type: "base64", media_type: "image/png", data: shot } },
+              ],
+            });
+            continue;
+          }
           toolResults.push({
             type: "tool_result",
             tool_use_id: tu.id,
             content: [
-              { type: "text", text: "User signed in. Here is the current page." },
+              { type: "text", text: "User signed in. Here is the current page.\n\n" + renderMarks(marks) },
               { type: "image", source: { type: "base64", media_type: "image/png", data: shot } },
             ],
           });

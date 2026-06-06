@@ -52,6 +52,7 @@ export default function SidePanel() {
   const [elapsed, setElapsed] = useState(0); // seconds, while a run is active
   const [chatInput, setChatInput] = useState("");
   const userMsgQueueRef = useRef<string[]>([]);
+  const userMsgWaiterRef = useRef<(() => void) | null>(null);
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
@@ -208,6 +209,10 @@ export default function SidePanel() {
           userMsgQueueRef.current = [];
           return msgs;
         },
+        awaitUserMessage: () =>
+          new Promise<void>((resolve) => {
+            userMsgWaiterRef.current = resolve;
+          }),
       });
     } finally {
       setAgentRunning(false);
@@ -238,6 +243,11 @@ export default function SidePanel() {
     // Optimistically show it in the log immediately.
     setAgentLog((prev) => [...prev, { kind: "user_said", text: t } as unknown as AgentEvent]);
     setChatInput("");
+    // Wake the loop if it's paused (needs_login / ask_user) so a chat message
+    // can redirect it instead of being stuck behind a pause button.
+    const w = userMsgWaiterRef.current;
+    userMsgWaiterRef.current = null;
+    w?.();
   }
 
   function submitAnswers(answers: Record<string, string>) {
