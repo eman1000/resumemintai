@@ -451,37 +451,53 @@ export default function SidePanel() {
                 )}
                 <AgentLog events={agentLog} />
                 {agentRunning && (
-                  <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 999,
+                      padding: "4px 4px 4px 14px",
+                      background: "white",
+                    }}
+                  >
                     <input
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") sendChat();
                       }}
-                      placeholder="Tell the agent something… (e.g. skip cover letter)"
+                      placeholder="Message the agent…"
                       style={{
                         flex: 1,
                         fontSize: 12,
-                        padding: "8px 10px",
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: 8,
+                        padding: "6px 0",
+                        border: "none",
                         outline: "none",
+                        background: "transparent",
                       }}
                     />
                     <button
                       onClick={sendChat}
+                      aria-label="Send"
                       style={{
-                        background: COLORS.brand,
+                        background: chatInput.trim() ? COLORS.brand : COLORS.border,
                         color: "#fff",
                         border: "none",
-                        borderRadius: 8,
-                        padding: "0 14px",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
+                        borderRadius: "50%",
+                        width: 30,
+                        height: 30,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: chatInput.trim() ? "pointer" : "default",
+                        fontSize: 15,
+                        flexShrink: 0,
                       }}
                     >
-                      Send
+                      ↑
                     </button>
                   </div>
                 )}
@@ -669,13 +685,36 @@ function Badge({ children, color }: { children: React.ReactNode; color: string }
 }
 
 function AgentLog({ events }: { events: AgentEvent[] }) {
+  const endRef = useRef<HTMLDivElement | null>(null);
+  // Auto-scroll to the newest line as the agent works (like a chat transcript).
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [events]);
   return (
-    <div style={{ maxHeight: 220, overflowY: "auto", fontSize: 11, color: COLORS.meta, lineHeight: 1.6 }}>
-      {events.map((e, i) => (
-        <div key={i} style={{ padding: "2px 0" }}>
-          {renderLogLine(e)}
-        </div>
-      ))}
+    <div style={{ maxHeight: 340, overflowY: "auto", fontSize: 12, lineHeight: 1.6 }}>
+      {events.map((e, i) => {
+        const isUser = (e as any).kind === "user_said";
+        const isText = (e as any).kind === "text";
+        return (
+          <div
+            key={i}
+            style={{
+              padding: isUser ? "6px 10px" : "3px 0",
+              margin: isUser ? "4px 0" : 0,
+              alignSelf: isUser ? "flex-end" : "flex-start",
+              background: isUser ? COLORS.pillBg : "transparent",
+              borderRadius: isUser ? 10 : 0,
+              color: isUser ? COLORS.brandDeep : isText ? COLORS.ink : COLORS.meta,
+              maxWidth: isUser ? "85%" : "100%",
+              marginLeft: isUser ? "auto" : 0,
+              fontWeight: isText ? 500 : 400,
+            }}
+          >
+            {renderLogLine(e)}
+          </div>
+        );
+      })}
+      <div ref={endRef} />
     </div>
   );
 }
