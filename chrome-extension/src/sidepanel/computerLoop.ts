@@ -384,13 +384,29 @@ function wait(ms: number) {
 
 /** Render the set-of-marks element list for the model. */
 function renderMarks(
-  marks: Array<{ idx: number; label: string; role: string; x: number; y: number; w: number; h: number }>,
+  marks: Array<{
+    idx: number;
+    label: string;
+    role: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    kind?: string;
+    options?: string[];
+  }>,
 ): string {
   if (!marks.length) return "INTERACTIVE ELEMENTS: (none detected — use coordinates from the screenshot)";
   const lines = marks
-    .map((m) => `#${m.idx} [${m.role}] "${m.label}"`)
+    .map((m) => {
+      if (m.kind === "select") {
+        const opts = (m.options || []).slice(0, 40).join(" | ");
+        return `#${m.idx} [native select] "${m.label}" → use select_option. Options: ${opts}`;
+      }
+      return `#${m.idx} [${m.role}] "${m.label}"`;
+    })
     .join("\n");
-  return `INTERACTIVE ELEMENTS (use click_element/type_in_element with the number):\n${lines}`;
+  return `INTERACTIVE ELEMENTS (use click_element / type_in_element / select_option with the number):\n${lines}`;
 }
 
 function hostOf(url: string): string {
@@ -404,6 +420,7 @@ function hostOf(url: string): string {
 function describeAction(a: ComputerAction): string {
   if (a.action === "click_element") return `click #${(a as any).index}`;
   if (a.action === "type_in_element") return `type into #${(a as any).index}: ${(a as any).text?.slice(0, 40)}`;
+  if (a.action === "select_option") return `select in #${(a as any).index}: ${(a as any).value?.slice(0, 40)}`;
   if ("coordinate" in a && a.coordinate) return `${a.action} @ (${a.coordinate[0]},${a.coordinate[1]})`;
   if (a.action === "type" || a.action === "key") return `${a.action}: ${(a as any).text?.slice(0, 40)}`;
   return a.action;

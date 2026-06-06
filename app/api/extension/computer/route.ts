@@ -54,6 +54,7 @@ GOAL
 HOW TO WORK
 - You drive the page with the "computer" tool. Each turn you get a screenshot AND a numbered "INTERACTIVE ELEMENTS" list of the clickable/typeable elements on the page.
 - STRONGLY PREFER element actions: click_element {index} and type_in_element {index, text}. They click the element's true center via trusted input and almost never miss. Match the element you want from the list (by its label/role) and use its number.
+- NATIVE DROPDOWNS: an element shown as "[native select]" opens an operating-system dropdown that is INVISIBLE in screenshots and CANNOT be operated by clicking, arrow keys, or typing. You MUST use select_option {index, value} with one of that element's listed Options. Never click_element a native select and never try to type into it. (Custom/ARIA dropdowns that are NOT "[native select]" — click_element to open, then click_element the option.)
 - Use coordinate actions (left_click {coordinate}, type, scroll, key) ONLY when no list element matches what you see in the screenshot (e.g. a canvas, an unlabeled custom widget). Coordinates are in the same pixel space as the screenshot.
 - Act one step at a time. After each action you get a fresh screenshot + element list — verify the result before the next step. If an element action did nothing, re-read the updated list (the page may have changed) rather than blindly repeating.
 - Cookie/consent banners: find the Accept button in the element list and click_element it before proceeding.
@@ -92,6 +93,7 @@ const COMPUTER_TOOL: Anthropic.Tool = {
           // PREFERRED — reliable element-targeted actions (set-of-marks):
           "click_element",
           "type_in_element",
+          "select_option",
           // Coordinate fallback (only when no element matches):
           "left_click",
           "right_click",
@@ -110,7 +112,11 @@ const COMPUTER_TOOL: Anthropic.Tool = {
       },
       index: {
         type: "number",
-        description: "Element number (from the INTERACTIVE ELEMENTS list) for click_element / type_in_element.",
+        description: "Element number (from the INTERACTIVE ELEMENTS list) for click_element / type_in_element / select_option.",
+      },
+      value: {
+        type: "string",
+        description: "Option text to choose for select_option (must match one of that element's listed options).",
       },
       coordinate: {
         type: "array",

@@ -26,7 +26,8 @@ export type ComputerAction =
   | { action: "cursor_position" }
   // Set-of-marks (element-targeted) — reliable; preferred over coordinates.
   | { action: "click_element"; index: number }
-  | { action: "type_in_element"; index: number; text: string };
+  | { action: "type_in_element"; index: number; text: string }
+  | { action: "select_option"; index: number; value: string };
 
 const DEBUGGER_VERSION = "1.3";
 
@@ -152,7 +153,21 @@ export class CdpSession {
   /** Interactive elements on the page, discovered fresh each turn. Index in
    * this array is the "mark" the model selects (set-of-marks). Rects are in
    * CSS px (viewport-relative). */
-  marks: Array<{ idx: number; label: string; role: string; x: number; y: number; w: number; h: number }> = [];
+  marks: Array<{
+    idx: number;
+    /** Stable in-page stamp (data-rm-mark) for re-locating this element. */
+    mid?: string;
+    label: string;
+    role: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    /** "select" for native dropdowns — the model must use select_option, not click. */
+    kind?: string;
+    /** Option texts for native <select> elements. */
+    options?: string[];
+  }> = [];
 
   /** Enumerate clickable/typeable elements (set-of-marks). Runs in the page
    * via Runtime.evaluate so it pierces shadow DOM and same-origin iframes,
@@ -175,6 +190,7 @@ export class CdpSession {
         if (!t && el.tagName === "INPUT") t = (el.type || "text") + " field";
         return t.slice(0, 80);
       }
+      let counter = 0;
       function walk(root){
         let nodes;
         try { nodes = root.querySelectorAll(SEL); } catch(e){ return; }
@@ -182,12 +198,24 @@ export class CdpSession {
           if (seen.has(el)) continue; seen.add(el);
           const r = visible(el);
           if (!r) continue;
-          out.push({
+          const tag = el.tagName.toLowerCase();
+          const isSelect = tag === "select";
+          // Stamp a stable id so the executor can find this exact element
+          // later (selects, type targets) regardless of re-layout.
+          const mid = "m" + (counter++);
+          try { el.setAttribute("data-rm-mark", mid); } catch(e){}
+          const rec = {
+            mid,
             label: label(el),
-            role: el.getAttribute("role") || el.tagName.toLowerCase() + (el.type ? ":"+el.type : ""),
+            role: el.getAttribute("role") || tag + (el.type ? ":"+el.type : ""),
             x: Math.round(r.left), y: Math.round(r.top),
             w: Math.round(r.width), h: Math.round(r.height),
-          });
+          };
+          if (isSelect) {
+            rec.kind = "select";
+            rec.options = Array.from(el.options || []).map(o => o.text.trim()).filter(Boolean).slice(0, 60);
+          }
+          out.push(rec);
         }
         // shadow roots
         root.querySelectorAll("*").forEach(el => { if (el.shadowRoot) walk(el.shadowRoot); });
@@ -211,20 +239,42 @@ export class CdpSession {
         returnByValue: true,
       });
       const raw = (res?.result?.value || []) as Array<any>;
-      this.marks = raw.slice(0, 120).map((m, idx) => ({ idx, ...m }));
+      this.marks = raw.slice(0, 150).map((m, idx) => ({ idx, ...m }));
     } catch {
       this.marks = [];
     }
     return this.marks;
   }
 
+  /** Fresh viewport-center coords for a stamped mark (scrolls it into view
+   * first). Returns null if the element is gone. */
+  private async freshCenter(mid: string): Promise<{ x: number; y: number } | null> {
+    try {
+      const res = await this.send("Runtime.evaluate", {
+        expression: `(() => {
+          const el = document.querySelector('[data-rm-mark="${mid}"]');
+          if (!el) return null;
+          el.scrollIntoView({ block: 'center', inline: 'center' });
+          const r = el.getBoundingClientRect();
+          return { x: Math.round(r.left + r.width/2), y: Math.round(r.top + r.height/2) };
+        })()`,
+        returnByValue: true,
+      });
+      return res?.result?.value || null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Click the center of element #idx using trusted CDP input. */
   async clickElement(idx: number): Promise<{ ok: boolean; note?: string }> {
     const m = this.marks[idx];
     if (!m) return { ok: false, note: `no element #${idx}` };
-    const x = m.x + m.w / 2;
-    const y = m.y + m.h / 2;
-    // Bring it into view first if it's near an edge, then click center.
+    // Use fresh post-scroll coords when we have a stamped id (robust to
+    // layout shifts); fall back to enumerated rect.
+    const fresh = m.mid ? await this.freshCenter(m.mid) : null;
+    const x = fresh ? fresh.x : m.x + m.w / 2;
+    const y = fresh ? fresh.y : m.y + m.h / 2;
     if (this.filePayload) this.fileChooserArmed = true;
     await this.click(Math.round(x), Math.round(y), "left", 1);
     return { ok: true, note: `clicked #${idx} "${m.label}"` };
@@ -234,10 +284,46 @@ export class CdpSession {
   async typeInElement(idx: number, text: string): Promise<{ ok: boolean; note?: string }> {
     const m = this.marks[idx];
     if (!m) return { ok: false, note: `no element #${idx}` };
-    await this.click(Math.round(m.x + m.w / 2), Math.round(m.y + m.h / 2), "left", 1);
+    const fresh = m.mid ? await this.freshCenter(m.mid) : null;
+    const x = fresh ? fresh.x : m.x + m.w / 2;
+    const y = fresh ? fresh.y : m.y + m.h / 2;
+    await this.click(Math.round(x), Math.round(y), "left", 1);
     await this.pressKey("ctrl+a");
     await this.typeText(text);
     return { ok: true, note: `typed into #${idx} "${m.label}"` };
+  }
+
+  /** Set a native <select> element's value DIRECTLY via the DOM. Native
+   * selects open an OS-level dropdown that does NOT appear in screenshots and
+   * can't be driven by clicks/keys — so we match the option by text and set
+   * .value + dispatch change. This is the ONLY reliable way to handle them. */
+  async selectOption(idx: number, value: string): Promise<{ ok: boolean; note?: string }> {
+    const m = this.marks[idx];
+    if (!m) return { ok: false, note: `no element #${idx}` };
+    const want = JSON.stringify(value);
+    const expression = `(() => {
+      const el = document.querySelector('[data-rm-mark="${m.mid}"]');
+      if (!el || el.tagName.toLowerCase() !== 'select') return { ok:false, note:'not a native select' };
+      const want = ${want}.trim().toLowerCase();
+      const opts = Array.from(el.options);
+      // match: exact text, then startsWith, then includes, then value
+      let opt = opts.find(o => o.text.trim().toLowerCase() === want)
+        || opts.find(o => o.text.trim().toLowerCase().startsWith(want))
+        || opts.find(o => o.text.trim().toLowerCase().includes(want))
+        || opts.find(o => (o.value||'').trim().toLowerCase() === want);
+      if (!opt) return { ok:false, note:'option not found: ' + ${want}, sample: opts.slice(0,8).map(o=>o.text) };
+      el.value = opt.value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return { ok:true, note:'selected ' + opt.text.trim() };
+    })()`;
+    try {
+      const res = await this.send("Runtime.evaluate", { expression, returnByValue: true });
+      const v = res?.result?.value || { ok: false, note: "eval failed" };
+      return v;
+    } catch (e: any) {
+      return { ok: false, note: `select failed: ${e?.message || e}` };
+    }
   }
 
   send(method: string, params?: any): Promise<any> {
@@ -483,6 +569,10 @@ export class CdpSession {
       }
       case "type_in_element": {
         const r = await this.typeInElement(a.index, a.text);
+        return { note: r.note, ok: r.ok };
+      }
+      case "select_option": {
+        const r = await this.selectOption(a.index, a.value);
         return { note: r.note, ok: r.ok };
       }
       default:
