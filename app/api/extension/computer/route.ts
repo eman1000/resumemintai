@@ -63,7 +63,7 @@ HOW TO WORK
 - Fill fields from the user's resume data (provided in the first message). Click into a field before typing. Use realistic, accurate values only — never invent employment history, dates, or credentials.
 - For dropdowns/comboboxes: click to open, then click the matching option.
 - Scroll to reach fields below the fold.
-- To attach the resume/CV: click the upload/attach button. A native file chooser will be handled automatically by the system using the user's ResumeMint resume PDF — you do NOT need to pick a file; just click the upload control and continue.
+- To attach the resume/CV: call upload_resume — it attaches the user's ResumeMint resume PDF DIRECTLY to the form's file input. Do NOT click the "Upload"/"Attach"/"Choose file" button (that opens an OS file dialog you cannot operate, and leaves you stuck). For a separate cover-letter file input, use upload_resume with label:"cover". After upload_resume, the next screenshot should show the file attached; if not, you may upload_resume once more.
 
 WHEN TO STOP AND ASK (use the custom tools, do NOT guess)
 - ask_user: for any answer not derivable from the resume — work authorization, visa sponsorship, salary expectations, start date, notice period, demographic/EEO questions, custom screening questions.
@@ -94,6 +94,7 @@ const COMPUTER_TOOL: Anthropic.Tool = {
           "click_element",
           "type_in_element",
           "select_option",
+          "upload_resume",
           // Coordinate fallback (only when no element matches):
           "left_click",
           "right_click",
@@ -117,6 +118,10 @@ const COMPUTER_TOOL: Anthropic.Tool = {
       value: {
         type: "string",
         description: "Option text to choose for select_option (must match one of that element's listed options).",
+      },
+      label: {
+        type: "string",
+        description: "Optional hint for upload_resume: 'resume' (default) or 'cover' to target the cover-letter file input.",
       },
       coordinate: {
         type: "array",

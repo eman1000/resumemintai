@@ -27,7 +27,10 @@ export type ComputerAction =
   // Set-of-marks (element-targeted) — reliable; preferred over coordinates.
   | { action: "click_element"; index: number }
   | { action: "type_in_element"; index: number; text: string }
-  | { action: "select_option"; index: number; value: string };
+  | { action: "select_option"; index: number; value: string }
+  // Attach the user's ResumeMint resume PDF directly to the form's file
+  // input — no native OS dialog. label hint optional ("resume"/"cover").
+  | { action: "upload_resume"; label?: string };
 
 const DEBUGGER_VERSION = "1.3";
 
@@ -291,6 +294,51 @@ export class CdpSession {
     await this.pressKey("ctrl+a");
     await this.typeText(text);
     return { ok: true, note: `typed into #${idx} "${m.label}"` };
+  }
+
+  /** Attach the user's resume PDF directly to the form's <input type=file>
+   * via DOM.setFileInputFiles — NO native OS dialog. Finds the resume file
+   * input (preferring one whose label/name/id mentions resume/cv), pierces
+   * shadow DOM. This is the reliable upload path; the chooser-interception
+   * is only a fallback. */
+  async uploadResume(labelHint?: string): Promise<{ ok: boolean; note?: string }> {
+    if (!this.filePayload) return { ok: false, note: "no resume loaded for this run" };
+    const path = await this.materializeResume();
+    if (!path) return { ok: false, note: "could not prepare the resume PDF" };
+    const hint = JSON.stringify((labelHint || "resume").toLowerCase());
+    // Resolve the best file input to an objectId (returnByValue:false).
+    const objRes = await this.send("Runtime.evaluate", {
+      expression: `(() => {
+        const inputs = [];
+        const walk = (root) => {
+          root.querySelectorAll('input[type=file]').forEach(i => inputs.push(i));
+          root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) walk(e.shadowRoot); });
+        };
+        walk(document);
+        if (!inputs.length) return null;
+        const hint = ${hint};
+        const ctx = (el) => {
+          const id = (el.id||'') + ' ' + (el.name||'') + ' ' + (el.getAttribute('aria-label')||'');
+          let p = el.parentElement, t = '';
+          for (let i=0;i<3 && p;i++,p=p.parentElement) t += ' ' + (p.textContent||'').slice(0,120);
+          return (id + ' ' + t).toLowerCase();
+        };
+        // Avoid cover-letter inputs when looking for the resume.
+        const wantCover = hint.includes('cover');
+        const match = inputs.find(i => { const c = ctx(i); return wantCover ? c.includes('cover') : (c.includes('resume') || c.includes('cv')); });
+        return match || inputs.find(i => !i.disabled) || inputs[0];
+      })()`,
+      returnByValue: false,
+    });
+    const objectId = objRes?.result?.objectId;
+    if (!objectId) return { ok: false, note: "no file input found on this page" };
+    try {
+      const node = await this.send("DOM.requestNode", { objectId });
+      await this.send("DOM.setFileInputFiles", { files: [path], nodeId: node.nodeId });
+      return { ok: true, note: `attached ${this.filePayload.filename}` };
+    } catch (e: any) {
+      return { ok: false, note: `attach failed: ${e?.message || e}` };
+    }
   }
 
   /** Set a native <select> element's value DIRECTLY via the DOM. Native
@@ -592,6 +640,10 @@ export class CdpSession {
       }
       case "select_option": {
         const r = await this.selectOption(a.index, a.value);
+        return { note: r.note, ok: r.ok };
+      }
+      case "upload_resume": {
+        const r = await this.uploadResume(a.label);
         return { note: r.note, ok: r.ok };
       }
       default:

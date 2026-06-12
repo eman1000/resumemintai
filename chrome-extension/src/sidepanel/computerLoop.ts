@@ -421,6 +421,7 @@ function describeAction(a: ComputerAction): string {
   if (a.action === "click_element") return `click #${(a as any).index}`;
   if (a.action === "type_in_element") return `type into #${(a as any).index}: ${(a as any).text?.slice(0, 40)}`;
   if (a.action === "select_option") return `select in #${(a as any).index}: ${(a as any).value?.slice(0, 40)}`;
+  if (a.action === "upload_resume") return `attach resume${(a as any).label ? ` (${(a as any).label})` : ""}`;
   if ("coordinate" in a && a.coordinate) return `${a.action} @ (${a.coordinate[0]},${a.coordinate[1]})`;
   if (a.action === "type" || a.action === "key") return `${a.action}: ${(a as any).text?.slice(0, 40)}`;
   return a.action;
