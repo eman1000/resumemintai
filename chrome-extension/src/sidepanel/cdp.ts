@@ -296,6 +296,19 @@ export class CdpSession {
     return { ok: true, note: `typed into #${idx} "${m.label}"` };
   }
 
+  /** Grab the visible page text (for tailoring the resume to the job). */
+  async getPageText(max = 6000): Promise<string> {
+    try {
+      const res = await this.send("Runtime.evaluate", {
+        expression: `(document.body && document.body.innerText || "").slice(0, ${max})`,
+        returnByValue: true,
+      });
+      return res?.result?.value || "";
+    } catch {
+      return "";
+    }
+  }
+
   /** Attach the user's resume PDF directly to the form's <input type=file>
    * via DOM.setFileInputFiles — NO native OS dialog. Finds the resume file
    * input (preferring one whose label/name/id mentions resume/cv), pierces

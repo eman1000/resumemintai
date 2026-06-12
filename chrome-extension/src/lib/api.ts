@@ -128,6 +128,23 @@ export async function computerPlan(req: {
   return (await r.json()) as { content: any[]; stopReason?: string; modelUsed?: string };
 }
 
+/** Create a job-tailored resume and return its new id (for upload). */
+export async function tailorForJob(
+  job: { title?: string; company?: string; description?: string; source?: string },
+  baseResumeId?: string,
+): Promise<{ resumeId: string }> {
+  const r = await authedFetch("/api/jobs/tailor-kit", {
+    method: "POST",
+    body: JSON.stringify({ job, resumeId: baseResumeId }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j?.detail || j?.error || "tailor_failed");
+  }
+  const j = await r.json();
+  return { resumeId: j.resumeId };
+}
+
 export async function logApply(args: {
   ats: string;
   jobUrl: string;

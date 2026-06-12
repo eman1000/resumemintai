@@ -169,6 +169,8 @@ export default function SidePanel() {
   const submitConfirmResolverRef = useRef<((go: boolean) => void) | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState<{ summary: string; confidence?: number } | null>(null);
   const [debuggerBanner, setDebuggerBanner] = useState(false);
+  const uploadChoiceResolverRef = useRef<((c: "tailor" | "existing") => void) | null>(null);
+  const [pendingUpload, setPendingUpload] = useState(false);
 
   async function runComputerAgent() {
     if (!activeTab?.id) return;
@@ -177,6 +179,7 @@ export default function SidePanel() {
     setPendingQuestions(null);
     setPendingLogin(null);
     setPendingSubmit(null);
+    setPendingUpload(false);
     userMsgQueueRef.current = [];
 
     let resume: Record<string, any> = {};
@@ -213,6 +216,10 @@ export default function SidePanel() {
           new Promise<void>((resolve) => {
             userMsgWaiterRef.current = resolve;
           }),
+        awaitUploadChoice: () =>
+          new Promise<"tailor" | "existing">((resolve) => {
+            uploadChoiceResolverRef.current = resolve;
+          }),
       });
     } finally {
       setAgentRunning(false);
@@ -225,6 +232,13 @@ export default function SidePanel() {
     const r = submitConfirmResolverRef.current;
     submitConfirmResolverRef.current = null;
     r?.(go);
+  }
+
+  function chooseUpload(choice: "tailor" | "existing") {
+    setPendingUpload(false);
+    const r = uploadChoiceResolverRef.current;
+    uploadChoiceResolverRef.current = null;
+    r?.(choice);
   }
 
   // Elapsed-time ticker while the agent runs.
@@ -295,6 +309,7 @@ export default function SidePanel() {
     // Computer-use specific:
     if (last.kind === "confirm_submit")
       setPendingSubmit({ summary: (last as any).summary, confidence: (last as any).confidence });
+    if (last.kind === "confirm_upload") setPendingUpload(true);
     if (last.kind === "banner") setDebuggerBanner((last as any).on);
   }, [agentLog]);
 
@@ -438,6 +453,20 @@ export default function SidePanel() {
                       <PrimaryButton onClick={() => confirmSubmit(true)}>Submit application</PrimaryButton>
                       <button onClick={() => confirmSubmit(false)} style={linkBtnStyle}>
                         Stop, I’ll review
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {pendingUpload && (
+                  <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Which resume?</div>
+                    <div style={{ fontSize: 12, color: COLORS.meta, marginBottom: 10, lineHeight: 1.4 }}>
+                      Tailor a fresh resume for this job (best results, ~20s), or attach your current resume.
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <PrimaryButton onClick={() => chooseUpload("tailor")}>Tailor for this job</PrimaryButton>
+                      <button onClick={() => chooseUpload("existing")} style={linkBtnStyle}>
+                        Use my resume
                       </button>
                     </div>
                   </div>

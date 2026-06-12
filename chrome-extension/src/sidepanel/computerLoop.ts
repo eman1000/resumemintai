@@ -10,7 +10,7 @@
 //   3. Execute computer actions via CDP, collect tool_result blocks
 //      (screenshots), append, and loop. Custom tools pause/inform the UI.
 
-import { computerPlan, fetchResumePdf, logApply } from "../lib/api";
+import { computerPlan, fetchResumePdf, logApply, tailorForJob } from "../lib/api";
 import type { AgentJobContext } from "../types";
 import { CdpSession, type ComputerAction } from "./cdp";
 
@@ -22,6 +22,7 @@ export type ComputerEvent =
   | { kind: "ask_user"; questions: Array<{ label: string; type?: string; options?: string[] }> }
   | { kind: "needs_login"; message?: string }
   | { kind: "confirm_submit"; summary: string; confidence?: number }
+  | { kind: "confirm_upload" }
   | { kind: "banner"; on: boolean }
   | { kind: "done"; message?: string }
   | { kind: "error"; error: string };
@@ -44,6 +45,9 @@ export type ComputerLoopOptions = {
    * the agent out of a pause (needs_login / ask_user) so it can be redirected
    * (e.g. "create an account for me" instead of signing in). */
   awaitUserMessage?: () => Promise<void>;
+  /** At the first resume upload, ask whether to tailor a fresh resume for the
+   * job or use the existing one. Cached for the rest of the run. */
+  awaitUploadChoice?: () => Promise<"tailor" | "existing">;
 };
 
 const MAX_TURNS = 40; // computer-use takes more, smaller steps than DOM
@@ -78,6 +82,7 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
     }
 
     const goalUrl = opts.jobContext?.sourceUrl || "";
+    let uploadDecision: "tailor" | "existing" | null = null;
     const firstShot = await cdp.screenshot();
     const firstMarks = await cdp.enumerateElements();
 
@@ -305,6 +310,37 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
             action: action.action,
             detail: describeAction(action),
           });
+
+          // Before the first resume upload, ask tailor-vs-existing (once),
+          // then prepare the right PDF. Per the user's "ask me each run".
+          if (action.action === "upload_resume" && uploadDecision === null) {
+            if (opts.awaitUploadChoice) {
+              opts.onEvent({ kind: "confirm_upload" });
+              uploadDecision = await opts.awaitUploadChoice();
+            } else {
+              uploadDecision = "existing";
+            }
+            if (uploadDecision === "tailor") {
+              try {
+                opts.onEvent({ kind: "text", text: "Tailoring a resume for this job…" });
+                const jobText = await cdp.getPageText();
+                const { resumeId } = await tailorForJob({
+                  title: opts.jobContext?.title,
+                  company: opts.jobContext?.company,
+                  description: jobText,
+                  source: goalUrl,
+                });
+                cdp.filePayload = await fetchResumePdf(resumeId);
+                opts.onEvent({ kind: "text", text: "Tailored resume ready — attaching it." });
+              } catch (e: any) {
+                opts.onEvent({
+                  kind: "text",
+                  text: "Tailoring failed (" + (e?.message || "error") + ") — using your existing resume instead.",
+                });
+              }
+            }
+          }
+
           try {
             const execRes: any = await cdp.execute(action);
             // Settle a beat after page-changing actions, then snap + re-enumerate.
