@@ -107,12 +107,29 @@ function normalizeLevel(raw: any, domain?: "skills" | "languages"): string | und
 }
 
 function mapEditorSection(sec: any): Section {
+  // The section's `fields` array defines the ROLE of each positional value
+  // (header / subheader / city / period / richtextValue / level). Resumes
+  // store record values as POSITIONAL ARRAYS keyed by this, so we must map
+  // array index → role to read them. Without this, every array-shaped record
+  // (the common case) reads as empty and the resume renders blank.
+  const fieldDefs: any[] = Array.isArray(sec.fields) ? sec.fields : [];
+
   const records: RecordItem[] = (sec.records || []).map((r: any) => {
-    // Prefer named fields, then plain values object, else {}
-    const vals =
-      r?.fields ??
-      (r?.values?.fields ?? (typeof r?.values === "object" && !Array.isArray(r?.values) ? r?.values : {})) ??
-      {};
+    let vals: any;
+    if (Array.isArray(r?.values)) {
+      // Positional array → role-keyed object via the section's field defs.
+      vals = {};
+      r.values.forEach((v: any, i: number) => {
+        const role = fieldDefs[i]?.role || fieldDefs[i]?.key;
+        if (role) vals[role] = v;
+      });
+    } else {
+      // Prefer named fields, then plain values object, else {}
+      vals =
+        r?.fields ??
+        (r?.values?.fields ?? (typeof r?.values === "object" && !Array.isArray(r?.values) ? r?.values : {})) ??
+        {};
+    }
 
     // 🧠 If values is an array (e.g. ["JS", "Advanced"]), peek at index 1 for level
     const arrayLevel = Array.isArray(r?.values) ? r.values[1] : undefined;
