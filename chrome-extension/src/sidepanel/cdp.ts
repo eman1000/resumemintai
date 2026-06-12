@@ -344,31 +344,50 @@ export class CdpSession {
    * via Page.captureScreenshot's clip+scale so image space == CSS space and
    * the mapping is 1:1. */
   async screenshot(): Promise<string> {
-    // Read the CSS viewport so we know the page's logical coordinate space.
+    // Read the CSS viewport AND current scroll offset. A clip captures from
+    // DOCUMENT coordinates, so we must clip from the scroll position (pageX/
+    // pageY) — clipping from (0,0) captures the top of the document, which is
+    // a white/blank region once the page is scrolled (the bug that made the
+    // model see a white screen while elements were clearly present).
     let cssW = this.displayW;
     let cssH = this.displayH;
+    let pageX = 0;
+    let pageY = 0;
     try {
       const metrics = await this.send("Page.getLayoutMetrics");
       const vp = metrics.cssVisualViewport || metrics.cssLayoutViewport || metrics.layoutViewport || {};
       cssW = Math.round(vp.clientWidth || this.displayW);
       cssH = Math.round(vp.clientHeight || this.displayH);
+      pageX = Math.round(vp.pageX || 0);
+      pageY = Math.round(vp.pageY || 0);
     } catch {
       /* keep defaults */
+    }
+    // Fallback for scroll offset if layout metrics didn't carry pageX/pageY.
+    if (!pageY) {
+      try {
+        const r = await this.send("Runtime.evaluate", {
+          expression: "({ x: Math.round(scrollX), y: Math.round(scrollY) })",
+          returnByValue: true,
+        });
+        pageX = r?.result?.value?.x ?? pageX;
+        pageY = r?.result?.value?.y ?? pageY;
+      } catch {
+        /* ignore */
+      }
     }
     this.cssW = cssW;
     this.cssH = cssH;
 
-    // Normalise the capture to a FIXED width (displayW) regardless of the
-    // page's real viewport or the device pixel ratio. clip.scale resizes the
-    // output, so the image the model sees is always displayW px wide. This
-    // keeps the model's coordinate space constant and sidesteps Retina 2×.
+    // Normalise to a FIXED width (displayW) via clip.scale (Retina-safe), and
+    // clip from the current scroll offset so we capture the VISIBLE viewport.
     const factor = cssW > 0 ? this.displayW / cssW : 1;
     const outW = this.displayW;
     const outH = Math.round(cssH * factor);
     const res = await this.send("Page.captureScreenshot", {
       format: "png",
-      captureBeyondViewport: false,
-      clip: { x: 0, y: 0, width: cssW, height: cssH, scale: factor },
+      captureBeyondViewport: true,
+      clip: { x: pageX, y: pageY, width: cssW, height: cssH, scale: factor },
     });
     this.imgW = outW;
     this.imgH = outH;
