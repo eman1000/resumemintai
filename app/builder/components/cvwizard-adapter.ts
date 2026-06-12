@@ -337,15 +337,71 @@ function resolveDerivable(key: string, tpl: any): string | undefined {
 }
 
 
+/** Some resumes store personal details INSIDE a "personaldetails" section
+ * (records[0].values: givenName, familyName, email, phone, address, …) rather
+ * than as the top-level fields this adapter reads (title, emailaddress,
+ * phonenumber, address[], website, linkedin, personalDetails{}). Hoist the
+ * section values to the top level when the top-level fields are missing, so
+ * the name + contact block render instead of showing "Your Name" / blank. */
+function normalizePersonalDetails(td: any): any {
+  const sections: any[] = Array.isArray(td?.sections) ? td.sections : [];
+  const pdSec = sections.find(
+    (s) => String(s?.key || "").toLowerCase().replace(/\s+/g, "") === "personaldetails",
+  );
+  const v: Record<string, any> = pdSec?.records?.[0]?.values || {};
+  if (!pdSec && !Object.keys(v).length) return td;
+
+  const pick = (...keys: string[]) => {
+    for (const k of keys) {
+      const val = v[k];
+      if (val != null && String(val).trim()) return String(val).trim();
+    }
+    return "";
+  };
+
+  const fullName =
+    String(td.title || "").trim() ||
+    [pick("givenName", "firstName"), pick("familyName", "lastName")].filter(Boolean).join(" ").trim();
+
+  const addrParts = [pick("address"), pick("city"), pick("postalCode")].filter(Boolean);
+
+  // Build the extra personalDetails map (skip the well-known formatted ones).
+  const known = new Set([
+    "givenName", "familyName", "firstName", "lastName", "email", "phone",
+    "address", "city", "postalCode", "website", "linkedin", "github",
+    "desiredJobPosition", "headline", "photo", "photoUrl", "country",
+  ]);
+  const extra: Record<string, any> = { ...(td.personalDetails || {}) };
+  for (const [k, val] of Object.entries(v)) if (!known.has(k)) extra[k] = val;
+
+  return {
+    ...td,
+    title: fullName || td.title,
+    headline: td.headline || pick("desiredJobPosition", "headline"),
+    emailaddress: td.emailaddress || pick("email"),
+    phonenumber: td.phonenumber || pick("phone"),
+    address: Array.isArray(td.address) && td.address.length ? td.address : addrParts,
+    website: td.website || pick("website"),
+    linkedin: td.linkedin || pick("linkedin"),
+    personalDetails: extra,
+  };
+}
+
 /** MAIN ADAPTER */
-export function toCircularProps(templateData: any, templateOptions?: any): CircularProps {
+export function toCircularProps(rawTemplateData: any, templateOptions?: any): CircularProps {
+  const templateData = normalizePersonalDetails(rawTemplateData || {});
   // name
   const { first, last } = splitName(templateData.title);
 
   // split sections into rail/main
   const railKeys = new Set(["personal details", "skills", "languages", "hobbies", "qualities"]);
 
-  const mapped = (templateData.sections || []).map(mapEditorSection);
+  // Exclude the raw personaldetails section — buildPersonalDetailsSection
+  // renders it from the hoisted fields, so mapping it again just produces an
+  // empty duplicate "Personal details" block.
+  const mapped = (templateData.sections || [])
+    .filter((s: any) => String(s?.key || "").toLowerCase().replace(/\s+/g, "") !== "personaldetails")
+    .map(mapEditorSection);
 
   // ensure PD is present in rail, constructed from fields on the templateData
   const railSections: Section[] = [buildPersonalDetailsSection(templateData)];
