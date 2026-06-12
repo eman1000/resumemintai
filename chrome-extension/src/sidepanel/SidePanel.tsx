@@ -4,7 +4,13 @@ import { STORAGE_KEYS } from "../types";
 import { openConnectFlow, getSettings, setSettings } from "../lib/auth";
 import { runAgentLoop, type AgentEvent } from "./agentLoop";
 import { runComputerLoop, type ComputerEvent } from "./computerLoop";
-import { fetchResume } from "../lib/api";
+import {
+  fetchResume,
+  fetchProfile,
+  saveProfileFields,
+  type ProfileField,
+  type ApplicantProfile,
+} from "../lib/api";
 import type { ResumeSummary } from "../lib/api";
 
 const COLORS = {
@@ -53,6 +59,10 @@ export default function SidePanel() {
   const [chatInput, setChatInput] = useState("");
   const userMsgQueueRef = useRef<string[]>([]);
   const userMsgWaiterRef = useRef<(() => void) | null>(null);
+  // Applicant profile (remembered screening answers)
+  const [profile, setProfile] = useState<ApplicantProfile | null>(null);
+  const [profileFields, setProfileFields] = useState<ProfileField[]>([]);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
@@ -72,6 +82,17 @@ export default function SidePanel() {
       setSendScreenshot(s.sendScreenshot !== false);
       setLoading(false);
       readActiveTab();
+      // Load the applicant profile (remembered screening answers). Prompt the
+      // user to fill it on first use (when it's empty).
+      if (out[STORAGE_KEYS.AUTH]) {
+        try {
+          const { profile: p, fields } = await fetchProfile();
+          setProfile(p);
+          setProfileFields(fields);
+          const empty = !p?.fields || Object.keys(p.fields).filter((k) => p.fields[k]).length === 0;
+          if (empty) setProfileOpen(true);
+        } catch {}
+      }
     })();
 
     const storageListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
@@ -632,6 +653,35 @@ export default function SidePanel() {
               </label>
             </Section>
 
+            <Section title="Application profile">
+              {profileOpen ? (
+                <ProfileEditor
+                  fields={profileFields}
+                  profile={profile}
+                  onSave={async (vals) => {
+                    await saveProfileFields(vals);
+                    setProfile((p) => ({ fields: { ...(p?.fields || {}), ...vals }, custom: p?.custom || {} }));
+                    setProfileOpen(false);
+                  }}
+                  onCancel={() => setProfileOpen(false)}
+                />
+              ) : (
+                <div>
+                  <p style={{ fontSize: 12, color: COLORS.meta, margin: "0 0 8px", lineHeight: 1.4 }}>
+                    {profile && Object.keys(profile.fields || {}).filter((k) => profile.fields[k]).length > 0
+                      ? "Saved answers (visa, citizenship, salary…) are reused so the agent stops re-asking."
+                      : "Add your common application answers once — the agent reuses them so it stops re-asking every job."}
+                  </p>
+                  <button onClick={() => setProfileOpen(true)} style={{
+                    background: COLORS.brand, color: "#fff", border: "none", borderRadius: 8,
+                    padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                  }}>
+                    {profile && Object.keys(profile.fields || {}).filter((k) => profile.fields[k]).length > 0 ? "Edit profile" : "Set up profile"}
+                  </button>
+                </div>
+              )}
+            </Section>
+
             <Section title="Account">
               <button
                 onClick={signOut}
@@ -859,6 +909,59 @@ function QuestionForm({
         </div>
       ))}
       <PrimaryButton onClick={() => onSubmit(values)}>Continue</PrimaryButton>
+    </div>
+  );
+}
+
+function ProfileEditor({
+  fields,
+  profile,
+  onSave,
+  onCancel,
+}: {
+  fields: ProfileField[];
+  profile: ApplicantProfile | null;
+  onSave: (vals: Record<string, string>) => void;
+  onCancel: () => void;
+}) {
+  const [vals, setVals] = useState<Record<string, string>>(profile?.fields || {});
+  const set = (k: string, v: string) => setVals((s) => ({ ...s, [k]: v }));
+  return (
+    <div>
+      <p style={{ fontSize: 11, color: COLORS.meta, margin: "0 0 10px", lineHeight: 1.4 }}>
+        Fill what applies — leave the rest blank. The agent reuses these and only asks for what’s missing.
+      </p>
+      <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+        {fields.map((f) => (
+          <div key={f.key} style={{ marginBottom: 10 }}>
+            <label style={{ display: "block", fontSize: 11, color: COLORS.ink, marginBottom: 3 }}>{f.label}</label>
+            {f.type === "yesno" ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                {["Yes", "No"].map((opt) => (
+                  <button key={opt} type="button" onClick={() => set(f.key, opt)} style={{
+                    flex: 1, padding: "6px 8px", fontSize: 12, borderRadius: 6,
+                    border: `1px solid ${vals[f.key] === opt ? COLORS.brand : COLORS.border}`,
+                    background: vals[f.key] === opt ? COLORS.brand : "white",
+                    color: vals[f.key] === opt ? "white" : COLORS.ink, cursor: "pointer",
+                  }}>{opt}</button>
+                ))}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={vals[f.key] || ""}
+                placeholder={f.placeholder}
+                onChange={(e) => set(f.key, e.target.value)}
+                style={{ width: "100%", padding: 6, fontSize: 12, border: `1px solid ${COLORS.border}`, borderRadius: 6, boxSizing: "border-box" }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <PrimaryButton onClick={() => onSave(vals)}>Save profile</PrimaryButton>
+        <button onClick={onCancel} style={linkBtnStyle}>Cancel</button>
+      </div>
     </div>
   );
 }

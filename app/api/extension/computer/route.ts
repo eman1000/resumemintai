@@ -23,6 +23,7 @@ import {
   recordAiUsage,
   quotaBlockedResponse,
 } from "@/lib/aiUsage";
+import { normalizeProfile, profileForPrompt } from "@/lib/applicantProfile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,7 +67,7 @@ HOW TO WORK
 - To attach the resume/CV: call upload_resume — it attaches the user's ResumeMint resume PDF DIRECTLY to the form's file input. Do NOT click the "Upload"/"Attach"/"Choose file" button (that opens an OS file dialog you cannot operate, and leaves you stuck). For a separate cover-letter file input, use upload_resume with label:"cover". After upload_resume, the next screenshot should show the file attached; if not, you may upload_resume once more.
 
 WHEN TO STOP AND ASK (use the custom tools, do NOT guess)
-- ask_user: for any answer not derivable from the resume — work authorization, visa sponsorship, salary expectations, start date, notice period, demographic/EEO questions, custom screening questions.
+- ask_user: for any answer not derivable from the resume OR the KNOWN APPLICANT PROFILE — work authorization, visa sponsorship, salary expectations, start date, notice period, demographic/EEO questions, custom screening questions. ALWAYS check the profile first; if the answer is there, use it and do NOT ask. Only ask for genuinely missing or job-specific answers. Batch all the truly-missing questions into a single ask_user.
 - needs_login: if a login wall blocks progress. NOTE: the user may reply (via a live instruction) telling you to create an account instead of signing in — if so, do it: find the "Create an account" / "Register" link, click it, and fill the registration form from the resume (name, email, phone). For a required password, generate a strong one and tell the user what it is via task_complete or by typing it where visible; never reuse a known password.
 - submit_application: when the form is complete and ready to submit. Describe what will be submitted. NEVER click the final submit button yourself — call this tool and the system enforces the user's auto-submit preference.
 - task_complete: when the application is submitted, or you cannot proceed (and explain why).
@@ -217,8 +218,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, applicantProfile: true },
+  });
   if (!me) return NextResponse.json({ error: "no_user" }, { status: 403 });
+  const profileBlock = profileForPrompt(normalizeProfile(me.applicantProfile));
 
   const quota = await checkAiUsage(userId, "extension-agent");
   if (!quota.ok) return NextResponse.json(quotaBlockedResponse(quota), { status: 429 });
@@ -255,6 +260,9 @@ export async function POST(req: Request) {
       max_tokens: 1536,
       system: [
         { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+        ...(profileBlock
+          ? [{ type: "text" as const, text: profileBlock }]
+          : []),
       ],
       tools: [computerTool, ...CUSTOM_TOOLS],
       messages: messages as Anthropic.MessageParam[],

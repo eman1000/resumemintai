@@ -128,6 +128,32 @@ export async function computerPlan(req: {
   return (await r.json()) as { content: any[]; stopReason?: string; modelUsed?: string };
 }
 
+export type ProfileField = { key: string; label: string; type: "text" | "yesno"; placeholder?: string };
+export type ApplicantProfile = { fields: Record<string, string>; custom: Record<string, string>; updatedAt?: string };
+
+export async function fetchProfile(): Promise<{ profile: ApplicantProfile; fields: ProfileField[] }> {
+  const r = await authedFetch("/api/extension/profile");
+  if (!r.ok) return { profile: { fields: {}, custom: {} }, fields: [] };
+  return (await r.json()) as { profile: ApplicantProfile; fields: ProfileField[] };
+}
+
+export async function saveProfileFields(fields: Record<string, string>): Promise<void> {
+  try {
+    await authedFetch("/api/extension/profile", { method: "POST", body: JSON.stringify({ fields }) });
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/** Persist ad-hoc ask_user answers so the agent remembers them next time. */
+export async function saveProfileAnswers(answers: Record<string, string>): Promise<void> {
+  try {
+    await authedFetch("/api/extension/profile", { method: "POST", body: JSON.stringify({ answers }) });
+  } catch {
+    /* non-fatal */
+  }
+}
+
 /** Create a job-tailored resume and return its new id (for upload). */
 export async function tailorForJob(
   job: { title?: string; company?: string; description?: string; source?: string },

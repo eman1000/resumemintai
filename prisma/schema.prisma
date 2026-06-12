@@ -15,6 +15,10 @@ model User {
   stripeCustomerId       String?  @unique @map("stripe_customer_id")
   stripeSubscriptionId   String?  @map("stripe_subscription_id")
   plan                   String   @default("free")
+  // Persisted answers to common application screening questions (work
+  // authorization, citizenship, salary, notice period, …) so the Apply agent
+  // stops re-asking them every application.
+  applicantProfile       Json?    @map("applicant_profile")
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 

@@ -10,7 +10,7 @@
 //   3. Execute computer actions via CDP, collect tool_result blocks
 //      (screenshots), append, and loop. Custom tools pause/inform the UI.
 
-import { computerPlan, fetchResumePdf, logApply, tailorForJob } from "../lib/api";
+import { computerPlan, fetchResumePdf, logApply, tailorForJob, saveProfileAnswers } from "../lib/api";
 import type { AgentJobContext } from "../types";
 import { CdpSession, type ComputerAction } from "./cdp";
 
@@ -197,7 +197,16 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
       for (const tu of toolUses) {
         // ---- Custom tools (hand control to the UI) -----------------------
         if (tu.name === "ask_user") {
-          opts.onEvent({ kind: "ask_user", questions: tu.input?.questions || [] });
+          // Key each question by its label so the answer form + profile-capture
+          // are keyed by the question TEXT (Claude doesn't send a fieldId).
+          const rawQs = (tu.input?.questions || []) as Array<any>;
+          const questions = rawQs.map((q) => ({
+            fieldId: String(q.label || "").slice(0, 120),
+            label: q.label,
+            type: q.type === "yesno" ? "yesno" : q.options?.length ? "select" : "text",
+            options: q.options,
+          }));
+          opts.onEvent({ kind: "ask_user", questions: questions as any });
           // Race the structured answer form against a free-text chat message.
           let answers: Record<string, string> | null = null;
           const formP = opts.awaitAnswers().then((a) => {
@@ -209,6 +218,9 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
           const shot = await cdp.screenshot();
           const marks = await cdp.enumerateElements();
           if (answers) {
+            // Remember these answers on the account so the agent stops asking
+            // them on future applications.
+            void saveProfileAnswers(answers);
             toolResults.push({
               type: "tool_result",
               tool_use_id: tu.id,
