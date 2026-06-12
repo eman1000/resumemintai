@@ -23,6 +23,32 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/** True if the resume has real renderable content (a name + at least one
+ * non-empty body record). Handles both object- and array-shaped values. */
+function resumeHasContent(data: any): boolean {
+  if (!data || typeof data !== "object") return false;
+  const sections: any[] = Array.isArray(data.sections) ? data.sections : [];
+  let hasName = false;
+  let hasBody = false;
+  for (const sec of sections) {
+    const key = String(sec?.key || "").toLowerCase();
+    const records: any[] = Array.isArray(sec?.records) ? sec.records : [];
+    for (const r of records) {
+      const v = r?.values;
+      const texts: string[] = [];
+      if (Array.isArray(v)) v.forEach((x) => typeof x === "string" && texts.push(x));
+      else if (v && typeof v === "object") Object.values(v).forEach((x) => typeof x === "string" && texts.push(x as string));
+      const nonEmpty = texts.some((t) => t.replace(/<[^>]+>/g, "").trim().length > 0);
+      if (key.includes("personaldetail")) {
+        if (v?.givenName || v?.familyName || nonEmpty) hasName = true;
+      } else if (key !== "signature" && key !== "footer" && nonEmpty) {
+        hasBody = true;
+      }
+    }
+  }
+  return hasName || hasBody;
+}
+
 export async function GET(req: Request) {
   let userId: string;
   try {
@@ -41,17 +67,30 @@ export async function GET(req: Request) {
   const owned = resumeIdParam
     ? await prisma.resume.findFirst({
         where: { id: resumeIdParam, userId },
-        select: { id: true, title: true },
+        select: { id: true, title: true, data: true },
       })
     : await prisma.resume.findFirst({
         where: { userId, archived: false },
         orderBy: [{ updatedAt: "desc" }],
-        select: { id: true, title: true },
+        select: { id: true, title: true, data: true },
       });
   if (!owned) {
     return NextResponse.json(
       { error: "resume_not_found", detail: "No matching resume for this account." },
       { status: 404 },
+    );
+  }
+
+  // Guard: don't attach a blank PDF. If the resume has no real content,
+  // tell the user to fill it in instead of silently uploading an empty file.
+  if (!resumeHasContent(owned.data)) {
+    return NextResponse.json(
+      {
+        error: "resume_empty",
+        detail:
+          "Your resume looks empty. Add your details at resumemintai.com/builder, then try applying again.",
+      },
+      { status: 422 },
     );
   }
 

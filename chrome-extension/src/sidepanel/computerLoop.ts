@@ -74,11 +74,14 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
     await cdp.attach();
     opts.onEvent({ kind: "banner", on: true });
 
-    // Preload the resume PDF so file choosers resolve instantly.
+    // Preload the resume PDF so file choosers resolve instantly. Capture any
+    // error (e.g. empty resume) so the upload step can tell the user clearly
+    // instead of silently attaching nothing/blank.
+    let resumeError: string | null = null;
     try {
       cdp.filePayload = await fetchResumePdf(opts.selectedResumeId);
-    } catch {
-      // Non-fatal — upload steps just won't auto-resolve.
+    } catch (e: any) {
+      resumeError = e?.message || "Could not load your resume.";
     }
 
     const goalUrl = opts.jobContext?.sourceUrl || "";
@@ -322,6 +325,26 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
             action: action.action,
             detail: describeAction(action),
           });
+
+          // If the resume couldn't be loaded (e.g. empty), don't attach a
+          // blank file — tell the user and end this turn cleanly.
+          if (action.action === "upload_resume" && resumeError && uploadDecision !== "tailor") {
+            opts.onEvent({ kind: "text", text: "⚠ " + resumeError });
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: [
+                {
+                  type: "text",
+                  text:
+                    "Resume could not be attached: " + resumeError +
+                    " Tell the user to fix their resume; do not keep retrying the upload.",
+                },
+              ],
+              is_error: true,
+            });
+            continue;
+          }
 
           // Before the first resume upload, ask tailor-vs-existing (once),
           // then prepare the right PDF. Per the user's "ask me each run".
