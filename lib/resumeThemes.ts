@@ -101,6 +101,13 @@ export async function renderResumeHtml(
   const jr = toJsonResume(data);
   const hasContent = jsonResumeHasContent(jr);
   let html: string = await renderThemeInChild(themePkg(themeId), jr);
+  // Inline external CDN stylesheets (Bootstrap/Font Awesome that themes like
+  // kendall link) IN PLACE — replacing each <link> with a <style> at the same
+  // position. This (a) makes the HTML self-contained so the serverless PDF
+  // render doesn't depend on the CDN <link> loading (which it doesn't on
+  // Vercel → layout collapsed to one column), and (b) preserves source order
+  // so a theme's own later inline rules still win (kendall's navy body bg).
+  html = await inlineExternalCss(html);
   // Resumes must always render LIGHT. Some themes have
   // @media (prefers-color-scheme: dark) rules → the builder iframe preview
   // goes black in a dark-mode browser while the PDF stays light (mismatch).
@@ -109,6 +116,38 @@ export async function renderResumeHtml(
   // Enforce A4 print sizing + color fidelity regardless of the theme.
   html = injectPrintCss(html);
   return { html, jr, hasContent };
+}
+
+// Cache fetched CDN stylesheets across renders (preview is debounced + the
+// same CSS is reused by every render).
+const cssCache = new Map<string, string>();
+
+/** Replace each external <link rel=stylesheet> with an inline <style> holding
+ * the fetched CSS, AT THE SAME POSITION (preserves cascade order). Keeps the
+ * resume self-contained so the serverless PDF render needs no CDN. */
+async function inlineExternalCss(html: string): Promise<string> {
+  const links = html.match(/<link\b[^>]*>/gi) || [];
+  for (const link of links) {
+    if (!/rel=["']?stylesheet/i.test(link)) continue;
+    const href = (link.match(/href=["']([^"']+)["']/i) || [])[1];
+    if (!href || !/^https?:\/\//i.test(href)) continue;
+    try {
+      let css = cssCache.get(href);
+      if (css == null) {
+        const res = await fetch(href);
+        if (!res.ok) continue;
+        css = await res.text();
+        // Resolve @import / url() relative refs to absolute against the CDN.
+        const base = href.replace(/[^/]*$/, "");
+        css = css.replace(/url\((['"]?)(?!data:|https?:|\/\/)([^'")]+)\1\)/gi, (_m, q, u) => `url(${q}${base}${u}${q})`);
+        cssCache.set(href, css);
+      }
+      html = html.replace(link, `<style data-href="${href}">${css}</style>`);
+    } catch {
+      /* leave the <link> as-is */
+    }
+  }
+  return html;
 }
 
 /** Remove `@media (prefers-color-scheme: dark) { … }` blocks (balanced braces)
