@@ -186,6 +186,16 @@ function injectPrintCss(html: string): string {
       @page { size: A4; margin: 0; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0 !important; }
+      /* Bootstrap grid: force col-sm-* widths at ANY width. The serverless PDF
+         render lays out below the 768px sm breakpoint, so two-column themes
+         (kendall: col-sm-7/col-sm-5) collapsed to stacked col-xs-12. Applying
+         the sm widths unconditionally keeps them side-by-side everywhere. */
+      [class*="col-sm-"] { float: left; position: relative; min-height: 1px; }
+      .col-sm-1{width:8.3333%}.col-sm-2{width:16.6667%}.col-sm-3{width:25%}
+      .col-sm-4{width:33.3333%}.col-sm-5{width:41.6667%}.col-sm-6{width:50%}
+      .col-sm-7{width:58.3333%}.col-sm-8{width:66.6667%}.col-sm-9{width:75%}
+      .col-sm-10{width:83.3333%}.col-sm-11{width:91.6667%}.col-sm-12{width:100%}
+      .col-sm-offset-1{margin-left:8.3333%}.col-sm-offset-0{margin-left:0}
       /* kendall: education uses float pull-left/right which overlaps when the
          institution name is long. Use a clean two-column flex layout. */
       #education li { display: flex !important; gap: 12px !important; align-items: flex-start !important; }
