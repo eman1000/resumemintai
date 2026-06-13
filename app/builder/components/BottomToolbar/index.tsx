@@ -2,34 +2,19 @@
 
 import React from "react";
 
+// Only fonts the server can actually apply to a theme (must match
+// RESUME_FONTS in lib/resumeThemes.ts) — no dead options.
 const FONT_OPTIONS = [
-  { label: "Arial", value: "Arial" },
-  { label: "Helvetica", value: "Helvetica" },
-  { label: "Inter", value: "Inter" },
-  { label: "Poppins", value: "Poppins" },
   { label: "Roboto", value: "Roboto" },
   { label: "Open Sans", value: "Open Sans" },
   { label: "Lato", value: "Lato" },
   { label: "Montserrat", value: "Montserrat" },
-  { label: "Source Sans Pro", value: "Source Sans Pro" },
+  { label: "Inter", value: "Inter" },
+  { label: "Poppins", value: "Poppins" },
+  { label: "Arial", value: "Arial" },
   { label: "Times New Roman", value: "Times New Roman" },
   { label: "Georgia", value: "Georgia" },
   { label: "Garamond", value: "Garamond" },
-  { label: "Merriweather", value: "Merriweather" },
-];
-
-const SIZE_OPTIONS: { label: string; value: "s" | "m" | "l" }[] = [
-  { label: "S", value: "s" },
-  { label: "M", value: "m" },
-  { label: "L", value: "l" },
-];
-
-const SPACING_OPTIONS = [
-  { label: "1.0", value: 1.0 },
-  { label: "1.15", value: 1.15 },
-  { label: "1.25", value: 1.25 },
-  { label: "1.5", value: 1.5 },
-  { label: "2.0", value: 2.0 },
 ];
 
 const COLOR_PRESETS = [
@@ -68,11 +53,13 @@ type BottomToolbarProps = {
   fontName: string;
   onChangeFontName: (name: string) => void;
 
-  fontSizeKey: "s" | "m" | "l";
-  onChangeFontSize: (k: "s" | "m" | "l") => void;
+  // Size + line-spacing are no-ops for JSON Resume themes; omit the handlers to
+  // hide those menus entirely.
+  fontSizeKey?: "s" | "m" | "l";
+  onChangeFontSize?: (k: "s" | "m" | "l") => void;
 
-  lineHeight: number;
-  onChangeLineHeight: (v: number) => void;
+  lineHeight?: number;
+  onChangeLineHeight?: (v: number) => void;
 
   primaryColor: string;
   onChangePrimaryColor: (hex: string) => void;
@@ -104,24 +91,6 @@ const FontIcon = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-  </svg>
-);
-
-const SizeIcon = () => (
-  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-    <path
-      d="M4 7h7M7.5 7v11M13 12h7M16.5 12v6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-
-const SpacingIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
   </svg>
 );
 
@@ -250,19 +219,13 @@ export function BottomToolbar(props: BottomToolbarProps) {
     renderTemplatePreview,
     fontName,
     onChangeFontName,
-    fontSizeKey,
-    onChangeFontSize,
-    lineHeight,
-    onChangeLineHeight,
     primaryColor,
     onChangePrimaryColor,
     onFullscreen,
   } = props;
 
-  type MenuId = "templates" | "font" | "size" | "spacing" | "color";
+  type MenuId = "templates" | "font" | "color";
   const [openMenu, setOpenMenu] = React.useState<MenuId | null>(null);
-
-  const sizeLabel = (SIZE_OPTIONS.find((s) => s.value === fontSizeKey) ?? SIZE_OPTIONS[1]).label;
 
   return (
     <div className="sticky bottom-3 z-20 mt-3 flex justify-center">
@@ -379,73 +342,7 @@ export function BottomToolbar(props: BottomToolbarProps) {
           ))}
         </Menu>
 
-        {/* Size */}
-        <Menu
-          open={openMenu === "size"}
-          onOpen={() => setOpenMenu("size")}
-          onClose={() => setOpenMenu(null)}
-          panelClassName="w-32 py-1"
-          trigger={({ open, toggle }) => (
-            <TriggerBtn onClick={toggle} active={open} ariaLabel="Font size">
-              <SizeIcon />
-              <span className="hidden sm:inline">{sizeLabel}</span>
-              <Caret />
-            </TriggerBtn>
-          )}
-        >
-          {SIZE_OPTIONS.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => {
-                onChangeFontSize(s.value);
-                setOpenMenu(null);
-              }}
-              className={`
-                flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-gray-50
-                ${fontSizeKey === s.value ? "bg-blue-50 text-blue-700" : "text-gray-800"}
-              `}
-            >
-              <span>{s.label}</span>
-              {fontSizeKey === s.value && <span className="text-xs">✓</span>}
-            </button>
-          ))}
-        </Menu>
-
-        {/* Line spacing */}
-        <Menu
-          open={openMenu === "spacing"}
-          onOpen={() => setOpenMenu("spacing")}
-          onClose={() => setOpenMenu(null)}
-          panelClassName="w-32 py-1"
-          trigger={({ open, toggle }) => (
-            <TriggerBtn onClick={toggle} active={open} ariaLabel="Line spacing">
-              <SpacingIcon />
-              <span className="hidden sm:inline">{lineHeight.toFixed(2).replace(/\.?0+$/, "")}</span>
-              <Caret />
-            </TriggerBtn>
-          )}
-        >
-          {SPACING_OPTIONS.map((sp) => (
-            <button
-              key={sp.value}
-              type="button"
-              onClick={() => {
-                onChangeLineHeight(sp.value);
-                setOpenMenu(null);
-              }}
-              className={`
-                flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-gray-50
-                ${Math.abs(lineHeight - sp.value) < 0.01 ? "bg-blue-50 text-blue-700" : "text-gray-800"}
-              `}
-            >
-              <span>{sp.label}</span>
-              {Math.abs(lineHeight - sp.value) < 0.01 && <span className="text-xs">✓</span>}
-            </button>
-          ))}
-        </Menu>
-
-        {/* Color */}
+        {/* Accent color */}
         <Menu
           open={openMenu === "color"}
           onOpen={() => setOpenMenu("color")}
@@ -453,13 +350,17 @@ export function BottomToolbar(props: BottomToolbarProps) {
           align="right"
           panelClassName="w-64 p-3"
           trigger={({ open, toggle }) => (
-            <TriggerBtn onClick={toggle} active={open} ariaLabel="Primary color">
+            <TriggerBtn onClick={toggle} active={open} ariaLabel="Accent color">
               <ColorIcon color={primaryColor} />
+              <span className="hidden sm:inline">Accent</span>
               <Caret />
             </TriggerBtn>
           )}
         >
-          <div className="text-xs font-semibold text-gray-700 mb-2">Primary color</div>
+          <div className="text-xs font-semibold text-gray-700 mb-2">Accent color</div>
+          <div className="text-[11px] text-gray-500 mb-2 leading-snug">
+            Applies cleanly to color-aware themes; others may keep their own palette.
+          </div>
           <div className="grid grid-cols-9 gap-1.5 mb-3">
             {COLOR_PRESETS.map((c) => {
               const active = c.toLowerCase() === primaryColor.toLowerCase();

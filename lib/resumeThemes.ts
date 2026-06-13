@@ -120,7 +120,55 @@ export async function renderResumeHtml(
     : stripDarkModeCss(html);
   // Enforce A4 print sizing + color fidelity regardless of the theme.
   html = injectPrintCss(html);
+  // User font/accent customization (stored on data.styleOptions; persists +
+  // flows to both preview and PDF since both send `data`).
+  html = injectStyleOverrides(html, data?.styleOptions);
   return { html, jr, hasContent };
+}
+
+// Fonts we allow (validated → safe to drop into CSS). Maps id → CSS stack.
+export const RESUME_FONTS: Record<string, string> = {
+  Roboto: "Roboto, system-ui, Arial, sans-serif",
+  "Open Sans": "'Open Sans', system-ui, Arial, sans-serif",
+  Lato: "Lato, system-ui, Arial, sans-serif",
+  Montserrat: "Montserrat, system-ui, Arial, sans-serif",
+  Inter: "Inter, system-ui, Arial, sans-serif",
+  Poppins: "Poppins, system-ui, Arial, sans-serif",
+  Georgia: "Georgia, 'Times New Roman', serif",
+  Garamond: "Garamond, Georgia, serif",
+  "Times New Roman": "'Times New Roman', Times, serif",
+  Arial: "Arial, Helvetica, sans-serif",
+};
+
+/** Inject font-family + accent-color overrides (sanitized). Font is applied to
+ * text but NOT icon elements (Font Awesome). Accent overrides common CSS
+ * variables (clean on variable-based themes; best-effort elsewhere). */
+function injectStyleOverrides(html: string, opts: any): string {
+  if (!opts || typeof opts !== "object") return html;
+  const rules: string[] = [];
+
+  const fontStack = typeof opts.font === "string" ? RESUME_FONTS[opts.font] : undefined;
+  if (fontStack) {
+    rules.push(
+      `body, body *:not(i):not([class*="fa-"]):not([class^="fa"]):not([class*="icon"]):not([class*="material"]) { font-family: ${fontStack} !important; }`,
+    );
+  }
+
+  const accent = typeof opts.accent === "string" && /^#[0-9a-fA-F]{3,8}$/.test(opts.accent.trim())
+    ? opts.accent.trim()
+    : undefined;
+  if (accent) {
+    // Override common accent CSS variables used by the themes.
+    const vars = [
+      "--color-accent", "--accent", "--color-primary", "--primary",
+      "--color-link", "--link", "--color-heading", "--theme-color",
+    ].map((v) => `${v}: ${accent} !important;`).join(" ");
+    rules.push(`:root { ${vars} }`);
+  }
+
+  if (!rules.length) return html;
+  const style = `<style id="rm-style-overrides">${rules.join("\n")}</style>`;
+  return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${style}</head>`) : html + style;
 }
 
 // Cache fetched CDN stylesheets across renders (preview is debounced + the

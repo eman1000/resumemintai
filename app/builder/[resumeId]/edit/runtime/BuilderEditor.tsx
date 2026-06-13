@@ -3160,6 +3160,15 @@ const [activeTemplateId, setActiveTemplateId] = React.useState<string>(initialTp
   // Local editable options (legacy SVG styling — themes ignore these).
   const [options, setOptions] = useState<any>({});
 
+  // Font / accent customization for JSON Resume themes. Stored on the doc so it
+  // persists and flows to BOTH the live preview and the PDF download (both send
+  // `data={doc}`); the server reads data.styleOptions in renderResumeHtml.
+  const setStyleOption = (key: "font" | "accent", value: string) =>
+    setDoc((prev: any) => ({
+      ...prev,
+      styleOptions: { ...(prev?.styleOptions || {}), [key]: value },
+    }));
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState<boolean>(false);
   const prevLangRef = React.useRef<LanguageCode>(i18n.lang as any);
@@ -3686,34 +3695,10 @@ async function handleAISuggest(section: CVSection) {
               )}
               isSubscribed={isSubscribed}
               onAuthGate={onAuthGate}
-              fontName={(options as any)?.fontName || "Roboto"}
-              onChangeFontName={(name) =>
-                setOptions((prev: any) => ({ ...prev, fontName: name }))
-              }
-              fontSizeKey={((options as any)?.fontSizeFactor || "m") as "s" | "m" | "l"}
-              onChangeFontSize={(k) => {
-                const map = {
-                  s: { text: 9, sectionHeader: 14, footer: 7 },
-                  m: { text: 10, sectionHeader: 16, footer: 8 },
-                  l: { text: 11, sectionHeader: 18, footer: 9 },
-                } as const;
-                setOptions((prev: any) => ({
-                  ...prev,
-                  fontSizeFactor: k,
-                  fontSizes: { ...(prev?.fontSizes || {}), ...map[k] },
-                }));
-              }}
-              lineHeight={(options as any)?.lineHeightFactor ?? 1.25}
-              onChangeLineHeight={(v) =>
-                setOptions((prev: any) => ({ ...prev, lineHeightFactor: v }))
-              }
-              primaryColor={(options as any)?.colors?.primary || "#303846"}
-              onChangePrimaryColor={(hex) =>
-                setOptions((prev: any) => ({
-                  ...prev,
-                  colors: { ...(prev?.colors || {}), primary: hex },
-                }))
-              }
+              fontName={(doc as any)?.styleOptions?.font || "Roboto"}
+              onChangeFontName={(name) => setStyleOption("font", name)}
+              primaryColor={(doc as any)?.styleOptions?.accent || "#2563eb"}
+              onChangePrimaryColor={(hex) => setStyleOption("accent", hex)}
             />
           </div>
         </div>
@@ -3822,34 +3807,10 @@ async function handleAISuggest(section: CVSection) {
             )}
             isSubscribed={isSubscribed}
             onAuthGate={onAuthGate}
-            fontName={(options as any)?.fontName || "Roboto"}
-            onChangeFontName={(name) =>
-              setOptions((prev: any) => ({ ...prev, fontName: name }))
-            }
-            fontSizeKey={((options as any)?.fontSizeFactor || "m") as "s" | "m" | "l"}
-            onChangeFontSize={(k) => {
-              const map = {
-                s: { text: 9, sectionHeader: 14, footer: 7 },
-                m: { text: 10, sectionHeader: 16, footer: 8 },
-                l: { text: 11, sectionHeader: 18, footer: 9 },
-              } as const;
-              setOptions((prev: any) => ({
-                ...prev,
-                fontSizeFactor: k,
-                fontSizes: { ...(prev?.fontSizes || {}), ...map[k] },
-              }));
-            }}
-            lineHeight={(options as any)?.lineHeightFactor ?? 1.25}
-            onChangeLineHeight={(v) =>
-              setOptions((prev: any) => ({ ...prev, lineHeightFactor: v }))
-            }
-            primaryColor={(options as any)?.colors?.primary || "#303846"}
-            onChangePrimaryColor={(hex) =>
-              setOptions((prev: any) => ({
-                ...prev,
-                colors: { ...(prev?.colors || {}), primary: hex },
-              }))
-            }
+            fontName={(doc as any)?.styleOptions?.font || "Roboto"}
+            onChangeFontName={(name) => setStyleOption("font", name)}
+            primaryColor={(doc as any)?.styleOptions?.accent || "#2563eb"}
+            onChangePrimaryColor={(hex) => setStyleOption("accent", hex)}
           />
         </MobilePreviewOverlay>
       </main>
