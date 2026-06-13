@@ -114,9 +114,16 @@ export function toJsonResume(data: AnyRec): JsonResume {
   if (ln) profiles.push({ network: "LinkedIn", url: ln.startsWith("http") ? ln : `https://${ln}`, username: "" });
   if (gh) profiles.push({ network: "GitHub", url: gh.startsWith("http") ? gh : `https://${gh}`, username: "" });
 
+  // Avatar: JSON Resume themes that support a photo read basics.image.
+  const photo =
+    pick("photoUrl") ||
+    (pd && typeof pd === "object" && pd.photo && (pd.photo.url || (typeof pd.photo === "string" ? pd.photo : ""))) ||
+    "";
+
   const basics: AnyRec = {
     name: [pick("givenName"), pick("familyName")].filter(Boolean).join(" ") || String(data.title || "").trim(),
     label,
+    image: photo || undefined,
     email: pick("email"),
     phone: pick("phone"),
     url: pick("website"),
