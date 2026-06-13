@@ -223,11 +223,54 @@ async function launchBrowser() {
 }
 
 /** Render a resume to a themed A4 PDF (ATS-readable HTML text). */
+/** Inline remote <img> and font url() refs as data URIs so the serverless
+ * PDF render needs ZERO network (it doesn't load external resources). */
+async function makeSelfContained(html: string): Promise<string> {
+  // Images (avatar etc.)
+  const imgs = Array.from(html.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi));
+  for (const m of imgs) {
+    const url = m[1];
+    if (!/^https?:\/\//i.test(url)) continue;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const ct = res.headers.get("content-type") || "image/jpeg";
+      const buf = Buffer.from(await res.arrayBuffer());
+      html = html.replace(url, `data:${ct};base64,${buf.toString("base64")}`);
+    } catch {
+      /* leave as-is */
+    }
+  }
+  // Fonts referenced by url() inside <style> (Font Awesome icon glyphs etc.)
+  const fontUrls = new Set(
+    Array.from(html.matchAll(/url\((['"]?)(https?:\/\/[^'")]+\.(?:woff2?|ttf|otf|eot)[^'")]*)\1\)/gi)).map((m) => m[2]),
+  );
+  for (const url of fontUrls) {
+    try {
+      let dataUri = cssCache.get("font:" + url);
+      if (dataUri == null) {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const ext = (url.match(/\.(woff2|woff|ttf|otf|eot)/i) || [])[1]?.toLowerCase();
+        const mime = ext === "woff2" ? "font/woff2" : ext === "woff" ? "font/woff" : ext === "ttf" ? "font/ttf" : "application/octet-stream";
+        const buf = Buffer.from(await res.arrayBuffer());
+        dataUri = `data:${mime};base64,${buf.toString("base64")}`;
+        cssCache.set("font:" + url, dataUri);
+      }
+      html = html.split(url).join(dataUri);
+    } catch {
+      /* leave as-is */
+    }
+  }
+  return html;
+}
+
 export async function renderResumeThemedPdf(
   data: any,
   themeId: string | null | undefined,
 ): Promise<Buffer> {
-  const { html } = await renderResumeHtml(data, themeId);
+  let { html } = await renderResumeHtml(data, themeId);
+  html = await makeSelfContained(html);
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
