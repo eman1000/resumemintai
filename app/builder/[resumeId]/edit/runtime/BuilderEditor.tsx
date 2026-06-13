@@ -3027,6 +3027,8 @@ export default function BuilderEditor({
   isSubscribed = false,
   onAuthGate,
   initialJdInput,
+  isMaster = false,
+  onForkTailored,
 
 }: {
   initialData: any;
@@ -3043,6 +3045,12 @@ export default function BuilderEditor({
   /** When set (e.g. handoff from /resume-checker), the Smart Tailor pane
    *  opens automatically with this JD pre-filled. */
   initialJdInput?: string;
+  /** True when the resume being edited is the user's master (source of truth).
+   *  Tailoring the master forks a copy instead of mutating it. */
+  isMaster?: boolean;
+  /** Create a tailored COPY (with job tag) and navigate to it. Provided by the
+   *  page, which owns routing + the create API. */
+  onForkTailored?: (args: { data: any; job: any }) => Promise<void> | void;
 
 }) {
   const [confirmRemoveKey, setConfirmRemoveKey] = useState<CVSectionKey | null>(null);
@@ -3158,8 +3166,20 @@ async function handleSmartTailor() {
     });
     if (!t.ok) throw new Error(await t.text());
     const out = await t.json(); // OptimizeOut
+    const tailoredSections = mergeSections(doc.sections, out.sections);
+
+    // Non-destructive: tailoring the MASTER forks a job-tagged copy and opens it,
+    // leaving the master untouched. On a working/tailored copy, apply in place.
+    if (isMaster && onForkTailored) {
+      setBusyLabel("Creating a tailored copy…");
+      await onForkTailored({ data: { ...doc, sections: tailoredSections }, job: analyzedJob });
+      toast.success("Created a tailored copy — your master is untouched");
+      setSmartOpen(false);
+      return;
+    }
+
     setAts(out);
-    setDoc((prev) => ({ ...prev, sections: mergeSections(prev.sections, out.sections) }));
+    setDoc((prev) => ({ ...prev, sections: tailoredSections }));
     toast.success("Tailored to this job");
     setSmartOpen(false);
   } catch (e: any) {

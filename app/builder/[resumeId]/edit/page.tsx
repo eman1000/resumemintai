@@ -375,6 +375,42 @@ const handleChangeLanguage = (next: LanguageCode) => {
     setData((prev: any) => (isEqual(prev, next) ? prev : next));
   }, []);
 
+  // Is the resume being edited the user's MASTER (source of truth)? Tailoring
+  // the master forks a copy instead of mutating it.
+  const [masterId, setMasterId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/resume/master", await withAuth());
+        if (!r.ok) return;
+        const { id } = await r.json();
+        if (alive) setMasterId(id ?? null);
+      } catch { /* ignore */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+  const isMaster = !!masterId && String(masterId) === String(resumeId);
+
+  // Create a tailored COPY (job-tagged) from the master and open it.
+  const onForkTailored = React.useCallback(
+    async ({ data: tailoredData, job }: { data: any; job: any }) => {
+      const tailoredForJob = job
+        ? { source: "smart_tailor", title: job.title || "", company: job.company || "", location: job.location || "" }
+        : undefined;
+      const copyTitle = `${title || "Resume"}${job?.company ? ` — ${job.company}` : job?.title ? ` — ${job.title}` : " (tailored)"}`;
+      const res = await fetch("/api/resumes", await withAuth({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: copyTitle, renderer, data: tailoredData, language: lang, tailoredForJob }),
+      }));
+      if (!res.ok) throw new Error("Could not create tailored copy");
+      const { id } = await res.json();
+      router.push(`/builder/${id}/edit`);
+    },
+    [title, renderer, lang, router],
+  );
+
   React.useEffect(() => {
     if (!loaded) return;
     save({ language: lang });
@@ -448,6 +484,8 @@ const handleChangeLanguage = (next: LanguageCode) => {
         onChangeRenderer={setRenderer}
         isSubscribed={isSubscribed}
         initialJdInput={initialJdInput}
+        isMaster={isMaster}
+        onForkTailored={onForkTailored}
         onAuthGate={() => {
           if (!isAuthenticated) {
             setPendingProAfterLogin(true);

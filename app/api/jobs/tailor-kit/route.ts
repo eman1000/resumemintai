@@ -21,6 +21,7 @@ import OpenAI from 'openai';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
 import prisma from '@/lib/prisma';
 import { checkAiUsage, recordAiUsage, quotaBlockedResponse } from '@/lib/aiUsage';
+import { getMasterResume } from '@/lib/masterResume';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -244,17 +245,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'missing_job' }, { status: 400 });
     }
 
-    // Load source resume (specific id or most recent owned by user)
+    // Load source resume. Explicit id wins; otherwise tailor from the MASTER
+    // (the user's source-of-truth original) — NOT the most-recently-edited one,
+    // which caused tailored versions to chain off each other and drift.
     const source = body.resumeId
       ? await prisma.resume.findFirst({
           where: { id: body.resumeId, userId },
           select: { id: true, title: true, renderer: true, data: true, language: true },
         })
-      : await prisma.resume.findFirst({
-          where: { userId },
-          orderBy: { updatedAt: 'desc' },
-          select: { id: true, title: true, renderer: true, data: true, language: true },
-        });
+      : await getMasterResume(userId);
     if (!source) {
       return NextResponse.json(
         {

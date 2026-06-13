@@ -56,7 +56,7 @@ export async function GET() {
   }
 }
 
-type CreatePayload = { title?: string; renderer?: string; data?: unknown };
+type CreatePayload = { title?: string; renderer?: string; data?: unknown; tailoredForJob?: unknown; language?: string };
 
 export async function POST(req: Request) {
   try {
@@ -73,6 +73,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'invalid_renderer' }, { status: 400 });
     }
 
+    // A tailored copy carries its job tag so it is excluded from master
+    // resolution (master = earliest organic resume). Organic creates omit it.
+    const tailoredForJob =
+      body.tailoredForJob && typeof body.tailoredForJob === "object" ? body.tailoredForJob : undefined;
+    const language = typeof body.language === "string" ? body.language : undefined;
+
     const created = await prisma.resume.create({
       data: {
         userId,
@@ -80,6 +86,8 @@ export async function POST(req: Request) {
         renderer,
         data: data as any,
         archived: false,
+        ...(tailoredForJob ? { tailoredForJob: tailoredForJob as any } : {}),
+        ...(language ? { language } : {}),
       },
       select: { id: true },
     });
