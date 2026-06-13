@@ -38,6 +38,14 @@ const nextConfig = {
       'jsonresume-theme-caffeine',
       'jsonresume-theme-kards',
     ],
+    // Force the serverless bundle to include the FULL theme package dirs +
+    // their engine deps (nft only traced package.json, missing dist/ files).
+    // Applied to the routes that render themes via the child node process.
+    outputFileTracingIncludes: {
+      '/api/resume/preview-html': ['./node_modules/{jsonresume-theme-*,handlebars,handlebars-wax,pug,pug-*,moment,lodash,underscore,mustache,markdown-it,markdown-it-*,micromark,micromark-*,striptags,swag,address-format,gravatar,feather-icons,jsonresume-themeutils,resume-schema,css,@rbardini}/**'],
+      '/api/resume/pdf': ['./node_modules/{jsonresume-theme-*,handlebars,handlebars-wax,pug,pug-*,moment,lodash,underscore,mustache,markdown-it,markdown-it-*,micromark,micromark-*,striptags,swag,address-format,gravatar,feather-icons,jsonresume-themeutils,resume-schema,css,@rbardini}/**'],
+      '/api/extension/resume-pdf': ['./node_modules/{jsonresume-theme-*,handlebars,handlebars-wax,pug,pug-*,moment,lodash,underscore,mustache,markdown-it,markdown-it-*,micromark,micromark-*,striptags,swag,address-format,gravatar,feather-icons,jsonresume-themeutils,resume-schema,css,@rbardini}/**'],
+    },
     // remove if not needed
     missingSuspenseWithCSRBailout: true,
   },
