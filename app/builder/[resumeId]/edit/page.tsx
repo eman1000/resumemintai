@@ -336,15 +336,37 @@ const handleChangeLanguage = (next: LanguageCode) => {
       router.push('/landing/vtdft');
       return;
     }
-    if (!wrapRef.current) return;
-    await exportSvgContainerToPdf(wrapRef.current, {
-      filename: `resume-${new Date().toISOString().slice(0, 10)}.pdf`,
-      selector: "svg[data-page]",
-      scale: 2,
-    });
+    try {
+      const res = await fetch("/api/resume/pdf", await withAuth({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data,
+          theme: renderer,
+          filename: `resume-${new Date().toISOString().slice(0, 10)}`,
+        }),
+      }));
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        if (res.status === 422) { toast.error(j?.detail || "Add your details before downloading."); return; }
+        throw new Error(j?.detail || j?.error || "download_failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `resume-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(`Couldn't generate PDF: ${(e?.message || e).toString().slice(0, 120)}`);
+      return;
+    }
     trackResumeExported({
       resumeId: typeof resumeId === 'string' ? resumeId : null,
-      renderer: loaded?.renderer ?? null,
+      renderer: renderer ?? null,
       page: 'builder_editor',
     });
   };

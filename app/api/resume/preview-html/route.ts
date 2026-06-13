@@ -7,20 +7,15 @@
 // POST { data, theme } -> { html }
 
 import { NextResponse } from "next/server";
-import { getUserFromRequest } from "@/app/api/server/auth/getUserFromRequest";
 import { renderResumeHtml } from "@/lib/resumeThemes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+// No auth: renders only the caller's own data (provided in the body) → HTML.
+// No DB access or secrets, so safe for anonymous/local-resume previews too.
 export async function POST(req: Request) {
-  try {
-    await getUserFromRequest(); // any signed-in user may preview their own data
-  } catch {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
   let body: any;
   try {
     body = await req.json();

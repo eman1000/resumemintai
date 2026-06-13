@@ -10,6 +10,8 @@ import {
 // import { exportSvgContainerToPdf } from "./components/A4Preview/exportSvgPdf";
 import { toCircularProps } from "@/app/builder/components/cvwizard-adapter";
 import { A4Preview } from "@/app/builder/components/A4Preview";
+import { ThemedPreview } from "@/app/builder/components/ThemedPreview";
+import { RESUME_THEMES_META, resolveTheme } from "@/lib/resumeThemesMeta";
 import Wysiwyg from "@/app/builder/components/Wysiwyg";
 import LinkedInUrlModal from "@/app/builder/components/LinkedInUrlModal";
 import TopBar from "@/app/builder/components/TopBar";
@@ -145,6 +147,19 @@ export interface CVDocument {
   sections: CVSection[];
 }
 
+
+// JSON Resume themes shaped like the picker's template entries. Replaces the
+// SVG SAMPLE_TEMPLATES for selection + preview (renderer = theme id).
+export const THEME_TEMPLATES = RESUME_THEMES_META.map((t) => ({
+  id: t.id,
+  name: t.label,
+  documentType: "resume",
+  renderer: t.id,
+  isFree: t.isFree,
+  isATSFriendly: true,
+  defaultOptions: {},
+  blurb: t.blurb,
+}));
 
 export const SAMPLE_TEMPLATES = [
   {
@@ -3033,7 +3048,7 @@ export default function BuilderEditor({
 
     const { t, months, skillLevels } = i18n;
     const initialTplId = React.useMemo(
-      () => SAMPLE_TEMPLATES.find(t => t.renderer === renderer)?.id ?? SAMPLE_TEMPLATES[0].id,
+      () => resolveTheme(renderer),
       [renderer]
     );
     const makeDefaultSections = React.useCallback(
@@ -3137,10 +3152,13 @@ async function analyzeJD(text: string) {
 
 
 const [activeTemplateId, setActiveTemplateId] = React.useState<string>(initialTplId);
-  const tpl = useMemo(() => SAMPLE_TEMPLATES.find((t) => t.id === activeTemplateId)!, [activeTemplateId]);
+  const tpl = useMemo(
+    () => THEME_TEMPLATES.find((t) => t.id === activeTemplateId) || THEME_TEMPLATES[0],
+    [activeTemplateId],
+  );
 
-  // Local editable options (so color pickers etc. don’t mutate constants)
-  const [options, setOptions] = useState(tpl.defaultOptions);
+  // Local editable options (legacy SVG styling — themes ignore these).
+  const [options, setOptions] = useState<any>({});
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState<boolean>(false);
@@ -3642,21 +3660,14 @@ async function handleAISuggest(section: CVSection) {
             <AddSectionChips doc={doc} setDoc={setDoc} t={t} />
           </div>
 
-          {/* RIGHT: Sticky A4 Live Preview */}
+          {/* RIGHT: Sticky A4 Live Preview (themed, server-rendered = PDF) */}
           <div className="hidden lg:block lg:sticky lg:top-4 h-fit">
-            <A4Preview
-              // key={`preview-${dateFormat}`}
-              props={previewProps}
-              selectedTemplate={tpl}
-              wrapRef={wrapRef}
-              // @ts-ignore
-              handleDownload={handleDownload}
-            />
+            <ThemedPreview data={doc} theme={resolveTheme(tpl.renderer)} wrapRef={wrapRef} />
             <BottomToolbar
-              templates={SAMPLE_TEMPLATES}
+              templates={THEME_TEMPLATES}
               activeTemplateId={activeTemplateId}
               onSelectTemplate={(id) => {
-                const selected = SAMPLE_TEMPLATES.find((t) => t.id === id);
+                const selected = THEME_TEMPLATES.find((t) => t.id === id);
                 if (!selected) return;
                 if (!selected.isFree && !isSubscribed) {
                   onAuthGate?.();
@@ -3664,34 +3675,15 @@ async function handleAISuggest(section: CVSection) {
                 }
                 setActiveTemplateId(id);
                 onChangeRenderer?.(selected.renderer);
-                setOptions(selected.defaultOptions);
               }}
-              renderTemplatePreview={(t) => {
-                const Tpl = (RESUME_RENDERERS as Record<string, React.ComponentType<any>>)[t.renderer];
-                if (!Tpl) return null;
-                // Render with this template's own defaults so each tile looks
-                // like its intended design — not whatever the user is currently editing.
-                const tplProps = toCircularProps(
-                  cvDocToTemplateData(doc, {
-                    dateFormat, months, presentLabel: i18n.t("label.present", "Present"),
-                  }),
-                  (SAMPLE_TEMPLATES.find((s) => s.id === t.id)?.defaultOptions) || options,
-                );
-                return (
-                  <div
-                    aria-hidden="true"
-                    style={{
-                      width: 595, height: 842,
-                      transformOrigin: "top left",
-                      transform: "scale(0.22)",
-                      pointerEvents: "none",
-                      position: "absolute", top: 0, left: 0,
-                    }}
-                  >
-                    <Tpl {...tplProps} />
-                  </div>
-                );
-              }}
+              renderTemplatePreview={(t) => (
+                <img
+                  src={`/template-previews/theme/${t.renderer}.thumb.png`}
+                  alt={t.name}
+                  aria-hidden="true"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+                />
+              )}
               isSubscribed={isSubscribed}
               onAuthGate={onAuthGate}
               fontName={(options as any)?.fontName || "Roboto"}
@@ -3806,18 +3798,12 @@ async function handleAISuggest(section: CVSection) {
           open={mobilePreviewOpen}
           onClose={() => setMobilePreviewOpen(false)}
         >
-          <A4Preview
-            props={previewProps}
-            selectedTemplate={tpl}
-            wrapRef={wrapRef}
-            // @ts-ignore
-            handleDownload={handleDownload}
-          />
+          <ThemedPreview data={doc} theme={resolveTheme(tpl.renderer)} wrapRef={wrapRef} />
           <BottomToolbar
-            templates={SAMPLE_TEMPLATES}
+            templates={THEME_TEMPLATES}
             activeTemplateId={activeTemplateId}
             onSelectTemplate={(id) => {
-              const selected = SAMPLE_TEMPLATES.find((t) => t.id === id);
+              const selected = THEME_TEMPLATES.find((t) => t.id === id);
               if (!selected) return;
               if (!selected.isFree && !isSubscribed) {
                 onAuthGate?.();
@@ -3825,32 +3811,15 @@ async function handleAISuggest(section: CVSection) {
               }
               setActiveTemplateId(id);
               onChangeRenderer?.(selected.renderer);
-              setOptions(selected.defaultOptions);
             }}
-            renderTemplatePreview={(t) => {
-              const Tpl = (RESUME_RENDERERS as Record<string, React.ComponentType<any>>)[t.renderer];
-              if (!Tpl) return null;
-              const tplProps = toCircularProps(
-                cvDocToTemplateData(doc, {
-                  dateFormat, months, presentLabel: i18n.t("label.present", "Present"),
-                }),
-                (SAMPLE_TEMPLATES.find((s) => s.id === t.id)?.defaultOptions) || options,
-              );
-              return (
-                <div
-                  aria-hidden="true"
-                  style={{
-                    width: 595, height: 842,
-                    transformOrigin: "top left",
-                    transform: "scale(0.22)",
-                    pointerEvents: "none",
-                    position: "absolute", top: 0, left: 0,
-                  }}
-                >
-                  <Tpl {...tplProps} />
-                </div>
-              );
-            }}
+            renderTemplatePreview={(t) => (
+              <img
+                src={`/template-previews/theme/${t.renderer}.thumb.png`}
+                alt={t.name}
+                aria-hidden="true"
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }}
+              />
+            )}
             isSubscribed={isSubscribed}
             onAuthGate={onAuthGate}
             fontName={(options as any)?.fontName || "Roboto"}
