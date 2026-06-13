@@ -140,10 +140,13 @@ function injectPrintCss(html: string): string {
   const css = `
     <meta name="color-scheme" content="light">
     <style id="rm-print">
+      /* Equal page margins on all four sides (the @page margin is symmetric by
+         definition). Themes keep their own internal layout/padding — forcing a
+         uniform body padding breaks two-column themes. */
       @page { size: A4; margin: 12mm; }
       :root, html, body { color-scheme: light !important; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { margin: 0; }
+      body { margin: 0 !important; }
       /* Hide broken avatar placeholders when the user has no photo (themes
          like caffeine emit <img src="" alt="profile-pic">). */
       img[src=""], img:not([src]), img[src="#"] { display: none !important; }
