@@ -158,12 +158,20 @@ function injectStyleOverrides(html: string, opts: any): string {
     ? opts.accent.trim()
     : undefined;
   if (accent) {
-    // Override common accent CSS variables used by the themes.
+    // 1) Override common accent CSS variables (covers variable-based themes like
+    //    even/stackoverflow, including their light/dark variants).
     const vars = [
-      "--color-accent", "--accent", "--color-primary", "--primary",
+      "--color-accent", "--color-accent-light", "--color-accent-dark",
+      "--accent",
+      "--color-primary", "--color-primary-light", "--color-primary-dark",
+      "--primary",
       "--color-link", "--link", "--color-heading", "--theme-color",
     ].map((v) => `${v}: ${accent} !important;`).join(" ");
     rules.push(`:root { ${vars} }`);
+    // 2) Bootstrap-based themes (kendall/elegant/flat/onepage) hard-code their
+    //    accent as the link color (#337ab7 / #428bca) with no variables — recolor
+    //    links + .text-primary so the accent is at least visibly applied.
+    rules.push(`a, a:visited, a:hover, a:focus, .text-primary { color: ${accent} !important; }`);
   }
 
   if (!rules.length) return html;
