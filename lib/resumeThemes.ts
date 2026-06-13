@@ -154,6 +154,10 @@ export async function renderResumeThemedPdf(
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
+    // Render in SCREEN media so the PDF is identical to the builder's iframe
+    // preview (which is screen media). Some themes' @media print rules inject
+    // page breaks / large gaps that diverge from what the user previewed.
+    await page.emulateMediaType("screen");
     await page.setContent(html, { waitUntil: "networkidle2", timeout: 30_000 });
     // Inline external stylesheets so theme CSS is guaranteed present.
     const hrefs = Array.from(
