@@ -181,7 +181,9 @@ function injectPrintCss(html: string): string {
       /* Equal page margins on all four sides (the @page margin is symmetric by
          definition). Themes keep their own internal layout/padding — forcing a
          uniform body padding breaks two-column themes. */
-      @page { size: A4; margin: 12mm; }
+      /* Full-bleed: no page margin so theme header bands/backgrounds reach the
+         paper edge. Themes inset their own content via their container padding. */
+      @page { size: A4; margin: 0; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0 !important; }
       /* kendall: education uses float pull-left/right which overlaps when the
@@ -229,16 +231,24 @@ async function makeSelfContained(html: string): Promise<string> {
   // Images (avatar etc.)
   const imgs = Array.from(html.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi));
   for (const m of imgs) {
+    const tag = m[0];
     const url = m[1];
-    if (!/^https?:\/\//i.test(url)) continue;
+    if (url.startsWith("data:")) continue;
+    if (!/^https?:\/\//i.test(url)) {
+      // non-fetchable (relative/blob) → drop the tag so no broken placeholder
+      html = html.replace(tag, "");
+      continue;
+    }
     try {
       const res = await fetch(url);
-      if (!res.ok) continue;
+      if (!res.ok) throw new Error(String(res.status));
       const ct = res.headers.get("content-type") || "image/jpeg";
+      if (!/^image\//i.test(ct)) throw new Error("not an image");
       const buf = Buffer.from(await res.arrayBuffer());
       html = html.replace(url, `data:${ct};base64,${buf.toString("base64")}`);
     } catch {
-      /* leave as-is */
+      // couldn't inline → remove the <img> entirely (avoid broken-image box)
+      html = html.replace(tag, "");
     }
   }
   // Fonts referenced by url() inside <style> (Font Awesome icon glyphs etc.)
@@ -274,6 +284,10 @@ export async function renderResumeThemedPdf(
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
+    // Explicit viewport at A4 CSS width so responsive theme grids (Bootstrap
+    // col-sm/col-md) lay out the same as the preview — the serverless default
+    // viewport is narrow and collapses two-column themes to one column.
+    await page.setViewport({ width: 820, height: 1130, deviceScaleFactor: 2 });
     // Render in SCREEN media so the PDF is identical to the builder's iframe
     // preview (which is screen media). Some themes' @media print rules inject
     // page breaks / large gaps that diverge from what the user previewed.
