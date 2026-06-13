@@ -18,9 +18,11 @@ export function normalizeSkills(raw: unknown): string[] {
     // If it looks like "Category: a, b, c" keep only the right side
     const afterColon = t.includes(":") ? t.split(":").slice(1).join(":") : t;
 
-    // Split on common list delimiters: comma, middot, bullet, pipe, slash, semicolon, newline
+    // Split on list delimiters: comma, middot, bullet, pipe, semicolon, newline.
+    // A bare "/" is NOT a delimiter (keeps "A/B testing", "CI/CD"); a slash
+    // only splits when spaced ("React / Redux").
     afterColon
-      .split(/[,\u00B7\u2022|/;•\n]+/g)  // , · • | / ; (and literal bullet)
+      .split(/[,\u00B7\u2022|;•\n]+|\s+\/\s+/g)
       .map(x => x.trim())
       .filter(Boolean)
       .forEach(x => pieces.push(x));
