@@ -2,11 +2,14 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
 import prisma from '@/lib/prisma';
+import { RESUME_THEME_IDS } from '@/lib/resumeThemesMeta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_RENDERERS = new Set([
+const ALLOWED_RENDERERS = new Set<string>([
+  ...RESUME_THEME_IDS, // JSON Resume themes (current)
+  // legacy SVG ids (old resumes still save; mapped to themes at render time)
   'iconic','circular','professional','elegant','classic','modern','minimal',
   'creative','compact','executive','chrono','horizontal','casual',
 ]);

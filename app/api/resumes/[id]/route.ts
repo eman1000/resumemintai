@@ -3,12 +3,14 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
 import prisma from '@/lib/prisma';
 import { BASE_LANG_LABELS, LanguageCode } from '@/lib/i18n';
+import { RESUME_THEME_IDS } from '@/lib/resumeThemesMeta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_RENDERERS = new Set([
-  'circular','professional','elegant','classic','modern','minimal',
+const ALLOWED_RENDERERS = new Set<string>([
+  ...RESUME_THEME_IDS, // JSON Resume themes (current)
+  'iconic','circular','professional','elegant','classic','modern','minimal',
   'creative','compact','executive','chrono','horizontal','casual',
 ]);
 

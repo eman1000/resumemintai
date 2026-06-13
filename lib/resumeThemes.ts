@@ -47,6 +47,25 @@ function renderThemeInChild(pkg: string, resume: JsonResume): Promise<string> {
   });
 }
 
+// TRACING ONLY — never executed. These literal import() specifiers let Next's
+// file tracer (nft) detect the theme packages + their full transitive dep
+// trees and INCLUDE them in the serverless bundle, so the child process can
+// resolve them at runtime on Vercel. (They're in serverComponentsExternalPackages
+// so webpack won't bundle/execute them — these thunks just mark them for trace.)
+export const __traceThemes = [
+  () => import("jsonresume-theme-even"),
+  () => import("jsonresume-theme-stackoverflow"),
+  () => import("jsonresume-theme-kendall"),
+  () => import("jsonresume-theme-elegant"),
+  () => import("jsonresume-theme-flat"),
+  () => import("jsonresume-theme-onepage"),
+  () => import("jsonresume-theme-macchiato"),
+  () => import("jsonresume-theme-paper"),
+  () => import("jsonresume-theme-short"),
+  () => import("jsonresume-theme-spartan"),
+  () => import("jsonresume-theme-caffeine"),
+];
+
 export type ThemeMeta = { id: string; label: string; pkg: string };
 
 /** Themes that passed vetting (render clean A4 + ATS-readable from real data).
