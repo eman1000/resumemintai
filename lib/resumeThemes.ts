@@ -196,6 +196,11 @@ function injectPrintCss(html: string): string {
       .col-sm-7{width:58.3333%}.col-sm-8{width:66.6667%}.col-sm-9{width:75%}
       .col-sm-10{width:83.3333%}.col-sm-11{width:91.6667%}.col-sm-12{width:100%}
       .col-sm-offset-1{margin-left:8.3333%}.col-sm-offset-0{margin-left:0}
+      /* Bootstrap .container width is also breakpoint-based → full-width below
+         768px, which removed the navy side-frame (white card filled the page).
+         Center it at a fixed max-width so the theme's body background shows as
+         a frame again. */
+      .container{max-width:720px!important;width:auto!important;margin-left:auto!important;margin-right:auto!important}
       /* kendall: education uses float pull-left/right which overlaps when the
          institution name is long. Use a clean two-column flex layout. */
       #education li { display: flex !important; gap: 12px !important; align-items: flex-start !important; }
@@ -242,11 +247,17 @@ async function makeSelfContained(html: string): Promise<string> {
   const imgs = Array.from(html.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi));
   for (const m of imgs) {
     const tag = m[0];
-    const url = m[1];
-    if (url.startsWith("data:")) continue;
+    const raw = m[1]; // may be HTML-entity-encoded (e.g. kendall gravatar)
+    if (raw.startsWith("data:")) continue;
+    // Decode entities (&#x2F;=/, &amp;=&, &#x3D;==) and normalize
+    // protocol-relative (//host) URLs to https.
+    let url = raw
+      .replace(/&#x2[fF];/g, "/")
+      .replace(/&#x3[dD];/g, "=")
+      .replace(/&amp;/g, "&");
+    if (url.startsWith("//")) url = "https:" + url;
     if (!/^https?:\/\//i.test(url)) {
-      // non-fetchable (relative/blob) → drop the tag so no broken placeholder
-      html = html.replace(tag, "");
+      html = html.replace(tag, ""); // unfetchable → drop (no broken box)
       continue;
     }
     try {
@@ -255,9 +266,8 @@ async function makeSelfContained(html: string): Promise<string> {
       const ct = res.headers.get("content-type") || "image/jpeg";
       if (!/^image\//i.test(ct)) throw new Error("not an image");
       const buf = Buffer.from(await res.arrayBuffer());
-      html = html.replace(url, `data:${ct};base64,${buf.toString("base64")}`);
+      html = html.replace(raw, `data:${ct};base64,${buf.toString("base64")}`);
     } catch {
-      // couldn't inline → remove the <img> entirely (avoid broken-image box)
       html = html.replace(tag, "");
     }
   }
