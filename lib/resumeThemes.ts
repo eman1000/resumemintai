@@ -101,15 +101,47 @@ export async function renderResumeHtml(
   const jr = toJsonResume(data);
   const hasContent = jsonResumeHasContent(jr);
   let html: string = await renderThemeInChild(themePkg(themeId), jr);
+  // Resumes must always render LIGHT. Some themes have
+  // @media (prefers-color-scheme: dark) rules → the builder iframe preview
+  // goes black in a dark-mode browser while the PDF stays light (mismatch).
+  // Strip those rules so preview == PDF == light everywhere.
+  html = stripDarkModeCss(html);
   // Enforce A4 print sizing + color fidelity regardless of the theme.
   html = injectPrintCss(html);
   return { html, jr, hasContent };
 }
 
+/** Remove `@media (prefers-color-scheme: dark) { … }` blocks (balanced braces)
+ * so the resume always renders in its light design. */
+function stripDarkModeCss(html: string): string {
+  const marker = /@media[^{]*prefers-color-scheme\s*:\s*dark[^{]*\{/gi;
+  let out = html;
+  let m: RegExpExecArray | null;
+  // Repeatedly find a dark media block and remove from its @media to the
+  // matching closing brace.
+  while ((m = marker.exec(out))) {
+    const start = m.index;
+    let depth = 0;
+    let i = start;
+    for (; i < out.length; i++) {
+      if (out[i] === "{") depth++;
+      else if (out[i] === "}") {
+        depth--;
+        if (depth === 0) { i++; break; }
+      }
+    }
+    out = out.slice(0, start) + out.slice(i);
+    marker.lastIndex = 0; // string changed; restart scan
+  }
+  return out;
+}
+
 function injectPrintCss(html: string): string {
   const css = `
+    <meta name="color-scheme" content="light">
     <style id="rm-print">
       @page { size: A4; margin: 12mm; }
+      :root, html, body { color-scheme: light !important; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0; }
       /* Hide broken avatar placeholders when the user has no photo (themes
@@ -158,6 +190,8 @@ export async function renderResumeThemedPdf(
     // preview (which is screen media). Some themes' @media print rules inject
     // page breaks / large gaps that diverge from what the user previewed.
     await page.emulateMediaType("screen");
+    // Force light mode so dark-mode CSS never affects the PDF.
+    await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
     await page.setContent(html, { waitUntil: "networkidle2", timeout: 30_000 });
     // Inline external stylesheets so theme CSS is guaranteed present.
     const hrefs = Array.from(
