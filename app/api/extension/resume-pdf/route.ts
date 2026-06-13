@@ -11,8 +11,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { userIdFromExtensionRequest } from "@/lib/extensionToken";
-import { signPrintToken } from "@/lib/printToken";
-import { renderResumePdfFromId } from "@/lib/resumePdf";
+import { renderResumeThemedPdf } from "@/lib/resumeThemes";
 import {
   checkAiUsage,
   recordAiUsage,
@@ -67,12 +66,12 @@ export async function GET(req: Request) {
   const owned = resumeIdParam
     ? await prisma.resume.findFirst({
         where: { id: resumeIdParam, userId },
-        select: { id: true, title: true, data: true },
+        select: { id: true, title: true, data: true, renderer: true },
       })
     : await prisma.resume.findFirst({
         where: { userId, archived: false },
         orderBy: [{ updatedAt: "desc" }],
-        select: { id: true, title: true, data: true },
+        select: { id: true, title: true, data: true, renderer: true },
       });
   if (!owned) {
     return NextResponse.json(
@@ -94,18 +93,10 @@ export async function GET(req: Request) {
     );
   }
 
-  const token = signPrintToken(owned.id, 120);
-  // Derive the origin from the request itself so Puppeteer renders against
-  // THIS server (dev hits localhost, prod hits prod). NEXT_PUBLIC_SITE_URL
-  // would point a dev server at production, where the resume doesn't exist.
-  const host = req.headers.get("host");
-  const proto = req.headers.get("x-forwarded-proto") || (host?.startsWith("localhost") ? "http" : "https");
-  const origin = host
-    ? `${proto}://${host}`
-    : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
   try {
-    const bytes = await renderResumePdfFromId({ resumeId: owned.id, token, origin });
+    // Render via a JSON Resume theme — pure HTML/CSS, ATS-readable text
+    // (the old SVG print path produced zero ATS-extractable words).
+    const bytes = await renderResumeThemedPdf(owned.data, owned.renderer);
     await recordAiUsage(userId, "extension-resume-pdf");
     const safeTitle =
       (owned.title || "resume").replace(/[^a-zA-Z0-9-_]+/g, "-").slice(0, 60) || "resume";

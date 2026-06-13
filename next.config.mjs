@@ -22,6 +22,21 @@ const nextConfig = {
       'pdfjs-dist',
       'pdf-parse',
       'puppeteer',
+      // JSON Resume themes (pure HTML/CSS) + engines — keep as runtime node
+      // requires so Next doesn't bundle handlebars/pug/fs/moment.
+      'moment',
+      'jsonresume-theme-even',
+      'jsonresume-theme-stackoverflow',
+      'jsonresume-theme-kendall',
+      'jsonresume-theme-elegant',
+      'jsonresume-theme-flat',
+      'jsonresume-theme-onepage',
+      'jsonresume-theme-macchiato',
+      'jsonresume-theme-paper',
+      'jsonresume-theme-short',
+      'jsonresume-theme-spartan',
+      'jsonresume-theme-caffeine',
+      'jsonresume-theme-kards',
     ],
     // remove if not needed
     missingSuspenseWithCSRBailout: true,
