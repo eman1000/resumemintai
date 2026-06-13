@@ -3,31 +3,26 @@ import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import { RESUME_THEMES_META } from '@/lib/resumeThemesMeta';
 
 export const metadata: Metadata = {
   title: 'ATS-Friendly Resume Templates',
   description:
-    'Discover 12 ATS-friendly resume templates — Classic, Modern, Elegant, Creative, Executive, and more. Easily switch designs without losing content.',
+    'Discover 11 ATS-friendly resume templates — Classic, Modern, Elegant, Creative, Executive, and more. Easily switch designs without losing content.',
   alternates: { canonical: '/templates' },
   openGraph: {
     url: '/templates',
     title: 'Explore ATS-Compatible Resume Templates | ResumeMint',
-    description: 'Choose from 12 ATS-friendly resume templates and switch anytime without losing content.',
-    images: [{ url: '/api/og?eyebrow=TEMPLATES&title=12+ATS-friendly+resume+templates', width: 1200, height: 630 }],
+    description: 'Choose from 11 ATS-friendly resume templates and switch anytime without losing content.',
+    images: [{ url: '/api/og?eyebrow=TEMPLATES&title=11+ATS-friendly+resume+templates', width: 1200, height: 630 }],
   },
 };
 
-const templates = [
-  { name: 'Circular', renderer: 'circular', desc: 'Two-column with photo sidebar.' },
-  { name: 'Elegant', renderer: 'elegant', desc: 'Emerald sidebar, polished accents.' },
-  { name: 'Classic', renderer: 'classic', desc: 'Clean single-column, ATS-safe.' },
-  { name: 'Modern', renderer: 'modern', desc: 'Subtle accents, timeline feel.' },
-  { name: 'Minimal', renderer: 'minimal', desc: 'Whitespace-led, thin dividers.' },
-  { name: 'Creative', renderer: 'creative', desc: 'Bold header, asymmetric body.' },
-  { name: 'Executive', renderer: 'executive', desc: 'Serif type for senior roles.' },
-  { name: 'Chrono', renderer: 'chrono', desc: 'Timeline with date markers.' },
-  { name: 'Horizontal', renderer: 'horizontal', desc: 'Bold dividers, skill bars.' },
-];
+const templates = RESUME_THEMES_META.map((t) => ({
+  name: t.label,
+  renderer: t.id,
+  desc: t.blurb || 'ATS-friendly, clean layout.',
+}));
 
 const faqs = [
   { q: 'Can I switch templates after creating my resume?', a: 'Yes! You can change templates at any time from the editor. Your content will automatically adapt to the new layout.' },
@@ -45,7 +40,7 @@ export default function TemplatesPage() {
         <div className="max-w-site mx-auto px-4 py-16 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-[#1d1d20]">Resume Templates</h1>
           <p className="mt-4 text-[#52525a] text-lg max-w-2xl mx-auto">
-            Choose from 12 professionally designed templates. Each one is ATS-compatible and optimized for readability.
+            Choose from 11 professionally designed templates. Each one is ATS-compatible and optimized for readability.
           </p>
         </div>
       </div>
@@ -63,7 +58,7 @@ export default function TemplatesPage() {
                 <div className="relative aspect-[210/297] rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden transition-all duration-200 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-brand/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/template-previews/resume/${t.renderer}.png`}
+                    src={`/template-previews/theme/${t.renderer}.png`}
                     alt={`${t.name} resume template preview`}
                     loading="lazy"
                     className="absolute inset-0 w-full h-full object-cover object-top"
