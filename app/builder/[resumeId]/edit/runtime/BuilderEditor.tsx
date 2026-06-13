@@ -35,6 +35,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { MobilePreviewOverlay } from "@/app/builder/components/MobilePreviewOverlay";
 import BottomToolbar from "@/app/builder/components/BottomToolbar";
 import { RENDERERS as RESUME_RENDERERS } from "@/app/builder/components/A4Preview";
+import { auth } from "@/app/firebase";
 
 
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
@@ -3083,6 +3084,40 @@ const [ats, setAts] = useState<OptimizeOut | null>(null);
 const [smartOpen, setSmartOpen] = React.useState(false); // open by default (first-time)
 const [jdInput, setJdInput] = React.useState("");
 
+// === AI cleanup (fix parsing artifacts; user reviews diff before applying) ===
+const [cleanupBusy, setCleanupBusy] = React.useState(false);
+const [cleanupResult, setCleanupResult] = React.useState<
+  { changes: Array<{ section: string; type: string; before: string; after: string }>; cleanedData: any } | null
+>(null);
+
+async function handleCleanup() {
+  try {
+    setCleanupBusy(true);
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
+    const res = await fetch("/api/resume/cleanup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ data: doc }),
+    });
+    if (res.status === 401) { toast.error("Please sign in to use cleanup."); return; }
+    if (!res.ok) throw new Error(await res.text());
+    const out = await res.json();
+    if (!out?.changes?.length) { toast.success("Nothing to clean up — your resume looks good."); return; }
+    setCleanupResult(out);
+  } catch (e: any) {
+    toast.error(`Cleanup failed: ${(e?.message || e).toString().slice(0, 120)}`);
+  } finally {
+    setCleanupBusy(false);
+  }
+}
+
+function applyCleanup() {
+  if (!cleanupResult?.cleanedData) return;
+  setDoc(cleanupResult.cleanedData);
+  setCleanupResult(null);
+  toast.success("Cleanup applied.");
+}
+
 // Handoff from /resume-checker: open the Smart Tailor pane with the JD
 // the user was scoring against, so they can one-click apply the tailoring.
 const handoffJdAppliedRef = React.useRef(false);
@@ -3546,7 +3581,14 @@ async function handleAISuggest(section: CVSection) {
                 <LinkedInIcon /> Import from LinkedIn
               </button>
 
-
+              <button
+                className="border rounded px-3 py-2 disabled:opacity-60"
+                onClick={handleCleanup}
+                disabled={cleanupBusy}
+                title="Use AI to fix parsing artifacts (split skills, duplicates) — you review changes before applying"
+              >
+                ✨ Clean up{cleanupBusy ? "…" : ""}
+              </button>
 
             </div>
 
@@ -3786,6 +3828,44 @@ async function handleAISuggest(section: CVSection) {
           onCancel={cancelRemoveSection}
           onConfirm={actuallyRemoveSection}
         />
+
+        {/* AI cleanup: review proposed changes before applying */}
+        {cleanupResult && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl max-h-[85vh] flex flex-col">
+              <div className="px-5 pt-5 pb-3 border-b">
+                <div className="text-lg font-semibold text-gray-900">Review cleanup</div>
+                <div className="text-sm text-gray-600 mt-0.5">
+                  {cleanupResult.changes.length} change{cleanupResult.changes.length === 1 ? "" : "s"} proposed. Nothing is applied until you accept.
+                </div>
+              </div>
+              <div className="px-5 py-3 overflow-y-auto">
+                <ul className="space-y-2">
+                  {cleanupResult.changes.map((c, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                        c.type === "remove" || c.type === "dedupe" ? "bg-red-100 text-red-700" :
+                        c.type === "merge" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-700"
+                      }`}>{c.type}</span>
+                      <span className="text-gray-800">
+                        <span className="text-gray-500 line-through">{c.before || "—"}</span>
+                        {c.after ? <> {" → "} <span className="font-medium">{c.after}</span></> : <span className="text-gray-400"> (removed)</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="px-5 py-4 border-t flex justify-end gap-2">
+                <button className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50" onClick={() => setCleanupResult(null)}>
+                  Cancel
+                </button>
+                <button className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" onClick={applyCleanup}>
+                  Apply changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile: floating button to open preview */}
         <FloatingPreviewButton onClick={() => setMobilePreviewOpen(true)} />
