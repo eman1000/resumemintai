@@ -6,6 +6,7 @@
 
 import { spawn } from "node:child_process";
 import { toJsonResume, jsonResumeHasContent, type JsonResume } from "@/lib/jsonResume";
+import { resolveTheme } from "@/lib/resumeThemesMeta";
 
 // The JSON Resume theme packages (and deps like @rbardini/html) are CommonJS
 // and break under Next/webpack's bundler in every in-process form (dynamic
@@ -62,13 +63,14 @@ export const RESUME_THEMES: ThemeMeta[] = [
   { id: "short", label: "Short", pkg: "jsonresume-theme-short" },
   { id: "spartan", label: "Spartan", pkg: "jsonresume-theme-spartan" },
   { id: "caffeine", label: "Caffeine", pkg: "jsonresume-theme-caffeine" },
-  { id: "kards", label: "Kards", pkg: "jsonresume-theme-kards" },
 ];
 
 const DEFAULT_THEME = "even";
 
 function themePkg(themeId: string | null | undefined): string {
-  const t = RESUME_THEMES.find((x) => x.id === themeId);
+  // Map legacy SVG-template ids (professional, circular, …) → a theme id too.
+  const resolved = resolveTheme(themeId);
+  const t = RESUME_THEMES.find((x) => x.id === resolved);
   return (t || RESUME_THEMES.find((x) => x.id === DEFAULT_THEME)!).pkg;
 }
 
