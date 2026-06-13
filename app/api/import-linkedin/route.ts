@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { mapOutToSections } from "../lib/parse";
+import { cleanupResume } from "@/lib/resumeCleanup";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const sections = await structureWithOpenAI(text);
+    let sections = await structureWithOpenAI(text);
+    // Auto-clean parsing artifacts (best-effort; never blocks import).
+    try {
+      const { cleanedData } = await cleanupResume({ sections });
+      if (Array.isArray(cleanedData?.sections)) sections = cleanedData.sections;
+    } catch { /* keep un-cleaned sections */ }
     return NextResponse.json({ sections });
   } catch (e: any) {
     console.error("[POST /api/import-linkedin]", e);

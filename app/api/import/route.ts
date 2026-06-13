@@ -9,6 +9,7 @@ import pdfParse from "pdf-parse";
 // npm i openai
 import OpenAI from "openai";
 import { CVSectionKey, escapeHtml, mapOutToSections, normalizeSkills } from "../lib/parse";
+import { cleanupResume } from "@/lib/resumeCleanup";
 
 
 interface CVField { key: string; role: string; fieldType?: string }
@@ -69,6 +70,13 @@ export async function POST(req: NextRequest) {
       // fall back to simple heuristics
       sections = heuristicStructure(text);
     }
+
+    // Auto-clean parsing artifacts (split skills, dupes). Best-effort: never
+    // blocks the import if the LLM is unavailable or errors.
+    try {
+      const { cleanedData } = await cleanupResume({ sections });
+      if (Array.isArray(cleanedData?.sections)) sections = cleanedData.sections;
+    } catch { /* keep un-cleaned sections */ }
 
     return NextResponse.json({ sections });
   } catch (err: any) {
