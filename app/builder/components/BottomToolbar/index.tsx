@@ -52,6 +52,12 @@ type BottomToolbarProps = {
 
   fontName: string;
   onChangeFontName: (name: string) => void;
+  /** Whether the user has set a custom font/accent (controls the reset link). */
+  fontIsCustom?: boolean;
+  accentIsCustom?: boolean;
+  /** Clear the override so the theme uses its own original value. */
+  onResetFont?: () => void;
+  onResetColor?: () => void;
 
   // Size + line-spacing are no-ops for JSON Resume themes; omit the handlers to
   // hide those menus entirely.
@@ -219,6 +225,10 @@ export function BottomToolbar(props: BottomToolbarProps) {
     renderTemplatePreview,
     fontName,
     onChangeFontName,
+    fontIsCustom,
+    accentIsCustom,
+    onResetFont,
+    onResetColor,
     primaryColor,
     onChangePrimaryColor,
     onFullscreen,
@@ -322,6 +332,21 @@ export function BottomToolbar(props: BottomToolbarProps) {
             </TriggerBtn>
           )}
         >
+          {onResetFont && (
+            <button
+              type="button"
+              onClick={() => {
+                onResetFont();
+                setOpenMenu(null);
+              }}
+              className={`flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 ${
+                fontIsCustom ? "text-gray-800" : "bg-blue-50 text-blue-700"
+              }`}
+            >
+              <span>Theme default</span>
+              {!fontIsCustom && <span className="text-xs">✓</span>}
+            </button>
+          )}
           {FONT_OPTIONS.map((f) => (
             <button
               key={f.value}
@@ -332,12 +357,12 @@ export function BottomToolbar(props: BottomToolbarProps) {
               }}
               className={`
                 flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-gray-50
-                ${fontName === f.value ? "bg-blue-50 text-blue-700" : "text-gray-800"}
+                ${fontIsCustom && fontName === f.value ? "bg-blue-50 text-blue-700" : "text-gray-800"}
               `}
               style={{ fontFamily: f.value }}
             >
               <span>{f.label}</span>
-              {fontName === f.value && <span className="text-xs">✓</span>}
+              {fontIsCustom && fontName === f.value && <span className="text-xs">✓</span>}
             </button>
           ))}
         </Menu>
@@ -399,6 +424,23 @@ export function BottomToolbar(props: BottomToolbarProps) {
               className="ml-auto w-20 rounded border border-gray-200 px-2 py-1 text-xs font-mono"
             />
           </label>
+          {onResetColor && (
+            <button
+              type="button"
+              onClick={() => {
+                onResetColor();
+                setOpenMenu(null);
+              }}
+              disabled={!accentIsCustom}
+              className={`mt-3 w-full rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                accentIsCustom
+                  ? "border-gray-300 text-gray-700 hover:bg-gray-50"
+                  : "border-gray-200 text-gray-400 cursor-default"
+              }`}
+            >
+              ↺ Reset to original theme colors
+            </button>
+          )}
         </Menu>
 
         {onFullscreen && (

@@ -296,6 +296,12 @@ function injectPrintCss(html: string): string {
       /* Hide broken avatar placeholders when the user has no photo (themes
          like caffeine emit <img src="" alt="profile-pic">). */
       img[src=""], img:not([src]), img[src="#"] { display: none !important; }
+      /* Contact email/phone links must match the surrounding contact text so
+         they stay readable: some themes render them white (built for a dark
+         sidebar) and they vanish on a light layout, and a user-chosen accent
+         could otherwise wash them out. Attribute selectors out-rank a plain
+         a-element color rule, so this wins regardless of the accent override. */
+      a[href^="mailto:"], a[href^="tel:"] { color: inherit !important; }
     </style>`;
   if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${css}</head>`);
   if (/<body[^>]*>/i.test(html)) return html.replace(/<body[^>]*>/i, (m) => `${m}${css}`);

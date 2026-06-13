@@ -3169,6 +3169,14 @@ const [activeTemplateId, setActiveTemplateId] = React.useState<string>(initialTp
       styleOptions: { ...(prev?.styleOptions || {}), [key]: value },
     }));
 
+  // Remove a style override so the theme falls back to its own native value.
+  const clearStyleOption = (key: "font" | "accent") =>
+    setDoc((prev: any) => {
+      const so = { ...(prev?.styleOptions || {}) };
+      delete so[key];
+      return { ...prev, styleOptions: so };
+    });
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState<boolean>(false);
   const prevLangRef = React.useRef<LanguageCode>(i18n.lang as any);
@@ -3697,6 +3705,10 @@ async function handleAISuggest(section: CVSection) {
               onAuthGate={onAuthGate}
               fontName={(doc as any)?.styleOptions?.font || "Roboto"}
               onChangeFontName={(name) => setStyleOption("font", name)}
+              fontIsCustom={!!(doc as any)?.styleOptions?.font}
+              accentIsCustom={!!(doc as any)?.styleOptions?.accent}
+              onResetFont={() => clearStyleOption("font")}
+              onResetColor={() => clearStyleOption("accent")}
               primaryColor={(doc as any)?.styleOptions?.accent || "#2563eb"}
               onChangePrimaryColor={(hex) => setStyleOption("accent", hex)}
             />
@@ -3809,6 +3821,10 @@ async function handleAISuggest(section: CVSection) {
             onAuthGate={onAuthGate}
             fontName={(doc as any)?.styleOptions?.font || "Roboto"}
             onChangeFontName={(name) => setStyleOption("font", name)}
+            fontIsCustom={!!(doc as any)?.styleOptions?.font}
+            accentIsCustom={!!(doc as any)?.styleOptions?.accent}
+            onResetFont={() => clearStyleOption("font")}
+            onResetColor={() => clearStyleOption("accent")}
             primaryColor={(doc as any)?.styleOptions?.accent || "#2563eb"}
             onChangePrimaryColor={(hex) => setStyleOption("accent", hex)}
           />
