@@ -108,11 +108,16 @@ export async function renderResumeHtml(
   // Vercel → layout collapsed to one column), and (b) preserves source order
   // so a theme's own later inline rules still win (kendall's navy body bg).
   html = await inlineExternalCss(html);
-  // Resumes must always render LIGHT. Some themes have
-  // @media (prefers-color-scheme: dark) rules → the builder iframe preview
-  // goes black in a dark-mode browser while the PDF stays light (mismatch).
-  // Strip those rules so preview == PDF == light everywhere.
-  html = stripDarkModeCss(html);
+  // Color-scheme handling. Themes with @media (prefers-color-scheme: dark)
+  // otherwise vary by the viewer's browser (preview black in dark mode, PDF
+  // light) — a mismatch. Make it deterministic per theme:
+  //  - even/stackoverflow: their dark design IS the intended look → UNWRAP the
+  //    dark block so it applies always (dark everywhere, preview == PDF).
+  //  - all others: STRIP the dark block so they're always light.
+  const DARK_THEMES = new Set(["even", "stackoverflow"]);
+  html = DARK_THEMES.has(resolveTheme(themeId))
+    ? unwrapDarkModeCss(html)
+    : stripDarkModeCss(html);
   // Enforce A4 print sizing + color fidelity regardless of the theme.
   html = injectPrintCss(html);
   return { html, jr, hasContent };
@@ -148,6 +153,32 @@ async function inlineExternalCss(html: string): Promise<string> {
     }
   }
   return html;
+}
+
+/** UNWRAP `@media (prefers-color-scheme: dark) { RULES }` → RULES, so the dark
+ * design applies unconditionally (for themes whose dark look is intended). */
+function unwrapDarkModeCss(html: string): string {
+  const marker = /@media[^{]*prefers-color-scheme\s*:\s*dark[^{]*\{/gi;
+  let out = html;
+  let m: RegExpExecArray | null;
+  while ((m = marker.exec(out))) {
+    const start = m.index;
+    const innerStart = start + m[0].length;
+    let depth = 1;
+    let i = innerStart;
+    for (; i < out.length; i++) {
+      if (out[i] === "{") depth++;
+      else if (out[i] === "}") {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    // Replace `@media ... { inner }` with just `inner`.
+    const inner = out.slice(innerStart, i);
+    out = out.slice(0, start) + inner + out.slice(i + 1);
+    marker.lastIndex = 0;
+  }
+  return out;
 }
 
 /** Remove `@media (prefers-color-scheme: dark) { … }` blocks (balanced braces)
