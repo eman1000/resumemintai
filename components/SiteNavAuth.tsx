@@ -24,7 +24,17 @@ export default function SiteNavAuth() {
         <Link href="/" aria-label="ResumeMint home" className="flex items-center">
           <Logo size="md" />
         </Link>
-        <div className="items-center gap-6 text-md">
+        <div className="flex items-center gap-3 sm:gap-5 text-md">
+          <Link
+            href="/profile"
+            className="px-2 py-1.5 rounded-lg text-[#52525a] hover:bg-gray-100 font-medium"
+            title="Your master resume — the source of truth we tailor from"
+          >
+            My Profile
+          </Link>
+          <Link href="/builder" className="px-2 py-1.5 rounded-lg text-[#52525a] hover:bg-gray-100">
+            My Resumes
+          </Link>
           <button onClick={onLogout} className="px-3 py-1.5 rounded-lg border border-gray-300 text-[#52525a] hover:bg-gray-100">Logout</button>
         </div>
       </div>

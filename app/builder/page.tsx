@@ -267,7 +267,19 @@ export default function BuilderHome() {
             </div>
           </div>
           <div className="max-w-6xl mx-auto py-6 px-4">
-            <h1 className="text-2xl font-semibold mb-4">CVs</h1>
+            <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold">CVs</h1>
+              <a
+                href="/profile"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700"
+                title="Your master resume — the single source of truth we tailor every application from"
+              >
+                ★ My Profile (Master Resume)
+              </a>
+            </div>
+            <p className="text-sm text-gray-500 mb-4 -mt-1">
+              Your <strong>Master Resume</strong> is your source of truth. Tailoring a job creates a separate copy, so your master never drifts.
+            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* New card (kept here too) */}
