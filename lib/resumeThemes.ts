@@ -138,13 +138,11 @@ function stripDarkModeCss(html: string): string {
 
 function injectPrintCss(html: string): string {
   const css = `
-    <meta name="color-scheme" content="light">
     <style id="rm-print">
       /* Equal page margins on all four sides (the @page margin is symmetric by
          definition). Themes keep their own internal layout/padding — forcing a
          uniform body padding breaks two-column themes. */
       @page { size: A4; margin: 12mm; }
-      :root, html, body { color-scheme: light !important; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0 !important; }
       /* kendall: education uses float pull-left/right which overlaps when the
@@ -198,22 +196,13 @@ export async function renderResumeThemedPdf(
     // preview (which is screen media). Some themes' @media print rules inject
     // page breaks / large gaps that diverge from what the user previewed.
     await page.emulateMediaType("screen");
-    // Force light mode so dark-mode CSS never affects the PDF.
-    await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
+    // Load the page so external <link> CSS (e.g. Bootstrap/Font Awesome CDNs
+    // some themes use) loads in its ORIGINAL order. Do NOT re-append the
+    // external CSS via addStyleTag — that puts it AFTER the theme's inline
+    // styles and lets Bootstrap's `body{background:#fff}` override a theme's
+    // own body background (kendall's navy → white download). networkidle2
+    // already waits for the linked CSS.
     await page.setContent(html, { waitUntil: "networkidle2", timeout: 30_000 });
-    // Inline external stylesheets so theme CSS is guaranteed present.
-    const hrefs = Array.from(
-      html.matchAll(/<link[^>]+href=["']([^"']+\.css[^"']*)["']/gi),
-    ).map((m) => m[1]);
-    for (const href of hrefs) {
-      try {
-        if (!/^https?:/i.test(href)) continue;
-        const res = await fetch(href);
-        if (res.ok) await page.addStyleTag({ content: await res.text() });
-      } catch {
-        /* ignore */
-      }
-    }
     await page.evaluate(async () => {
       // @ts-ignore
       if (document.fonts?.ready) await document.fonts.ready;
