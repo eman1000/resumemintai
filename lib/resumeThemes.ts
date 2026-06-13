@@ -147,6 +147,11 @@ function injectPrintCss(html: string): string {
       :root, html, body { color-scheme: light !important; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0 !important; }
+      /* kendall: education uses float pull-left/right which overlaps when the
+         institution name is long. Use a clean two-column flex layout. */
+      #education li { display: flex !important; gap: 12px !important; align-items: flex-start !important; }
+      #education li .year { float: none !important; flex: 0 0 56px !important; width: 56px !important; }
+      #education li .description { float: none !important; flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; }
       /* Hide broken avatar placeholders when the user has no photo (themes
          like caffeine emit <img src="" alt="profile-pic">). */
       img[src=""], img:not([src]), img[src="#"] { display: none !important; }
