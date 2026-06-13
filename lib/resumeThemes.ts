@@ -112,6 +112,9 @@ function injectPrintCss(html: string): string {
       @page { size: A4; margin: 12mm; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0; }
+      /* Hide broken avatar placeholders when the user has no photo (themes
+         like caffeine emit <img src="" alt="profile-pic">). */
+      img[src=""], img:not([src]), img[src="#"] { display: none !important; }
     </style>`;
   if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${css}</head>`);
   if (/<body[^>]*>/i.test(html)) return html.replace(/<body[^>]*>/i, (m) => `${m}${css}`);
