@@ -9,7 +9,6 @@ import pdfParse from "pdf-parse";
 // npm i openai
 import OpenAI from "openai";
 import { CVSectionKey, escapeHtml, mapOutToSections, normalizeSkills } from "../lib/parse";
-import { cleanupResume } from "@/lib/resumeCleanup";
 
 
 interface CVField { key: string; role: string; fieldType?: string }
@@ -71,13 +70,10 @@ export async function POST(req: NextRequest) {
       sections = heuristicStructure(text);
     }
 
-    // Auto-clean parsing artifacts (split skills, dupes). Best-effort: never
-    // blocks the import if the LLM is unavailable or errors.
-    try {
-      const { cleanedData } = await cleanupResume({ sections });
-      if (Array.isArray(cleanedData?.sections)) sections = cleanedData.sections;
-    } catch { /* keep un-cleaned sections */ }
-
+    // NOTE: we intentionally do NOT run AI cleanup on import. An imported resume
+    // is the user's source of truth; its content must be placed verbatim into
+    // sections, never rewritten/merged/dropped by AI. Cleanup is user-initiated
+    // (the "Clean up" button, with a review diff).
     return NextResponse.json({ sections });
   } catch (err: any) {
     return NextResponse.json({ error: String(err?.message || err) }, { status: 500 });
@@ -110,9 +106,16 @@ type Out = {
   footerNote?: string;
 };
 Rules:
-- Infer missing fields conservatively.
+- VERBATIM EXTRACTION ONLY. Preserve the candidate's exact wording for the
+  summary, bullets, titles, and every field. Do NOT rewrite, rephrase, summarize,
+  translate, correct grammar/spelling, embellish, or invent anything. You are
+  only PLACING existing text into the right fields, not improving it.
+- Do not drop content: every bullet/skill in the source must appear in the output.
+- Leave a field empty rather than guessing or fabricating a value.
 - Prefer arrays for bullets.
-- For "skills", ALWAYS return a valid string array of atomic skills (e.g., ["React", "TypeScript", "Node.js"]), If the source has category blocks like "Frontend: React, Angular · Backend: Node", split them.
+- For "skills", return a string array of the skills as written (e.g. ["React",
+  "TypeScript"]). If the source groups them ("Frontend: React, Angular"), split
+  on the list separators only — keep each skill's text exactly as written.
 - Prefer [start,end] for periods; if unknown end, use "Present".
 - No extra commentary. JSON only.
   `.trim();
@@ -126,7 +129,7 @@ Rules:
   // JSON-mode style response
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
-    temperature: 0.2,
+    temperature: 0, // deterministic, extraction-only (no creative rewriting)
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: system },

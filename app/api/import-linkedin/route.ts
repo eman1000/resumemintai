@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { mapOutToSections } from "../lib/parse";
-import { cleanupResume } from "@/lib/resumeCleanup";
 
 export const runtime = "nodejs";
 
@@ -38,12 +37,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let sections = await structureWithOpenAI(text);
-    // Auto-clean parsing artifacts (best-effort; never blocks import).
-    try {
-      const { cleanedData } = await cleanupResume({ sections });
-      if (Array.isArray(cleanedData?.sections)) sections = cleanedData.sections;
-    } catch { /* keep un-cleaned sections */ }
+    // Verbatim structuring only — no AI cleanup. The import is the user's source
+    // of truth; cleanup is user-initiated (the "Clean up" button with a diff).
+    const sections = await structureWithOpenAI(text);
     return NextResponse.json({ sections });
   } catch (e: any) {
     console.error("[POST /api/import-linkedin]", e);
@@ -79,8 +75,15 @@ type Out = {
   footerNote?: string;
 };
 Rules:
-- Infer conservatively. Prefer arrays for bullets.
-- "skills" MUST be an array of atomic skills (["React","TypeScript","Node.js"]). Split categories like "Frontend: React, Angular · Backend: Node".
+- VERBATIM EXTRACTION ONLY. Preserve the candidate's exact wording for the
+  summary, bullets, titles, and every field. Do NOT rewrite, rephrase, summarize,
+  translate, correct grammar/spelling, embellish, or invent. Only PLACE existing
+  text into the right fields.
+- Do not drop content; leave a field empty rather than guessing or fabricating.
+- Prefer arrays for bullets.
+- "skills" is an array of the skills as written (["React","TypeScript"]). If
+  grouped ("Frontend: React, Angular"), split on separators only — keep each
+  skill's text exactly as written.
 - Prefer [start,end]; if unknown end, use "Present".
 - No commentary. JSON only.
 `.trim();
@@ -89,7 +92,7 @@ Rules:
 
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
-    temperature: 0.2,
+    temperature: 0, // deterministic, extraction-only (no creative rewriting)
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: system },
