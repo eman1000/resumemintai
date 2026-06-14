@@ -18,7 +18,7 @@ export default function InstallClient() {
   const [subscribeOpen, setSubscribeOpen] = React.useState(false);
 
   const onDownloadClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (loading) return;
+    if (loading) { e.preventDefault(); return; } // don't download before gating resolves
     if (!isAuthenticated) {
       e.preventDefault();
       setLoginOpen(true);
@@ -31,13 +31,17 @@ export default function InstallClient() {
     }
   };
 
-  const buttonLabel = !isAuthenticated
-    ? "Sign in to download"
-    : !isSubscribed
-      ? "Unlock with PRO"
-      : `Download for Chrome (v${EXTENSION_VERSION})`;
+  // While auth + subscription are still resolving, show a single stable state
+  // instead of flashing through Sign-in → Unlock → Download.
+  const buttonLabel = loading
+    ? "Checking…"
+    : !isAuthenticated
+      ? "Sign in to download"
+      : !isSubscribed
+        ? "Unlock with PRO"
+        : `Download for Chrome (v${EXTENSION_VERSION})`;
 
-  const ButtonIcon = isAuthenticated && isSubscribed ? Download : Lock;
+  const ButtonIcon = !loading && isAuthenticated && isSubscribed ? Download : Lock;
 
   return (
     <>
@@ -61,7 +65,7 @@ export default function InstallClient() {
               href={DOWNLOAD_URL}
               onClick={onDownloadClick}
               download
-              className="btn-primary text-base px-7 py-3 inline-flex items-center gap-2 disabled:opacity-60"
+              className={`btn-primary text-base px-7 py-3 inline-flex items-center gap-2 ${loading ? "opacity-60 pointer-events-none" : ""}`}
               aria-disabled={loading}
             >
               <ButtonIcon className="w-4 h-4" />
@@ -255,7 +259,7 @@ export default function InstallClient() {
             href={DOWNLOAD_URL}
             onClick={onDownloadClick}
             download
-            className="btn-primary mt-6 inline-flex items-center gap-2 text-base"
+            className={`btn-primary mt-6 inline-flex items-center gap-2 text-base ${loading ? "opacity-60 pointer-events-none" : ""}`}
             aria-disabled={loading}
           >
             <ButtonIcon className="w-4 h-4" />
