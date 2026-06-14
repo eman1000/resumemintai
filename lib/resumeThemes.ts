@@ -16,6 +16,13 @@ const LOCAL_THEMES: Record<string, (jr: JsonResume) => string> = {
   professional: renderProfessional,
 };
 
+// Themes that render as a plain document (no edge-to-edge background) and carry
+// NO outer body padding — they take their page margin from @page instead, so it
+// repeats uniformly on every page. Value is the equal all-sides margin.
+const PAGE_MARGINS: Record<string, string> = {
+  professional: "13mm",
+};
+
 // The JSON Resume theme packages (and deps like @rbardini/html) are CommonJS
 // and break under Next/webpack's bundler in every in-process form (dynamic
 // import, createRequire, eval-require). So we render them in a CHILD NODE
@@ -130,7 +137,9 @@ export async function renderResumeHtml(
     ? unwrapDarkModeCss(html)
     : stripDarkModeCss(html);
   // Enforce A4 print sizing + color fidelity regardless of the theme.
-  html = injectPrintCss(html);
+  // Document themes (own no outer padding) get an equal all-sides page margin
+  // that repeats on every page; full-bleed themes keep margin 0.
+  html = injectPrintCss(html, PAGE_MARGINS[resolved] ?? "0");
   // User font/accent customization (stored on data.styleOptions; persists +
   // flows to both preview and PDF since both send `data`).
   html = injectStyleOverrides(html, data?.styleOptions);
@@ -273,15 +282,15 @@ function stripDarkModeCss(html: string): string {
   return out;
 }
 
-function injectPrintCss(html: string): string {
+function injectPrintCss(html: string, pageMargin: string = "0"): string {
   const css = `
     <style id="rm-print">
-      /* Equal page margins on all four sides (the @page margin is symmetric by
-         definition). Themes keep their own internal layout/padding — forcing a
-         uniform body padding breaks two-column themes. */
-      /* Full-bleed: no page margin so theme header bands/backgrounds reach the
-         paper edge. Themes inset their own content via their container padding. */
-      @page { size: A4; margin: 0; }
+      /* Page margin repeats on EVERY page (unlike body padding, which only insets
+         the first page top / last page bottom). Document themes pass an equal
+         all-sides margin here and use NO outer body padding, so every page has
+         identical top/bottom/left/right margins. Full-bleed themes pass "0" so
+         their header bands/backgrounds reach the paper edge. */
+      @page { size: A4; margin: ${pageMargin}; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { margin: 0 !important; }
       /* Bootstrap grid: force col-sm-* widths at ANY width. The serverless PDF

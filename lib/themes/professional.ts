@@ -186,7 +186,10 @@ export function renderProfessional(jr: JsonResume): string {
     body {
       font-family: Helvetica, Arial, "Liberation Sans", sans-serif;
       color: #232323; font-size: 11.2px; line-height: 1.55;
-      padding: 46px 54px; background: #fff;
+      /* No outer padding: page margins come from @page (injected by the render
+         pipeline) so they repeat uniformly on every page of a multi-page PDF.
+         The preview paginates with paged.js, which honours the same @page rule. */
+      padding: 0; margin: 0; background: #fff;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
     a { color: inherit; text-decoration: none; }
