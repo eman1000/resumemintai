@@ -20,9 +20,11 @@ const BASE_PAGE_WIDTH = 794; // A4 @96dpi
 // `after` hook reports the rendered height back so we can size the iframe.
 const PAGED_INJECT = `
 <style id="rm-paged-chrome">
-  html, body { background: #525659 !important; }
-  .pagedjs_pages { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; }
-  .pagedjs_page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.5); }
+  /* Grey "viewer" background ONLY on the paged container — which exists only
+     after paged.js succeeds. Never on html/body, so a slow/failed paginate
+     shows the resume on white (not a stuck grey blob). */
+  .pagedjs_pages { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; background: #e9eaec; }
+  .pagedjs_page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35); }
 </style>
 <script>
   window.PagedConfig = { auto: true, after: function () {
@@ -164,11 +166,11 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
   return (
     <div
       ref={scrollRef}
-      className="max-h-[calc(100vh-2rem)] overflow-auto rounded border bg-[#525659]"
+      className="max-h-[calc(100vh-2rem)] overflow-auto rounded border bg-gray-100"
       style={{ WebkitOverflowScrolling: "touch", position: "relative" }}
     >
       {loading && (
-        <div style={{ position: "absolute", top: 8, right: 12, fontSize: 11, color: "#e5e7eb", zIndex: 2 }}>
+        <div style={{ position: "absolute", top: 8, right: 12, fontSize: 11, color: "#6b7280", zIndex: 2 }}>
           Updating…
         </div>
       )}
@@ -183,7 +185,7 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
               title="Resume preview"
               srcDoc={srcDoc}
               onLoad={onLoad}
-              style={{ width: BASE_PAGE_WIDTH, height: iframeH, border: "0", background: "#525659" }}
+              style={{ width: BASE_PAGE_WIDTH, height: iframeH, border: "0", background: "#fff" }}
             />
           ) : (
             <div style={{ width: BASE_PAGE_WIDTH, height: 1123, background: "#fff" }} />
