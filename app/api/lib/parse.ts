@@ -162,19 +162,39 @@ if (out?.personalDetails) {
 
 
 if (out?.skills != null) {
-  const items = normalizeSkills(out.skills);
-  if (items.length) {
-    secs.push({
-      key: "skills",
-      title: "Skills",
-      // one simple text field per record
-      fields: [{ key: "h", role: "header" }],
-      // ⬇️ one record per skill -> gives you multiple inputs in the editor
-      records: items.map((s: string, i: number) => ({
-        key: `s${i + 1}`,
-        values: [s],
-      })),
-    });
+  // Two shapes: a flat list of skills, OR categories [{category, items[]}]
+  // (e.g. "Backend & APIs": Node.js, Express…). Categories are preserved so the
+  // resume keeps its grouped layout (header = category, keywords = items list).
+  const raw = out.skills;
+  const isCategorized =
+    Array.isArray(raw) && raw.some((x: any) => x && typeof x === "object" && (x.category || x.items));
+  if (isCategorized) {
+    const records = (raw as any[])
+      .map((g: any, i: number) => {
+        const items = normalizeSkills(g?.items || []);
+        const name = String(g?.category || "").trim();
+        if (!name && !items.length) return null;
+        return { key: `s${i + 1}`, values: [name, "", items.join(", ")] };
+      })
+      .filter(Boolean) as CVRecord[];
+    if (records.length) {
+      secs.push({
+        key: "skills",
+        title: "Skills",
+        fields: [{ key: "h", role: "header" }, { key: "lvl", role: "level" }, { key: "kw", role: "keywords" }],
+        records,
+      });
+    }
+  } else {
+    const items = normalizeSkills(raw);
+    if (items.length) {
+      secs.push({
+        key: "skills",
+        title: "Skills",
+        fields: [{ key: "h", role: "header" }],
+        records: items.map((s: string, i: number) => ({ key: `s${i + 1}`, values: [s] })),
+      });
+    }
   }
 }
 

@@ -181,8 +181,15 @@ export function toJsonResume(data: AnyRec): JsonResume {
   // ---- skills ----
   const skSec = sectionByKey(data, "skills");
   const skills = (skSec?.records || [])
-    .map((r: AnyRec) => ({ name: String(val(skSec, r, "header") || "").trim(), level: "", keywords: [] }))
-    .filter((s: AnyRec) => s.name);
+    .map((r: AnyRec) => ({
+      name: String(val(skSec, r, "header") || "").trim(),
+      level: String(val(skSec, r, "level") || "").trim(),
+      // Optional comma list → JSON Resume keywords. When present, the skill is a
+      // CATEGORY (e.g. "Backend & APIs") and keywords are its items, so themes
+      // render the grouped "category: a, b, c" layout.
+      keywords: splitKeywords(val(skSec, r, "keywords")),
+    }))
+    .filter((s: AnyRec) => s.name || s.keywords.length);
 
   // ---- languages ----
   const langSec = sectionByKey(data, "languages");

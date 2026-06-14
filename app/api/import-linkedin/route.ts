@@ -61,7 +61,7 @@ type Out = {
     period?: [string,string] | string; bullets?: string[] }>;
   educations?: Array<{ degree?: string; school?: string; location?: string;
     period?: [string,string] | string; details?: string[] }>;
-  skills?: string[];
+  skills?: string[] | Array<{ category?: string; items?: string[] }>;
   languages?: string[];
   certifications?: Array<{ name?: string; org?: string; period?: [string,string] | string }>;
   courses?: string[];
@@ -83,9 +83,9 @@ Rules:
 - Capture every section: "Selected Work"/"Projects" → "projects" (tech/stack line
   in "stack", bullets in "bullets"); certifications → "certifications".
 - Prefer arrays for bullets.
-- "skills" is an array of the skills as written (["React","TypeScript"]). If
-  grouped ("Frontend: React, Angular"), split on separators only — keep each
-  skill's text exactly as written.
+- "skills": if grouped under category headings, PRESERVE the groups as
+  [{category, items:[...]}] (each skill verbatim); otherwise a flat string array.
+  Split items on separators only — never reword a skill.
 - Prefer [start,end]; if unknown end, use "Present".
 - No commentary. JSON only.
 `.trim();

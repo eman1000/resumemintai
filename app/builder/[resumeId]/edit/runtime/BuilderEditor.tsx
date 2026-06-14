@@ -1976,8 +1976,13 @@ const SkillsEditor: React.FC<{
   t: (k: string, fb?: string) => string;
   skills: string[]; // localized levels (ordered)
 }> = ({ section, setDoc, t, skills = ["Beginner","Moderate","Good","Very Good","Excellent"] }) => {
-  const ensureFields = () =>
-    section.fields?.length ? section.fields : [{ key: "h", role: "header" }, { key: "lvl", role: "level" }];
+  // header = skill OR category name; level = optional proficiency; keywords =
+  // optional comma list of items (when set, the row renders as a category group).
+  const ensureFields = () => {
+    const f = section.fields?.length ? [...section.fields] : [{ key: "h", role: "header" }, { key: "lvl", role: "level" }];
+    if (!f.some((x) => x.role === "keywords")) f.push({ key: "kw", role: "keywords" });
+    return f;
+  };
 
   React.useEffect(() => {
     const f = ensureFields();
@@ -1991,7 +1996,7 @@ const SkillsEditor: React.FC<{
   const s = React.useMemo(() => ({ ...section, fields: ensureFields() }), [section]);
 
   const add = () =>
-    updateSectionRecords(s, (old) => [...old, { key: newKey("skill"), values: ["", ""] }], setDoc);
+    updateSectionRecords(s, (old) => [...old, { key: newKey("skill"), values: ["", "", ""] }], setDoc);
 
   const setRec = (idx: number, rec: CVRecord) =>
     updateSectionRecords(s, (old) => old.map((r, i) => (i === idx ? rec : r)), setDoc);
@@ -2039,6 +2044,18 @@ const SkillsEditor: React.FC<{
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs text-gray-500">
+                  {t("label.skillItems", "Items (comma-separated) — optional")}
+                </label>
+                <input
+                  className="w-full rounded border px-3 py-2"
+                  placeholder={t("label.skillItemsHint", "e.g. React.js / Next.js, TypeScript, Node.js — makes this a category")}
+                  value={String(getByRole(s, r, "keywords", 2) || "")}
+                  onChange={(e) => setRec(i, setByRole(s, r, "keywords", e.target.value, 2))}
+                />
               </div>
 
               <div className="col-span-2 flex justify-between">

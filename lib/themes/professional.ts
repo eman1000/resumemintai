@@ -115,20 +115,29 @@ export function renderProfessional(jr: JsonResume): string {
     .join("");
   const experience = section("Experience", workBody);
 
-  // ---- skills (categories when keywords exist, else a single line) ----
+  // ---- skills ----
+  // Categories (skills with keywords) render like the source resume: a bold
+  // category heading + a ● bullet listing the items, first item bold. Flat
+  // skills (no keywords) collapse into one comma-separated line.
   const skillCats = (jr.skills || []).filter((s) => (s.keywords || []).length);
   const skillFlat = (jr.skills || []).filter((s) => !(s.keywords || []).length).map((s) => s.name).filter(Boolean);
   let skillsBody = "";
   if (skillCats.length) {
     skillsBody += skillCats
-      .map(
-        (s) => `<div class="rm-skill-cat"><div class="rm-skill-name">${esc(s.name)}</div>
-        <div class="rm-skill-list">${(s.keywords || []).map(esc).join(" · ")}</div></div>`,
-      )
+      .map((s) => {
+        const items = s.keywords || [];
+        const list = items.length
+          ? `<strong>${esc(items[0])}</strong>${items.length > 1 ? ", " + items.slice(1).map(esc).join(", ") : ""}`
+          : "";
+        return `<div class="rm-skill-cat">
+          ${s.name ? `<div class="rm-skill-name">${esc(s.name)}</div>` : ""}
+          ${list ? `<ul class="rm-bullets"><li>${list}</li></ul>` : ""}
+        </div>`;
+      })
       .join("");
   }
   if (skillFlat.length) {
-    skillsBody += `<div class="rm-skill-list rm-skill-line">${skillFlat.map(esc).join(" · ")}</div>`;
+    skillsBody += `<div class="rm-skill-list rm-skill-line">${skillFlat.map(esc).join(", ")}</div>`;
   }
   const skills = section("Skills", skillsBody);
 

@@ -94,7 +94,8 @@ type Out = {
   employment?: Array<{ role?: string; company?: string; period?: [string, string] | string; bullets?: string[] }>;
   projects?: Array<{ name?: string; stack?: string; period?: [string, string] | string; bullets?: string[] }>;
   educations?: Array<{ degree?: string; school?: string; period?: [string, string] | string; details?: string[] }>;
-  skills?: string[];
+  // Flat list OR categories (preserve the source's groupings if it has them).
+  skills?: string[] | Array<{ category?: string; items?: string[] }>;
   languages?: string[];
   hobbies?: string[];
   qualities?: string[];
@@ -118,9 +119,11 @@ Rules:
   certifications in "certificates" (with issuer in "org"), courses in "courses".
 - Leave a field empty rather than guessing or fabricating a value.
 - Prefer arrays for bullets.
-- For "skills", return a string array of the skills as written (e.g. ["React",
-  "TypeScript"]). If the source groups them ("Frontend: React, Angular"), split
-  on the list separators only — keep each skill's text exactly as written.
+- For "skills": if the resume groups skills under category headings (e.g.
+  "Core Full-Stack & Front-End", "Backend & APIs"), PRESERVE the groups — return
+  [{category, items:[...]}] with each skill verbatim. If there are no categories,
+  return a flat string array. Split each items list on its separators only; never
+  reword a skill.
 - Prefer [start,end] for periods; if unknown end, use "Present".
 - No extra commentary. JSON only.
   `.trim();
