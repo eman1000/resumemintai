@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { userIdFromExtensionRequest } from "@/lib/extensionToken";
+import { getMasterResume } from "@/lib/masterResume";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -197,11 +198,9 @@ function flattenResume(row: { data: any; title?: string | null }): FlatResume {
 export async function GET(req: Request) {
   try {
     const userId = userIdFromExtensionRequest(req);
-    const row = await prisma.resume.findFirst({
-      where: { userId, archived: false },
-      orderBy: [{ updatedAt: "desc" }],
-      select: { data: true, title: true },
-    });
+    // Default to the MASTER resume (source of truth) — not the most-recently
+    // edited one, which could be a tailored copy or a stray edit.
+    const row = await getMasterResume(userId);
     if (!row) {
       return NextResponse.json(
         { error: "no_resume", detail: "Create a resume on resumemintai.com first." },

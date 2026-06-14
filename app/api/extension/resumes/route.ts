@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 type ResumeSummary = {
   id: string;
   title: string;
+  isMaster: boolean;
   isTailored: boolean;
   tailoredFor?: {
     title?: string;
@@ -36,10 +37,11 @@ export async function GET(req: Request) {
     select: {
       id: true,
       title: true,
+      isMaster: true,
       tailoredForJob: true,
       updatedAt: true,
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ isMaster: "desc" }, { updatedAt: "desc" }],
     take: 60,
   });
 
@@ -51,6 +53,7 @@ export async function GET(req: Request) {
     return {
       id: r.id,
       title: r.title,
+      isMaster: !!r.isMaster,
       isTailored: !!tailored,
       tailoredFor: tailored
         ? {

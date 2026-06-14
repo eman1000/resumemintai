@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { userIdFromExtensionRequest } from "@/lib/extensionToken";
 import { renderResumeThemedPdf } from "@/lib/resumeThemes";
+import { getMasterResume } from "@/lib/masterResume";
 import {
   checkAiUsage,
   recordAiUsage,
@@ -62,17 +63,14 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const resumeIdParam = url.searchParams.get("resumeId");
 
-  // Resolve the resume: requested id (must be owned) or most-recent.
+  // Resolve the resume: requested id (must be owned), else the MASTER resume
+  // (source of truth) — not the most-recently edited one.
   const owned = resumeIdParam
     ? await prisma.resume.findFirst({
         where: { id: resumeIdParam, userId },
         select: { id: true, title: true, data: true, renderer: true },
       })
-    : await prisma.resume.findFirst({
-        where: { userId, archived: false },
-        orderBy: [{ updatedAt: "desc" }],
-        select: { id: true, title: true, data: true, renderer: true },
-      });
+    : await getMasterResume(userId);
   if (!owned) {
     return NextResponse.json(
       { error: "resume_not_found", detail: "No matching resume for this account." },
