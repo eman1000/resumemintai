@@ -672,7 +672,14 @@ export default function SidePanel() {
                       ? "Saved answers (visa, citizenship, salary…) are reused so the agent stops re-asking."
                       : "Add your common application answers once — the agent reuses them so it stops re-asking every job."}
                   </p>
-                  <button onClick={() => setProfileOpen(true)} style={{
+                  <button onClick={() => {
+                    setProfileOpen(true); // open immediately (form has a fallback schema)
+                    // Refresh schema + saved answers in the background.
+                    fetchProfile().then(({ profile: p, fields }) => {
+                      if (p) setProfile(p);
+                      if (fields?.length) setProfileFields(fields);
+                    }).catch(() => {});
+                  }} style={{
                     background: COLORS.brand, color: "#fff", border: "none", borderRadius: 8,
                     padding: "7px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600,
                   }}>
@@ -913,6 +920,25 @@ function QuestionForm({
   );
 }
 
+// Fallback field schema (mirrors server PROFILE_FIELDS) so the form ALWAYS
+// renders inputs even if /api/extension/profile hasn't loaded yet or failed.
+const FALLBACK_PROFILE_FIELDS: ProfileField[] = [
+  { key: "workLocation", label: "Current work location (city, country)", type: "text", placeholder: "Kuala Lumpur, Malaysia" },
+  { key: "citizenship", label: "Country of citizenship", type: "text", placeholder: "Zimbabwe" },
+  { key: "secondCitizenship", label: "Second citizenship (or 'None')", type: "text", placeholder: "None" },
+  { key: "workAuthorization", label: "Where are you authorized to work?", type: "text", placeholder: "Malaysia (work permit)" },
+  { key: "visaSponsorship", label: "Do you require visa sponsorship?", type: "yesno" },
+  { key: "willingToRelocate", label: "Willing to relocate?", type: "yesno" },
+  { key: "salaryExpectation", label: "Salary expectation", type: "text", placeholder: "USD 90k–110k / yr" },
+  { key: "noticePeriod", label: "Notice period", type: "text", placeholder: "1 month" },
+  { key: "earliestStart", label: "Earliest start date", type: "text", placeholder: "Immediately / 2 weeks" },
+  { key: "yearsExperience", label: "Total years of experience", type: "text", placeholder: "8" },
+  { key: "howHeard", label: "How did you hear about roles? (default source)", type: "text", placeholder: "LinkedIn" },
+  { key: "pronouns", label: "Gender / pronouns (optional, for EEO)", type: "text", placeholder: "He/Him" },
+  { key: "veteranStatus", label: "Veteran status (optional, EEO)", type: "text", placeholder: "Not a veteran" },
+  { key: "disabilityStatus", label: "Disability status (optional, EEO)", type: "text", placeholder: "Prefer not to say" },
+];
+
 function ProfileEditor({
   fields,
   profile,
@@ -924,6 +950,8 @@ function ProfileEditor({
   onSave: (vals: Record<string, string>) => void;
   onCancel: () => void;
 }) {
+  // Use the loaded schema, or the built-in fallback if it's empty.
+  const list = fields && fields.length ? fields : FALLBACK_PROFILE_FIELDS;
   const [vals, setVals] = useState<Record<string, string>>(profile?.fields || {});
   const set = (k: string, v: string) => setVals((s) => ({ ...s, [k]: v }));
   return (
@@ -932,7 +960,7 @@ function ProfileEditor({
         Fill what applies — leave the rest blank. The agent reuses these and only asks for what’s missing.
       </p>
       <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
-        {fields.map((f) => (
+        {list.map((f) => (
           <div key={f.key} style={{ marginBottom: 10 }}>
             <label style={{ display: "block", fontSize: 11, color: COLORS.ink, marginBottom: 3 }}>{f.label}</label>
             {f.type === "yesno" ? (
