@@ -3,11 +3,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import Logo from '@/components/Logo';
+import { useAuthStatus } from '@/hooks/useAuthStatus';
 
 export default function SiteNav() {
   const pathname = usePathname();
   const onHome = pathname === '/';
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isAuthenticated, loading: authLoading } = useAuthStatus();
+  const loggedIn = isAuthenticated && !authLoading;
 
   const navLinks = [
     { label: 'ATS Check', href: '/resume-checker' },
@@ -30,10 +33,21 @@ export default function SiteNav() {
               {l.label}
             </Link>
           ))}
-          <Link href="/login" className="text-[#52525a] hover:text-brand transition-colors">Login</Link>
-          <Link href="/builder" className="btn-primary text-sm !px-5 !py-2">
-            Create resume
-          </Link>
+          {loggedIn ? (
+            <>
+              <Link href="/builder" className="text-[#52525a] hover:text-brand transition-colors">My Resumes</Link>
+              <Link href="/profile" className="btn-primary text-sm !px-5 !py-2">
+                My Profile
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-[#52525a] hover:text-brand transition-colors">Login</Link>
+              <Link href="/builder" className="btn-primary text-sm !px-5 !py-2">
+                Create resume
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -61,16 +75,25 @@ export default function SiteNav() {
               {l.label}
             </Link>
           ))}
-          <Link href="/login" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
-            Login
-          </Link>
-          <Link
-            href="/builder"
-            className="btn-primary block text-center text-sm !py-2"
-            onClick={() => setMobileOpen(false)}
-          >
-            Create resume
-          </Link>
+          {loggedIn ? (
+            <>
+              <Link href="/builder" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
+                My Resumes
+              </Link>
+              <Link href="/profile" className="btn-primary block text-center text-sm !py-2" onClick={() => setMobileOpen(false)}>
+                My Profile
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
+                Login
+              </Link>
+              <Link href="/builder" className="btn-primary block text-center text-sm !py-2" onClick={() => setMobileOpen(false)}>
+                Create resume
+              </Link>
+            </>
+          )}
         </div>
       )}
     </nav>
