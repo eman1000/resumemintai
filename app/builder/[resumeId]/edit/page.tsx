@@ -469,6 +469,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
         language={lang}
         onChangeLanguage={handleChangeLanguage}
         t={t}
+        isMaster={isMaster}
       />
 
       <BuilderEditor

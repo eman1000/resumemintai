@@ -31,6 +31,11 @@ export interface TopBarProps {
 
   savingState?: SavingState;
   t: (k: string, fb?: string) => string;
+
+  /** Whether this resume is the user's master (source of truth). */
+  isMaster?: boolean;
+  /** Promote this resume to master. Hidden when already master. */
+  onSetMaster?: () => void;
 }
 
 
@@ -42,6 +47,8 @@ export default function TopBar({
   dateFormat, onChangeDateFormat, language, onChangeLanguage,
   savingState = "idle",
   t,
+  isMaster = false,
+  onSetMaster,
 }: TopBarProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement | null>(null);
@@ -161,6 +168,33 @@ export default function TopBar({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {isMaster ? (
+            <span
+              className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-pill bg-amber-100 text-amber-800 text-sm font-medium"
+              title="This is your master resume — your source of truth. Tailoring a job creates a separate copy."
+            >
+              ★ Master
+            </span>
+          ) : (
+            <>
+              {onSetMaster && (
+                <button
+                  onClick={onSetMaster}
+                  className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-pill border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm font-medium"
+                  title="Make this your master resume (source of truth)"
+                >
+                  ☆ Set as master
+                </button>
+              )}
+              <a
+                href="/profile"
+                className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-pill text-[#52525a] hover:bg-gray-100 text-sm font-medium"
+                title="Open your master resume"
+              >
+                ★ My Profile
+              </a>
+            </>
+          )}
           <button
             onClick={onDownload}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-pill bg-brand text-white hover:bg-brand-700"
