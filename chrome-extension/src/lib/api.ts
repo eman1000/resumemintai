@@ -14,6 +14,7 @@ import { STORAGE_KEYS } from "../types";
 export type ResumeSummary = {
   id: string;
   title: string;
+  isMaster?: boolean;
   isTailored: boolean;
   tailoredFor?: { title?: string; company?: string; location?: string; source?: string };
   updatedAt: string;

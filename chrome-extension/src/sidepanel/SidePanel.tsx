@@ -977,8 +977,12 @@ function TailorBasePicker({
 }) {
   // Only base resumes (not already-tailored) are reasonable bases.
   const bases = resumes.filter((r) => !r.isTailored);
+  // Prefer the suggested resume, else the master (source of truth), else first.
   const [selectedId, setSelectedId] = useState<string>(
-    suggestedId && bases.find((b) => b.id === suggestedId) ? suggestedId : bases[0]?.id || "",
+    (suggestedId && bases.find((b) => b.id === suggestedId) ? suggestedId : "") ||
+      bases.find((b) => b.isMaster)?.id ||
+      bases[0]?.id ||
+      "",
   );
 
   if (bases.length === 0) {
@@ -1064,7 +1068,7 @@ function TailorBasePicker({
       >
         {bases.map((b) => (
           <option key={b.id} value={b.id}>
-            {b.title || "Untitled"}{b.id === suggestedId ? "  (suggested)" : ""}
+            {b.isMaster ? "★ " : ""}{b.title || "Untitled"}{b.isMaster ? "  (master)" : ""}{b.id === suggestedId ? "  (suggested)" : ""}
           </option>
         ))}
       </select>
