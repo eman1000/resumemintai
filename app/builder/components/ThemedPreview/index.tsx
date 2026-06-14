@@ -27,7 +27,13 @@ const PAGED_INJECT = `
 <script>
   window.PagedConfig = { auto: true, after: function () {
     requestAnimationFrame(function () {
-      try { parent.postMessage({ __rmPaged: 1, height: document.documentElement.scrollHeight }, "*"); } catch (e) {}
+      try {
+        parent.postMessage({
+          __rmPaged: 1,
+          height: document.documentElement.scrollHeight,
+          pages: document.querySelectorAll('.pagedjs_page').length,
+        }, "*");
+      } catch (e) {}
     });
   }};
 <\/script>
@@ -51,6 +57,11 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
   const [usePaged, setUsePaged] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [iframeH, setIframeH] = React.useState(1123);
+  const pagedOkRef = React.useRef(false);
+  const watchdogRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A new theme might paginate fine even if a previous one didn't — retry paged.
+  React.useEffect(() => { setUsePaged(true); pagedOkRef.current = false; }, [theme]);
 
   // Responsive scale to fit the panel width.
   React.useEffect(() => {
@@ -70,8 +81,16 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
   React.useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const d = e.data || {};
-      if (d.__rmPaged && typeof d.height === "number") {
-        setIframeH(Math.max(1123, d.height));
+      if (d.__rmPaged) {
+        if (d.pages === 0) {
+          // paged.js ran but produced nothing (some themes' CSS breaks it) →
+          // fall back to plain rendering so the preview isn't blank/black.
+          setUsePaged(false);
+          return;
+        }
+        pagedOkRef.current = true;
+        if (watchdogRef.current) clearTimeout(watchdogRef.current);
+        if (typeof d.height === "number") setIframeH(Math.max(1123, d.height));
         setLoading(false);
       } else if (d.__rmPagedError) {
         // paged.js couldn't load → render the plain (unpaginated) HTML so the
@@ -82,6 +101,19 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, []);
+
+  // Watchdog: if paged.js doesn't report success shortly after loading new HTML
+  // (it silently fails on some themes' CSS), fall back to plain rendering so the
+  // preview never sits blank/black.
+  React.useEffect(() => {
+    if (!rawHtml || !usePaged) return;
+    pagedOkRef.current = false;
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => {
+      if (!pagedOkRef.current) setUsePaged(false);
+    }, 5000);
+    return () => { if (watchdogRef.current) clearTimeout(watchdogRef.current); };
+  }, [rawHtml, usePaged]);
 
   // Debounced server render whenever data or theme changes.
   React.useEffect(() => {

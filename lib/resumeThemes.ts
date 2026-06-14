@@ -16,12 +16,24 @@ const LOCAL_THEMES: Record<string, (jr: JsonResume) => string> = {
   professional: renderProfessional,
 };
 
-// Themes that render as a plain document (no edge-to-edge background) and carry
-// NO outer body padding — they take their page margin from @page instead, so it
-// repeats uniformly on every page. Value is the equal all-sides margin.
-const PAGE_MARGINS: Record<string, string> = {
-  professional: "13mm",
+// Colored/full-bleed themes → their body background colour, so we can bleed it
+// to the paper edge on every page (the @page margin would otherwise show white
+// bands). Sampled from each theme's rendered body background.
+const FULL_BLEED_BG: Record<string, string> = {
+  even: "#191e23",
+  stackoverflow: "#18181b",
+  kendall: "#324960",
 };
+
+/** Add a position:fixed full-page background (repeats on every printed page) so
+ * a colored theme reaches the paper edge despite the @page text margin. */
+function injectFullBleedBg(html: string, color: string): string {
+  const inject =
+    `<style id="rm-bleed-style">.rm-bleed{position:fixed;top:-12mm;left:-12mm;right:-12mm;bottom:-12mm;` +
+    `background:${color};z-index:-1;-webkit-print-color-adjust:exact;print-color-adjust:exact;}</style>` +
+    `<div class="rm-bleed"></div>`;
+  return /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, (m) => `${m}${inject}`) : inject + html;
+}
 
 // The JSON Resume theme packages (and deps like @rbardini/html) are CommonJS
 // and break under Next/webpack's bundler in every in-process form (dynamic
@@ -136,10 +148,13 @@ export async function renderResumeHtml(
   html = DARK_THEMES.has(resolveTheme(themeId))
     ? unwrapDarkModeCss(html)
     : stripDarkModeCss(html);
-  // Enforce A4 print sizing + color fidelity regardless of the theme.
-  // Document themes (own no outer padding) get an equal all-sides page margin
-  // that repeats on every page; full-bleed themes keep margin 0.
-  html = injectPrintCss(html, PAGE_MARGINS[resolved] ?? "0");
+  // Enforce A4 print sizing + equal per-page margins (every page gets 12mm).
+  html = injectPrintCss(html);
+  // Colored/full-bleed themes: the @page margin would otherwise leave white bands
+  // around their dark/navy background. A position:fixed full-page element repeats
+  // on every printed page and bleeds the theme colour to the paper edge, so they
+  // keep their edge-to-edge look AND get per-page text margins.
+  if (FULL_BLEED_BG[resolved]) html = injectFullBleedBg(html, FULL_BLEED_BG[resolved]);
   // User font/accent customization (stored on data.styleOptions; persists +
   // flows to both preview and PDF since both send `data`).
   html = injectStyleOverrides(html, data?.styleOptions);
@@ -282,17 +297,17 @@ function stripDarkModeCss(html: string): string {
   return out;
 }
 
-function injectPrintCss(html: string, pageMargin: string = "0"): string {
+function injectPrintCss(html: string): string {
   const css = `
     <style id="rm-print">
-      /* Page margin repeats on EVERY page (unlike body padding, which only insets
-         the first page top / last page bottom). Document themes pass an equal
-         all-sides margin here and use NO outer body padding, so every page has
-         identical top/bottom/left/right margins. Full-bleed themes pass "0" so
-         their header bands/backgrounds reach the paper edge. */
-      @page { size: A4; margin: ${pageMargin}; }
+      /* Equal margins on EVERY page. @page margin repeats per page (unlike body
+         padding, which only insets the first page's top / last page's bottom), so
+         page 2+ no longer touches the paper edge. We also zero the theme's own
+         top/bottom body padding so page 1 doesn't get a double top margin —
+         top/bottom come purely from @page; left/right stay from the theme. */
+      @page { size: A4; margin: 12mm; }
       html, body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { margin: 0 !important; }
+      body { margin: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
       /* Bootstrap grid: force col-sm-* widths at ANY width. The serverless PDF
          render lays out below the 768px sm breakpoint, so two-column themes
          (kendall: col-sm-7/col-sm-5) collapsed to stacked col-xs-12. Applying
@@ -449,16 +464,15 @@ export async function renderResumeThemedPdf(
 }
 
 /** Render the FIRST page of a resume to a PNG for the builder's thumbnail cards.
- * Uses the same theme pipeline as the PDF/preview so the card matches. Document
- * themes get their @page margin applied as screenshot padding (the screenshot is
- * screen media, where @page margins don't apply). */
+ * Uses the same theme pipeline as the PDF/preview so the card matches. Applies
+ * the page margin as screenshot padding (the screenshot is screen media, where
+ * @page margins don't apply). */
 export async function renderResumeThumbnailPng(
   data: any,
   themeId: string | null | undefined,
 ): Promise<Buffer> {
   let { html } = await renderResumeHtml(data, themeId);
   html = await makeSelfContained(html);
-  const margin = PAGE_MARGINS[resolveTheme(themeId)];
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
@@ -470,11 +484,11 @@ export async function renderResumeThumbnailPng(
       // @ts-ignore
       if (document.fonts?.ready) await document.fonts.ready;
     });
-    if (margin && margin !== "0") {
-      await page.addStyleTag({
-        content: `body{padding:${margin} !important; box-sizing:border-box !important;}`,
-      });
-    }
+    // Mirror the 12mm @page margin (screenshots ignore @page). For full-bleed
+    // themes the fixed background already fills the viewport behind this padding.
+    await page.addStyleTag({
+      content: `body{padding:12mm !important; box-sizing:border-box !important;}`,
+    });
     const png = await page.screenshot({
       type: "png",
       clip: { x: 0, y: 0, width: 794, height: 1123 },
