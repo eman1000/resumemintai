@@ -112,6 +112,26 @@ export async function fetchResumePdf(
   return (await r.json()) as { filename: string; base64: string };
 }
 
+/** Generate a cover letter for the current job, grounded in the master resume.
+ * Returns the fillable body text + structured doc. */
+export async function generateCoverLetter(job: {
+  title?: string;
+  company?: string;
+  jdText?: string;
+  keywords?: string[];
+  confirmedSkills?: string[];
+}): Promise<{ subject: string; text: string; doc: any }> {
+  const r = await authedFetch("/api/extension/cover-letter", {
+    method: "POST",
+    body: JSON.stringify(job),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j?.detail || j?.error || "cover_letter_failed");
+  }
+  return (await r.json()) as { subject: string; text: string; doc: any };
+}
+
 /** Computer-use planner turn. Sends the running message history; returns the
  * assistant turn's content blocks (tool_use actions + text). */
 export async function computerPlan(req: {

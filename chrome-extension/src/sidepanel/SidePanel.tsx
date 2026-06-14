@@ -8,6 +8,7 @@ import {
   fetchResume,
   fetchProfile,
   saveProfileFields,
+  generateCoverLetter,
   type ProfileField,
   type ApplicantProfile,
 } from "../lib/api";
@@ -63,6 +64,8 @@ export default function SidePanel() {
   const [profile, setProfile] = useState<ApplicantProfile | null>(null);
   const [profileFields, setProfileFields] = useState<ProfileField[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverText, setCoverText] = useState<string>("");
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
@@ -625,6 +628,49 @@ export default function SidePanel() {
                   </a>{" "}
                   and click Refresh.
                 </p>
+              )}
+            </Section>
+
+            <Section title="Cover letter">
+              <p style={{ fontSize: 12, color: COLORS.meta, margin: "0 0 8px", lineHeight: 1.4 }}>
+                Generate a cover letter for this job, grounded in your resume — it never claims skills you don’t have.
+              </p>
+              <button
+                disabled={coverBusy || !activeTab}
+                onClick={async () => {
+                  setCoverBusy(true);
+                  setCoverText("");
+                  try {
+                    const { text } = await generateCoverLetter({ title: activeTab?.title || "" });
+                    setCoverText(text);
+                  } catch (e: any) {
+                    setCoverText(`Couldn't generate: ${e?.message || e}`);
+                  } finally {
+                    setCoverBusy(false);
+                  }
+                }}
+                style={{
+                  background: COLORS.brand, color: "#fff", border: "none", borderRadius: 8,
+                  padding: "7px 14px", cursor: coverBusy ? "default" : "pointer", fontSize: 12, fontWeight: 600,
+                  opacity: coverBusy || !activeTab ? 0.6 : 1,
+                }}
+              >
+                {coverBusy ? "Generating…" : "Generate cover letter"}
+              </button>
+              {coverText && (
+                <div style={{ marginTop: 8 }}>
+                  <textarea
+                    readOnly
+                    value={coverText}
+                    style={{ width: "100%", height: 160, fontSize: 12, padding: 8, border: `1px solid ${COLORS.border}`, borderRadius: 6, boxSizing: "border-box", resize: "vertical" }}
+                  />
+                  <button
+                    onClick={() => { try { navigator.clipboard.writeText(coverText); } catch {} }}
+                    style={{ marginTop: 6, background: "white", color: COLORS.brand, border: `1px solid ${COLORS.brand}`, borderRadius: 8, padding: "6px 10px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
+                  >
+                    Copy
+                  </button>
+                </div>
               )}
             </Section>
 
