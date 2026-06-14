@@ -88,7 +88,19 @@ export type JsonResume = {
   skills: AnyRec[];
   languages: AnyRec[];
   projects: AnyRec[];
+  certificates: AnyRec[];
+  awards: AnyRec[];
 };
+
+/** Split a "Next.js · Node.js / OpenAI, Stripe" stack/keyword line into items.
+ * Mirrors the skill splitter: comma/middot/bullet/pipe/semicolon, and a slash
+ * ONLY when spaced (so "A/B testing", "CI/CD" survive). */
+function splitKeywords(raw: any): string[] {
+  return String(raw || "")
+    .split(/[,·•|;•\n]+|\s+\/\s+/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 export function toJsonResume(data: AnyRec): JsonResume {
   data = data && typeof data === "object" ? data : {};
@@ -181,7 +193,49 @@ export function toJsonResume(data: AnyRec): JsonResume {
     }))
     .filter((l: AnyRec) => l.language);
 
-  return { basics, work, education, skills, languages, projects: [] };
+  // ---- projects (e.g. "Selected AI & Product Work") ----
+  const projSec =
+    sectionByKey(data, "projects") ||
+    sectionByKey(data, "selectedwork") ||
+    sectionByKey(data, "selectedaiproductwork");
+  const projects = (projSec?.records || []).map((r: AnyRec) => {
+    const { start, end } = period(projSec, r);
+    return {
+      name: String(val(projSec, r, "header") || "").trim(),
+      description: "",
+      // The italic stack/tech line is stored in subheader → JSON Resume keywords.
+      keywords: splitKeywords(val(projSec, r, "subheader")),
+      highlights: highlights(val(projSec, r, "richtextValue")),
+      startDate: start,
+      endDate: end,
+      url: "",
+    };
+  }).filter((p: AnyRec) => p.name || p.highlights.length);
+
+  // ---- certificates / certifications ----
+  const certSec = sectionByKey(data, "certificates") || sectionByKey(data, "certifications");
+  const certificates = (certSec?.records || []).map((r: AnyRec) => {
+    const { start } = period(certSec, r);
+    return {
+      name: String(val(certSec, r, "header") || "").trim(),
+      issuer: String(val(certSec, r, "subheader") || "").trim(),
+      date: start,
+    };
+  }).filter((c: AnyRec) => c.name);
+
+  // ---- awards / achievements ----
+  const awardSec = sectionByKey(data, "awards") || sectionByKey(data, "achievements");
+  const awards = (awardSec?.records || []).map((r: AnyRec) => {
+    const { start } = period(awardSec, r);
+    return {
+      title: String(val(awardSec, r, "header") || "").trim(),
+      awarder: String(val(awardSec, r, "subheader") || "").trim(),
+      date: start,
+      summary: stripHtml(val(awardSec, r, "richtextValue")),
+    };
+  }).filter((a: AnyRec) => a.title);
+
+  return { basics, work, education, skills, languages, projects, certificates, awards };
 }
 
 /** True if the resume has real renderable content. */

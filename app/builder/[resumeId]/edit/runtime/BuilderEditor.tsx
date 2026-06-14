@@ -112,6 +112,7 @@ export type CVSectionKey =
   | "personalDetails"
   | "profile"
   | "employment"
+  | "projects"
   | "educations"
   | "skills"
   | "languages"
@@ -2680,6 +2681,7 @@ const DEFAULT_TITLES: Partial<Record<CVSectionKey, string>> = {
   personalDetails: "Personal details",
   profile: "Profile",
   employment: "Employment",
+  projects: "Selected Work",
   educations: "Education",
   skills: "Skills",
   languages: "Languages",
@@ -2695,7 +2697,7 @@ const DEFAULT_TITLES: Partial<Record<CVSectionKey, string>> = {
   footer: "Footer",
 };
 const ALL_SECTION_KEYS: CVSectionKey[] = [
-  "personalDetails","profile","employment","educations","skills","languages",
+  "personalDetails","profile","employment","projects","educations","skills","languages",
   "hobbies","qualities","courses","certificates","internships","sideActivities",
   "achievements","references","signature","footer",
 ];
@@ -2716,6 +2718,7 @@ function defaultSectionForKey(key: CVSectionKey, t: (k:string, fb?:string)=>stri
       };
 
     case "employment":
+    case "projects":
     case "internships":
     case "sideActivities":
       return {
@@ -2954,6 +2957,7 @@ function makeEmptySection(key: CVSectionKey, t: I18nPack["t"]): CVSection {
   // fallback shapes for keys not in DEFAULT_SECTIONS
   const baseTitle = t?.(`section.${key}`, DEFAULT_TITLES[key] || String(key)) ?? (DEFAULT_TITLES[key] || String(key));
   switch (key) {
+    case "projects":
     case "qualities":
     case "achievements":
     case "references":
@@ -3327,7 +3331,7 @@ const cancelRemoveSection = useCallback(() => {
 // Compute available sections dynamically
 const presentKeys = useMemo(() => new Set(doc.sections.map(s => s.key)), [doc.sections]);
 const allKeys: CVSectionKey[] = [
-  "personalDetails","profile","employment","educations","skills","languages","hobbies",
+  "personalDetails","profile","employment","projects","educations","skills","languages","hobbies",
   "qualities","courses","certificates","internships","sideActivities","achievements",
   "references","signature","footer",
 ];

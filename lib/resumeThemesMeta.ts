@@ -13,6 +13,7 @@ export type ResumeThemeMeta = {
 };
 
 export const RESUME_THEMES_META: ResumeThemeMeta[] = [
+  { id: "professional", label: "Professional", isFree: true, blurb: "Clean single-column, recruiter- and ATS-friendly." },
   { id: "even", label: "Even", isFree: true, blurb: "Clean two-column with a soft header band." },
   { id: "stackoverflow", label: "Stack", isFree: true, blurb: "Compact, skills-forward, fits a lot per page." },
   { id: "kendall", label: "Kendall", isFree: true, blurb: "Balanced, classic single-column." },
@@ -30,7 +31,8 @@ export const RESUME_THEME_IDS = RESUME_THEMES_META.map((t) => t.id);
 
 /** Map legacy SVG-template ids (stored in resume.renderer) → a theme id. */
 export const RENDERER_TO_THEME: Record<string, string> = {
-  professional: "even",
+  // 'professional' is now a real theme id (see RESUME_THEMES_META), so it
+  // resolves to itself — no alias needed here.
   circular: "kendall",
   iconic: "stackoverflow",
   elegant: "elegant",

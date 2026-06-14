@@ -7,6 +7,14 @@
 import { spawn } from "node:child_process";
 import { toJsonResume, jsonResumeHasContent, type JsonResume } from "@/lib/jsonResume";
 import { resolveTheme } from "@/lib/resumeThemesMeta";
+import { renderProfessional } from "@/lib/themes/professional";
+
+// Local (in-process) themes authored in this repo — no npm package / child
+// process needed. Keyed by theme id. Each takes the JSON Resume + returns a
+// full HTML document.
+const LOCAL_THEMES: Record<string, (jr: JsonResume) => string> = {
+  professional: renderProfessional,
+};
 
 // The JSON Resume theme packages (and deps like @rbardini/html) are CommonJS
 // and break under Next/webpack's bundler in every in-process form (dynamic
@@ -100,7 +108,10 @@ export async function renderResumeHtml(
 ): Promise<{ html: string; jr: JsonResume; hasContent: boolean }> {
   const jr = toJsonResume(data);
   const hasContent = jsonResumeHasContent(jr);
-  let html: string = await renderThemeInChild(themePkg(themeId), jr);
+  const resolved = resolveTheme(themeId);
+  let html: string = LOCAL_THEMES[resolved]
+    ? LOCAL_THEMES[resolved](jr)
+    : await renderThemeInChild(themePkg(themeId), jr);
   // Inline external CDN stylesheets (Bootstrap/Font Awesome that themes like
   // kendall link) IN PLACE — replacing each <link> with a <style> at the same
   // position. This (a) makes the HTML self-contained so the serverless PDF
