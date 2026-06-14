@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
 import prisma from '@/lib/prisma';
 import { RESUME_THEME_IDS } from '@/lib/resumeThemesMeta';
+import { getMasterResumeId } from '@/lib/masterResume';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ async function getDbUserIdByFirebaseUid(firebaseUid: string) {
 export async function GET() {
   try {
     const user = await getUserFromRequest();
+    const dbUser = await prisma.user.findUnique({ where: { firebaseUid: user.uid }, select: { id: true } });
 
     const rows = await prisma.resume.findMany({
       where: { user: { firebaseUid: user.uid } },
@@ -35,8 +37,14 @@ export async function GET() {
         renderer: true,
         updatedAt: true,
         thumbnailUrl: true,
+        tailoredForJob: true,
       },
     });
+
+    // Resolve the master via the canonical resolver (explicit flag → earliest
+    // organic fallback) so EXACTLY one card is tagged, even if the flag was
+    // never set on legacy data.
+    const masterId = dbUser?.id ? await getMasterResumeId(dbUser.id) : null;
 
     const items = rows.map((r) => ({
       id: r.id,
@@ -44,6 +52,8 @@ export async function GET() {
       renderer: r.renderer ?? 'professional',
       updatedAt: r.updatedAt ? r.updatedAt.toISOString() : null,
       thumbnailUrl: r.thumbnailUrl || null,
+      isMaster: r.id === masterId,
+      isTailored: !!r.tailoredForJob,
     }));
 
     return NextResponse.json(items, { status: 200 });

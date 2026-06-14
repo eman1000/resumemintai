@@ -39,6 +39,8 @@ type CardItem = {
   renderer: string;
   updatedAt: string;
   thumbnailUrl: string;
+  isMaster?: boolean;
+  isTailored?: boolean;
 };
 
 export default function BuilderHome() {
@@ -324,6 +326,17 @@ export default function BuilderHome() {
                         </div>
                       )}
 
+                      {/* Master / Tailored badge */}
+                      {it.isMaster ? (
+                        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-amber-400 text-amber-950 text-[11px] font-semibold px-2 py-0.5 shadow">
+                          ★ Master
+                        </span>
+                      ) : it.isTailored ? (
+                        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-gray-700/90 text-white text-[11px] font-medium px-2 py-0.5 shadow">
+                          Tailored
+                        </span>
+                      ) : null}
+
                       {/* 3-dot */}
                       <button
                         type="button"
@@ -387,6 +400,16 @@ export default function BuilderHome() {
             </div>
 
             {busy && <div className="mt-6 text-sm text-gray-500">Loading…</div>}
+
+            {/* Block all interaction until the CV list has loaded. */}
+            {items === null && (
+              <div className="fixed inset-0 z-[9500] bg-white/75 backdrop-blur-sm grid place-items-center cursor-wait">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-10 w-10 rounded-full border-4 border-brand/20 border-t-brand animate-spin" />
+                  <div className="text-sm text-[#52525a]">Loading your resumes…</div>
+                </div>
+              </div>
+            )}
 
             {handoffBusy && (
               <div className="fixed inset-0 z-[9000] bg-white/85 backdrop-blur-sm grid place-items-center">
