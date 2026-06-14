@@ -207,7 +207,97 @@ if (out?.skills != null) {
     });
   }
 
-  // You can also return `personalDetails` to prefill your left panel state if desired.
+  // ---- extra sections that were previously dropped on import ----
+  const bulletsHtml = (arr?: string[]) =>
+    arr && arr.length ? `<ul>${arr.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : "";
+  // header/subheader/city/period/richtextValue — the shape the builder uses for
+  // employment-like sections (projects, internships, sideActivities, …).
+  const richFields = () => [
+    { key: "h", role: "header" },
+    { key: "sub", role: "subheader" },
+    { key: "city", role: "city" },
+    { key: "per", role: "period" },
+    { key: "rich", role: "richtextValue" },
+  ];
+  const period = (p: any) => (Array.isArray(p) ? p : [p || "", ""]);
+
+  // Projects / "Selected Work". subheader carries the tech/stack line.
+  if (Array.isArray(out?.projects) && out.projects.length) {
+    secs.push({
+      key: "projects",
+      title: "Selected Work",
+      fields: richFields(),
+      records: out.projects.map((p: any, i: number) => ({
+        key: `pr${i + 1}`,
+        values: [
+          p.name || p.title || "",
+          p.stack || p.tech || p.keywords?.join?.(" · ") || p.role || "",
+          "",
+          period(p.period),
+          bulletsHtml(p.bullets || p.highlights),
+        ],
+      })),
+    });
+  }
+
+  // Certifications — accept string[] OR [{name, org/issuer, period/date}].
+  const certs = out?.certificates ?? out?.certifications;
+  if (Array.isArray(certs) && certs.length) {
+    secs.push({
+      key: "certificates",
+      title: "Certifications",
+      fields: richFields(),
+      records: certs.map((c: any, i: number) => {
+        const isStr = typeof c === "string";
+        return {
+          key: `c${i + 1}`,
+          values: isStr
+            ? [c, "", "", ["", ""], ""]
+            : [c.name || "", c.org || c.issuer || "", "", period(c.period || c.date), ""],
+        };
+      }),
+    });
+  }
+
+  // Courses — string[].
+  if (Array.isArray(out?.courses) && out.courses.length) {
+    secs.push({
+      key: "courses",
+      title: "Courses",
+      fields: [{ key: "h", role: "header" }],
+      records: out.courses.map((c: string, i: number) => ({ key: `co${i + 1}`, values: [c] })),
+    });
+  }
+
+  // Internships / side activities / volunteer — employment-like.
+  for (const [srcKey, secKey, secTitle] of [
+    ["internships", "internships", "Internships"],
+    ["sideActivities", "sideActivities", "Side activities"],
+    ["volunteer", "sideActivities", "Volunteering"],
+  ] as const) {
+    const arr = out?.[srcKey];
+    if (Array.isArray(arr) && arr.length && !secs.some((s) => s.key === secKey)) {
+      secs.push({
+        key: secKey,
+        title: secTitle,
+        fields: richFields(),
+        records: arr.map((e: any, i: number) => ({
+          key: `${secKey}${i + 1}`,
+          values: [e.role || e.header || e.name || "", e.org || e.company || "", "", period(e.period), bulletsHtml(e.bullets)],
+        })),
+      });
+    }
+  }
+
+  // Honors → fold into achievements if not already present.
+  if (Array.isArray(out?.honors) && out.honors.length && !secs.some((s) => s.key === "achievements")) {
+    secs.push({
+      key: "achievements",
+      title: "Achievements",
+      fields: [{ key: "h", role: "header" }],
+      records: out.honors.map((a: string, i: number) => ({ key: `ho${i + 1}`, values: [a] })),
+    });
+  }
 
   return secs;
 }

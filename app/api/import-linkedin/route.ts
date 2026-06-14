@@ -65,7 +65,7 @@ type Out = {
   languages?: string[];
   certifications?: Array<{ name?: string; org?: string; period?: [string,string] | string }>;
   courses?: string[];
-  projects?: Array<{ name?: string; role?: string; period?: [string,string] | string; bullets?: string[] }>;
+  projects?: Array<{ name?: string; stack?: string; role?: string; period?: [string,string] | string; bullets?: string[] }>;
   publications?: Array<{ title?: string; publisher?: string; date?: string }>;
   volunteer?: Array<{ role?: string; org?: string; period?: [string,string] | string; bullets?: string[] }>;
   honors?: string[];
@@ -80,6 +80,8 @@ Rules:
   translate, correct grammar/spelling, embellish, or invent. Only PLACE existing
   text into the right fields.
 - Do not drop content; leave a field empty rather than guessing or fabricating.
+- Capture every section: "Selected Work"/"Projects" → "projects" (tech/stack line
+  in "stack", bullets in "bullets"); certifications → "certifications".
 - Prefer arrays for bullets.
 - "skills" is an array of the skills as written (["React","TypeScript"]). If
   grouped ("Frontend: React, Angular"), split on separators only — keep each

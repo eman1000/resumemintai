@@ -92,13 +92,14 @@ type Out = {
   };
   profile?: { headline?: string; summary?: string };
   employment?: Array<{ role?: string; company?: string; period?: [string, string] | string; bullets?: string[] }>;
+  projects?: Array<{ name?: string; stack?: string; period?: [string, string] | string; bullets?: string[] }>;
   educations?: Array<{ degree?: string; school?: string; period?: [string, string] | string; details?: string[] }>;
   skills?: string[];
   languages?: string[];
   hobbies?: string[];
   qualities?: string[];
   courses?: string[];
-  certificates?: string[];
+  certificates?: Array<{ name?: string; org?: string; period?: [string,string] | string }>;
   internships?: Array<{ role?: string; org?: string; period?: [string,string] | string; bullets?: string[] }>;
   sideActivities?: Array<{ header?: string; period?: [string,string] | string; bullets?: string[] }>;
   achievements?: string[];
@@ -111,6 +112,10 @@ Rules:
   translate, correct grammar/spelling, embellish, or invent anything. You are
   only PLACING existing text into the right fields, not improving it.
 - Do not drop content: every bullet/skill in the source must appear in the output.
+- Capture EVERY section. A "Selected Work", "Projects", "Selected AI & Product
+  Work" (or similar) section → "projects": each entry's tech/stack line (e.g.
+  "Next.js · Node.js · OpenAI") goes in "stack"; its bullets in "bullets". Put
+  certifications in "certificates" (with issuer in "org"), courses in "courses".
 - Leave a field empty rather than guessing or fabricating a value.
 - Prefer arrays for bullets.
 - For "skills", return a string array of the skills as written (e.g. ["React",
