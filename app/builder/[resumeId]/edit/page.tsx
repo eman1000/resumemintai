@@ -470,6 +470,18 @@ const handleChangeLanguage = (next: LanguageCode) => {
         onChangeLanguage={handleChangeLanguage}
         t={t}
         isMaster={isMaster}
+        onSetMaster={async () => {
+          const run = async () => {
+            const r = await fetch("/api/resume/master", await withAuth({
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ resumeId: String(resumeId) }),
+            }));
+            if (!r.ok) throw new Error(await r.text().catch(() => "Failed"));
+            setMasterId(String(resumeId));
+          };
+          await toast.promise(run(), { loading: "Setting master…", success: "This is now your master resume", error: (e) => String(e) });
+        }}
       />
 
       <BuilderEditor

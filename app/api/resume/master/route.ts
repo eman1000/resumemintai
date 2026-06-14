@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/app/api/server/auth/getUserFromRequest";
 import { getUserByFirebaseUid } from "@/app/api/server/db/user";
-import { getMasterResumeId } from "@/lib/masterResume";
+import { getMasterResumeId, setMasterResume } from "@/lib/masterResume";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +24,29 @@ export async function GET() {
       return NextResponse.json({ error: e.message || "unauthorized" }, { status: 401 });
     }
     console.error("[GET /api/resume/master]", e);
+    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+  }
+}
+
+// Designate a resume as the user's master.
+export async function POST(req: Request) {
+  try {
+    const fb = await getUserFromRequest();
+    const user = await getUserByFirebaseUid(fb.uid);
+    if (!user?.id) return NextResponse.json({ error: "no_user" }, { status: 403 });
+
+    const body = await req.json().catch(() => ({}));
+    const resumeId = String(body?.resumeId || "");
+    if (!resumeId) return NextResponse.json({ error: "missing_resumeId" }, { status: 400 });
+
+    const ok = await setMasterResume(user.id, resumeId);
+    if (!ok) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return NextResponse.json({ ok: true, id: resumeId });
+  } catch (e: any) {
+    if (e?.name === "UNAUTHORIZED") {
+      return NextResponse.json({ error: e.message || "unauthorized" }, { status: 401 });
+    }
+    console.error("[POST /api/resume/master]", e);
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }

@@ -21,7 +21,15 @@ const baseSelect = {
 
 /** Resolve the user's master resume, or null if they have none yet. */
 export async function getMasterResume(userId: string) {
-  // Prefer the oldest organic resume (no job tag) = the user's original.
+  // 1) Explicit master (user-designated via the isMaster flag).
+  const explicit = await prisma.resume.findFirst({
+    where: { userId, archived: false, isMaster: true },
+    orderBy: { updatedAt: "desc" },
+    select: baseSelect,
+  });
+  if (explicit) return explicit;
+
+  // 2) Convention: the oldest organic resume (no job tag) = the user's original.
   const organic = await prisma.resume.findFirst({
     where: { userId, archived: false, tailoredForJob: { equals: null } },
     orderBy: { createdAt: "asc" },
@@ -29,12 +37,24 @@ export async function getMasterResume(userId: string) {
   });
   if (organic) return organic;
 
-  // Fallback: oldest resume of any kind (user may only have tailored ones).
+  // 3) Fallback: oldest resume of any kind (user may only have tailored ones).
   return prisma.resume.findFirst({
     where: { userId, archived: false },
     orderBy: { createdAt: "asc" },
     select: baseSelect,
   });
+}
+
+/** Designate `resumeId` as the user's master (and clear the flag on the rest).
+ * Returns false if the resume isn't owned by the user. */
+export async function setMasterResume(userId: string, resumeId: string): Promise<boolean> {
+  const owned = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } });
+  if (!owned) return false;
+  await prisma.$transaction([
+    prisma.resume.updateMany({ where: { userId, isMaster: true, NOT: { id: resumeId } }, data: { isMaster: false } }),
+    prisma.resume.update({ where: { id: resumeId }, data: { isMaster: true } }),
+  ]);
+  return true;
 }
 
 /** Convenience: just the master resume's id (or null). */
