@@ -378,6 +378,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
   // Is the resume being edited the user's MASTER (source of truth)? Tailoring
   // the master forks a copy instead of mutating it.
   const [masterId, setMasterId] = React.useState<string | null>(null);
+  const [masterLoaded, setMasterLoaded] = React.useState(false);
   React.useEffect(() => {
     let alive = true;
     (async () => {
@@ -385,12 +386,16 @@ const handleChangeLanguage = (next: LanguageCode) => {
         const r = await fetch("/api/resume/master", await withAuth());
         if (!r.ok) return;
         const { id } = await r.json();
-        if (alive) setMasterId(id ?? null);
-      } catch { /* ignore */ }
+        if (alive) { setMasterId(id ?? null); setMasterLoaded(true); }
+      } catch { /* leave unloaded → fork-on-tailor stays on (protects master) */ }
     })();
     return () => { alive = false; };
   }, []);
-  const isMaster = !!masterId && String(masterId) === String(resumeId);
+  const isMaster = masterLoaded && !!masterId && String(masterId) === String(resumeId);
+  // Fork (never mutate in place) when this IS the master, OR while master status
+  // is still unknown — so a tailor fired before the check resolves, or if the
+  // check failed, can never accidentally overwrite the master.
+  const forkOnTailor = !masterLoaded || isMaster;
 
   // Create a tailored COPY (job-tagged) from the master and open it.
   const onForkTailored = React.useCallback(
@@ -498,6 +503,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
         isSubscribed={isSubscribed}
         initialJdInput={initialJdInput}
         isMaster={isMaster}
+        forkOnTailor={forkOnTailor}
         onForkTailored={onForkTailored}
         onAuthGate={() => {
           if (!isAuthenticated) {
