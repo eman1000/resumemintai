@@ -447,3 +447,40 @@ export async function renderResumeThemedPdf(
     await browser.close().catch(() => {});
   }
 }
+
+/** Render the FIRST page of a resume to a PNG for the builder's thumbnail cards.
+ * Uses the same theme pipeline as the PDF/preview so the card matches. Document
+ * themes get their @page margin applied as screenshot padding (the screenshot is
+ * screen media, where @page margins don't apply). */
+export async function renderResumeThumbnailPng(
+  data: any,
+  themeId: string | null | undefined,
+): Promise<Buffer> {
+  let { html } = await renderResumeHtml(data, themeId);
+  html = await makeSelfContained(html);
+  const margin = PAGE_MARGINS[resolveTheme(themeId)];
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    // A4 width; 0.5 scale → ~397×561 PNG (small, crisp enough for a card).
+    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 0.5 });
+    await page.emulateMediaType("screen");
+    await page.setContent(html, { waitUntil: "networkidle2", timeout: 30_000 });
+    await page.evaluate(async () => {
+      // @ts-ignore
+      if (document.fonts?.ready) await document.fonts.ready;
+    });
+    if (margin && margin !== "0") {
+      await page.addStyleTag({
+        content: `body{padding:${margin} !important; box-sizing:border-box !important;}`,
+      });
+    }
+    const png = await page.screenshot({
+      type: "png",
+      clip: { x: 0, y: 0, width: 794, height: 1123 },
+    });
+    return Buffer.from(png);
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}

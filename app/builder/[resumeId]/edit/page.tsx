@@ -7,7 +7,6 @@ import toast from "react-hot-toast";
 import BuilderEditor from "./runtime/BuilderEditor";
 import TopBar, { SavingState } from "@/app/builder/components/TopBar";
 import { useAutosave } from "@/app/api/resumes/hooks/useAutosave";
-import { captureThumbnailFromPreview, uploadThumbnail } from "../../_client/captureThumbnail";
 import { exportSvgContainerToPdf } from "../../components/A4Preview/exportSvgPdf";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import RenameDialog from "@/components/RenameDialog";
@@ -270,32 +269,16 @@ const handleChangeLanguage = (next: LanguageCode) => {
           }
         });
 
-        // upload thumbnail (throttled)
+        // Regenerate the thumbnail (throttled). The preview is now an HTML
+        // iframe, so we render it SERVER-SIDE from the just-saved data instead
+        // of trying to screenshot the iframe on the client.
         const now = Date.now();
-        if (now - lastThumbUpload.current > 20_000 && wrapRef.current) {
-          await new Promise(requestAnimationFrame);
-          await new Promise((r) => setTimeout(r, 30));
-          const blob = await captureThumbnailFromPreview(wrapRef.current, {
-            scale: 2,
-            background: "#ffffff",
-            selector: "svg[data-page]",
-          });
-          if (blob) {
-            try {
-              await uploadThumbnail(String(resumeId), blob, withAuth);
-              lastThumbUpload.current = now;
-            } catch (e: any) {
-              // One toast per browser session so the user sees the failure
-              // without it spamming on every autosave. Console warn always.
-              const reason = e?.message || String(e);
-              console.warn('[thumbnail-upload] failed:', reason);
-              try {
-                if (typeof window !== 'undefined' && !(window as any).__rmThumbToasted) {
-                  (window as any).__rmThumbToasted = true;
-                  toast.error(`Couldn't save preview thumbnail: ${reason.slice(0, 140)}`);
-                }
-              } catch {}
-            }
+        if (now - lastThumbUpload.current > 20_000) {
+          lastThumbUpload.current = now; // optimistic, so we don't double-fire
+          try {
+            await fetch(`/api/resumes/${resumeId}/thumbnail`, await withAuth({ method: "POST" }));
+          } catch (e: any) {
+            console.warn('[thumbnail] failed:', e?.message || e);
           }
         }
 
