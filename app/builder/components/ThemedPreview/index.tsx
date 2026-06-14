@@ -13,109 +13,38 @@ type Props = {
 };
 
 const BASE_PAGE_WIDTH = 794; // A4 @96dpi
-
-// Injected into the preview iframe so it PAGINATES into real A4 pages using the
-// SAME @page rules the PDF download uses (size + margins) — so preview pages ==
-// download pages. paged.js runs in the iframe (the user's browser, online); the
-// `after` hook reports the rendered height back so we can size the iframe.
-const PAGED_INJECT = `
-<style id="rm-paged-chrome">
-  /* Grey "viewer" background ONLY on the paged container — which exists only
-     after paged.js succeeds. Never on html/body, so a slow/failed paginate
-     shows the resume on white (not a stuck grey blob). */
-  .pagedjs_pages { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; background: #e9eaec; }
-  .pagedjs_page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35); }
-</style>
-<script>
-  window.PagedConfig = { auto: true, after: function () {
-    requestAnimationFrame(function () {
-      try {
-        parent.postMessage({
-          __rmPaged: 1,
-          height: document.documentElement.scrollHeight,
-          pages: document.querySelectorAll('.pagedjs_page').length,
-        }, "*");
-      } catch (e) {}
-    });
-  }};
-<\/script>
-<script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"
-        onerror="try{parent.postMessage({__rmPagedError:1},'*')}catch(e){}"><\/script>
-`;
-
-function withPaged(html: string): string {
-  return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${PAGED_INJECT}</body>`) : html + PAGED_INJECT;
-}
+const PAGE_HEIGHT = 1123; // A4 @96dpi
 
 /** Live builder preview rendered by the SAME JSON Resume theme pipeline the PDF
- * uses AND paginated with paged.js, so the preview shows the same A4 pages,
- * margins, and page breaks as the download. Debounced so typing doesn't hammer
- * the render endpoint. */
+ * uses (server-rendered HTML in an iframe), so the styling matches the download.
+ *
+ * We render CONTINUOUSLY (no in-iframe paginator): a client-side paginator
+ * (paged.js) silently dropped or mangled content on several themes, so the
+ * single most important guarantee — that ALL your content is visible — wins.
+ * Page breaks are shown as light guide lines at A4 intervals; the DOWNLOAD is
+ * the source of truth for exact pagination + margins. Debounced so typing
+ * doesn't hammer the render endpoint. */
 export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const [scale, setScale] = React.useState(1);
-  const [rawHtml, setRawHtml] = React.useState<string>("");
-  const [usePaged, setUsePaged] = React.useState(true);
+  const [html, setHtml] = React.useState<string>("");
   const [loading, setLoading] = React.useState(false);
-  const [iframeH, setIframeH] = React.useState(1123);
-  const pagedOkRef = React.useRef(false);
-  const watchdogRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // A new theme might paginate fine even if a previous one didn't — retry paged.
-  React.useEffect(() => { setUsePaged(true); pagedOkRef.current = false; }, [theme]);
+  const [iframeH, setIframeH] = React.useState(PAGE_HEIGHT);
 
   // Responsive scale to fit the panel width.
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const compute = () => {
-      const available = el.clientWidth - 8;
-      setScale(Math.min(1, Math.max(0.3, available / BASE_PAGE_WIDTH)));
+      const available = el.clientWidth - 24;
+      setScale(Math.min(1, Math.max(0.32, available / BASE_PAGE_WIDTH)));
     };
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  // Receive the paginated height (and CDN-failure fallback) from the iframe.
-  React.useEffect(() => {
-    const onMsg = (e: MessageEvent) => {
-      const d = e.data || {};
-      if (d.__rmPaged) {
-        if (d.pages === 0) {
-          // paged.js ran but produced nothing (some themes' CSS breaks it) →
-          // fall back to plain rendering so the preview isn't blank/black.
-          setUsePaged(false);
-          return;
-        }
-        pagedOkRef.current = true;
-        if (watchdogRef.current) clearTimeout(watchdogRef.current);
-        if (typeof d.height === "number") setIframeH(Math.max(1123, d.height));
-        setLoading(false);
-      } else if (d.__rmPagedError) {
-        // paged.js couldn't load → render the plain (unpaginated) HTML so the
-        // preview still works; it just won't show page breaks.
-        setUsePaged(false);
-      }
-    };
-    window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
-  }, []);
-
-  // Watchdog: if paged.js doesn't report success shortly after loading new HTML
-  // (it silently fails on some themes' CSS), fall back to plain rendering so the
-  // preview never sits blank/black.
-  React.useEffect(() => {
-    if (!rawHtml || !usePaged) return;
-    pagedOkRef.current = false;
-    if (watchdogRef.current) clearTimeout(watchdogRef.current);
-    watchdogRef.current = setTimeout(() => {
-      if (!pagedOkRef.current) setUsePaged(false);
-    }, 5000);
-    return () => { if (watchdogRef.current) clearTimeout(watchdogRef.current); };
-  }, [rawHtml, usePaged]);
 
   // Debounced server render whenever data or theme changes.
   React.useEffect(() => {
@@ -136,13 +65,13 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
         });
         if (!res.ok) throw new Error(String(res.status));
         const json = await res.json();
-        if (!cancelled) setRawHtml(json.html || "");
+        if (!cancelled) setHtml(json.html || "");
       } catch {
         /* keep prior HTML on error/abort to avoid flicker */
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, 400);
+    }, 350);
     return () => {
       cancelled = true;
       ctrl.abort();
@@ -150,23 +79,24 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
     };
   }, [data, theme]);
 
-  const srcDoc = rawHtml ? (usePaged ? withPaged(rawHtml) : rawHtml) : "";
-
-  // Fallback height when not paginating (plain HTML): size to content on load.
+  // Size the iframe to its content (multi-page resumes) once HTML loads.
   const onLoad = () => {
-    if (usePaged) return; // paged path reports height via postMessage
     try {
       const doc = iframeRef.current?.contentDocument;
-      if (doc) setIframeH(Math.max(1123, doc.documentElement.scrollHeight));
+      if (doc) setIframeH(Math.max(PAGE_HEIGHT, doc.documentElement.scrollHeight));
     } catch {
       /* ignore */
     }
   };
 
+  // Page-break guide lines at A4 intervals (purely visual; content is continuous).
+  const pageCount = Math.max(1, Math.ceil(iframeH / PAGE_HEIGHT));
+  const guides = Array.from({ length: pageCount - 1 }, (_, i) => (i + 1) * PAGE_HEIGHT);
+
   return (
     <div
       ref={scrollRef}
-      className="max-h-[calc(100vh-2rem)] overflow-auto rounded border bg-gray-100"
+      className="max-h-[calc(100vh-2rem)] overflow-auto rounded border bg-gray-100 p-3"
       style={{ WebkitOverflowScrolling: "touch", position: "relative" }}
     >
       {loading && (
@@ -177,18 +107,31 @@ export const ThemedPreview: React.FC<Props> = ({ data, theme, wrapRef }) => {
       <div style={{ width: BASE_PAGE_WIDTH * scale, height: iframeH * scale, margin: "0 auto" }}>
         <div
           ref={wrapRef}
-          style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: BASE_PAGE_WIDTH, height: iframeH }}
+          style={{ transform: `scale(${scale})`, transformOrigin: "top left", width: BASE_PAGE_WIDTH, height: iframeH, position: "relative" }}
         >
-          {srcDoc ? (
-            <iframe
-              ref={iframeRef}
-              title="Resume preview"
-              srcDoc={srcDoc}
-              onLoad={onLoad}
-              style={{ width: BASE_PAGE_WIDTH, height: iframeH, border: "0", background: "#fff" }}
-            />
+          {html ? (
+            <>
+              <iframe
+                ref={iframeRef}
+                title="Resume preview"
+                srcDoc={html}
+                onLoad={onLoad}
+                style={{ width: BASE_PAGE_WIDTH, height: iframeH, border: "0", background: "#fff", boxShadow: "0 1px 8px rgba(0,0,0,.12)" }}
+              />
+              {/* page-break guides */}
+              {guides.map((top) => (
+                <div
+                  key={top}
+                  style={{ position: "absolute", left: 0, right: 0, top, borderTop: "2px dashed #cbd5e1", pointerEvents: "none" }}
+                >
+                  <span style={{ position: "absolute", right: 4, top: 2, fontSize: 11, color: "#94a3b8", background: "#f3f4f6", padding: "0 4px" }}>
+                    page break
+                  </span>
+                </div>
+              ))}
+            </>
           ) : (
-            <div style={{ width: BASE_PAGE_WIDTH, height: 1123, background: "#fff" }} />
+            <div style={{ width: BASE_PAGE_WIDTH, height: PAGE_HEIGHT, background: "#fff" }} />
           )}
         </div>
       </div>
