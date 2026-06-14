@@ -55,13 +55,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(quotaBlockedResponse(quota), { status: 429 });
     }
 
-    const { sections, job } = await req.json();
+    const { sections, job, confirmedSkills } = await req.json();
     if (!Array.isArray(sections) || !job) {
       return NextResponse.json({ error: "Missing { sections, job }" }, { status: 400 });
     }
+    const confirmed: string[] = Array.isArray(confirmedSkills)
+      ? confirmedSkills.map((s: any) => String(s || "").trim()).filter(Boolean)
+      : [];
 
     const system = `
-You tailor resumes for ATS. Input: { sections: CVSection[], job: JDOut }.
+You tailor resumes for ATS. Input: { sections: CVSection[], job: JDOut, confirmedSkills: string[] }.
 Output ONLY valid JSON matching:
 
 type Out = {
@@ -75,16 +78,26 @@ type Out = {
   atsChecklist: string[];
 };
 
-Rules:
+HONESTY (most important rule):
+- You may ONLY use skills, tools, technologies, and experience that already
+  appear in the candidate's resume (sections) OR in confirmedSkills. NEVER
+  introduce a skill/tool the candidate hasn't stated — even if the job requires
+  it. Do NOT imply experience they don't have. It is better to leave a JD
+  requirement uncovered than to fabricate it.
+- A JD keyword that is neither in the resume nor in confirmedSkills goes into
+  coverage.*Missing — do NOT weave it into any bullet or headline.
+
+Other rules:
 - Keep the same CVSection shape (keys, fields, records). DO NOT invent new roles/field keys.
-- Improve clarity, add metrics ("increased X by Y%"), but DO NOT fabricate facts. If unsure, propose neutral wording.
+- Reword for clarity and emphasis using ONLY facts present in the resume; you may
+  surface real, resume-evidenced metrics, but never invent numbers or facts.
 - Prefer short, scannable bullets (<= 2 lines each).
-- Echo JD tokens when accurate, but avoid keyword stuffing.
+- Echo JD tokens ONLY when truthfully supported by the resume/confirmedSkills.
 - Preserve dates and employers; reorder bullets to emphasize JD-aligned impact.
 - NEVER add tables, images, shapes, text boxes, or multi-column hacks.
 `.trim();
 
-    const user = JSON.stringify({ sections, job }).slice(0, 90_000);
+    const user = JSON.stringify({ sections, job, confirmedSkills: confirmed }).slice(0, 90_000);
 
     const resp = await client.chat.completions.create({
       model: MODEL,

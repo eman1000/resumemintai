@@ -36,6 +36,7 @@ import { MobilePreviewOverlay } from "@/app/builder/components/MobilePreviewOver
 import BottomToolbar from "@/app/builder/components/BottomToolbar";
 import { RENDERERS as RESUME_RENDERERS } from "@/app/builder/components/A4Preview";
 import { auth } from "@/app/firebase";
+import { findMissingSkills } from "@/lib/skillGap";
 
 
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
@@ -946,6 +947,67 @@ const DEFAULT_SECTIONS: CVSection[] = [
 
 
 type TemplateData = any;
+
+// Honesty gate modal: the job asks for skills not found in the resume. The user
+// ticks the ones they ACTUALLY have; only those are used when tailoring / writing
+// the cover letter — the rest are never invented.
+function SkillGapModal({
+  missing,
+  jobTitle,
+  onConfirm,
+  onCancel,
+}: {
+  missing: string[];
+  jobTitle?: string;
+  onConfirm: (confirmed: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [checked, setChecked] = React.useState<Record<string, boolean>>({});
+  const toggle = (s: string) => setChecked((c) => ({ ...c, [s]: !c[s] }));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="px-5 pt-5 pb-3 border-b">
+          <div className="text-lg font-semibold text-gray-900">Before we tailor — quick honesty check</div>
+          <div className="text-sm text-gray-600 mt-1">
+            {jobTitle ? <>This job (<span className="font-medium">{jobTitle}</span>) </> : "This job "}
+            mentions skills that aren’t in your resume. <strong>Tick only the ones you genuinely have</strong> —
+            we’ll weave those in. We never claim skills you don’t confirm.
+          </div>
+        </div>
+        <div className="px-5 py-3 overflow-y-auto">
+          <ul className="space-y-1.5">
+            {missing.map((s) => (
+              <li key={s}>
+                <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer rounded px-2 py-1.5 hover:bg-gray-50">
+                  <input type="checkbox" checked={!!checked[s]} onChange={() => toggle(s)} className="h-4 w-4" />
+                  <span>{s}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="px-5 py-4 border-t flex items-center justify-between gap-2">
+          <button className="text-sm text-gray-500 hover:underline" onClick={onCancel}>Cancel</button>
+          <div className="flex gap-2">
+            <button
+              className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50"
+              onClick={() => onConfirm([])}
+            >
+              I have none of these
+            </button>
+            <button
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => onConfirm(missing.filter((s) => checked[s]))}
+            >
+              Tailor with what I have
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function FloatingPreviewButton({ onClick }: { onClick: () => void }) {
   return (
@@ -3075,7 +3137,7 @@ export default function BuilderEditor({
   forkOnTailor?: boolean;
   /** Create a tailored COPY (with job tag) and navigate to it. Provided by the
    *  page, which owns routing + the create API. */
-  onForkTailored?: (args: { data: any; job: any }) => Promise<void> | void;
+  onForkTailored?: (args: { data: any; job: any; confirmedSkills?: string[] }) => Promise<void> | void;
 
 }) {
   const [confirmRemoveKey, setConfirmRemoveKey] = useState<CVSectionKey | null>(null);
@@ -3122,6 +3184,9 @@ const [cleanupBusy, setCleanupBusy] = React.useState(false);
 const [cleanupResult, setCleanupResult] = React.useState<
   { changes: Array<{ section: string; type: string; before: string; after: string }>; cleanedData: any } | null
 >(null);
+
+// Honesty gate: JD skills not found in the resume → ask the user which they have.
+const [gapPrompt, setGapPrompt] = React.useState<{ job: any; missing: string[] } | null>(null);
 
 async function handleCleanup() {
   try {
@@ -3170,8 +3235,7 @@ useEffect(() => {
 async function handleSmartTailor() {
   if (!jdInput.trim()) { toast.error("Paste the job description or URL"); return; }
   try {
-    setBusy(true); setBusyLabel("Tailoring your resume…");
-    // 1) analyze + set job
+    setBusy(true); setBusyLabel("Analyzing job…");
     const a = await fetch("/api/job/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -3183,23 +3247,42 @@ async function handleSmartTailor() {
     const { job: analyzedJob } = await a.json();
     setJob(analyzedJob);
 
-    // 2) tailor
+    // Honesty gate: which JD skills aren't evidenced in the resume? Ask the user
+    // (don't let the AI invent them). If none, proceed straight to tailoring.
+    const missing = findMissingSkills(analyzedJob?.keywords, doc);
+    if (missing.length) {
+      setGapPrompt({ job: analyzedJob, missing });
+      setBusy(false); setBusyLabel("");
+      return; // resumes in runTailor once the user answers the modal
+    }
+    await runTailor(analyzedJob, []);
+  } catch (e: any) {
+    toast.error(String(e?.message || e));
+    setBusy(false); setBusyLabel("");
+  }
+}
+
+// Tailor with ONLY resume content + user-confirmed skills (grounded; the server
+// prompt forbids inventing anything else).
+async function runTailor(analyzedJob: any, confirmedSkills: string[]) {
+  try {
+    setBusy(true); setBusyLabel("Tailoring your resume…");
     const t = await fetch("/api/ats/optimize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sections: doc.sections, job: analyzedJob }),
+      body: JSON.stringify({ sections: doc.sections, job: analyzedJob, confirmedSkills }),
     });
     if (!t.ok) throw new Error(await t.text());
-    const out = await t.json(); // OptimizeOut
+    const out = await t.json();
     const tailoredSections = mergeSections(doc.sections, out.sections);
 
     // Non-destructive: tailoring the MASTER (or while master status is unknown)
-    // forks a job-tagged copy and opens it, leaving the master untouched. Only a
-    // confirmed working/tailored copy is edited in place.
+    // forks a job-tagged copy + cover letter and opens it, leaving the master
+    // untouched. Only a confirmed working/tailored copy is edited in place.
     if (onForkTailored && forkOnTailor) {
-      setBusyLabel("Creating a tailored copy…");
-      await onForkTailored({ data: { ...doc, sections: tailoredSections }, job: analyzedJob });
-      toast.success("Created a tailored copy — your master is untouched");
+      setBusyLabel("Creating a tailored copy + cover letter…");
+      await onForkTailored({ data: { ...doc, sections: tailoredSections }, job: analyzedJob, confirmedSkills });
+      toast.success("Created a tailored copy + cover letter — your master is untouched");
       setSmartOpen(false);
       return;
     }
@@ -3911,6 +3994,20 @@ async function handleAISuggest(section: CVSection) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Honesty gate: confirm which JD skills the user actually has */}
+        {gapPrompt && (
+          <SkillGapModal
+            missing={gapPrompt.missing}
+            jobTitle={gapPrompt.job?.title}
+            onCancel={() => setGapPrompt(null)}
+            onConfirm={(confirmed) => {
+              const job = gapPrompt.job;
+              setGapPrompt(null);
+              runTailor(job, confirmed);
+            }}
+          />
         )}
 
         {/* Mobile: floating button to open preview */}

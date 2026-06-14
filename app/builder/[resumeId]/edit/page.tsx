@@ -382,7 +382,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
 
   // Create a tailored COPY (job-tagged) from the master and open it.
   const onForkTailored = React.useCallback(
-    async ({ data: tailoredData, job }: { data: any; job: any }) => {
+    async ({ data: tailoredData, job, confirmedSkills }: { data: any; job: any; confirmedSkills?: string[] }) => {
       const tailoredForJob = job
         ? { source: "smart_tailor", title: job.title || "", company: job.company || "", location: job.location || "" }
         : undefined;
@@ -394,6 +394,17 @@ const handleChangeLanguage = (next: LanguageCode) => {
       }));
       if (!res.ok) throw new Error("Could not create tailored copy");
       const { id } = await res.json();
+
+      // Auto-generate a grounded cover letter for this job, linked to the copy.
+      // Best-effort: never block opening the tailored resume.
+      try {
+        await fetch("/api/jobs/cover-letter", await withAuth({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeId: id, job, confirmedSkills: confirmedSkills || [] }),
+        }));
+      } catch { /* non-fatal */ }
+
       router.push(`/builder/${id}/edit`);
     },
     [title, renderer, lang, router],
