@@ -50,6 +50,9 @@ export class CdpSession {
   private cssH = 0;
   /** The resume PDF to feed into native file choosers, set by the loop. */
   filePayload: { base64: string; filename: string } | null = null;
+  /** A cover-letter PDF, attached to cover-letter file inputs (set by the loop). */
+  coverPayload: { base64: string; filename: string } | null = null;
+  private coverPath: string | null = null;
   private fileChooserArmed = false;
 
   constructor(tabId: number, displayW: number, displayH: number) {
@@ -168,6 +171,36 @@ export class CdpSession {
     });
     this.resumePath = path;
     return path;
+  }
+
+  /** Save the cover-letter PDF to disk and return its path (parallel to the
+   * resume). */
+  private async materializeCover(): Promise<string | null> {
+    if (this.coverPath) return this.coverPath;
+    if (!this.coverPayload) return null;
+    const dataUrl = `data:application/pdf;base64,${this.coverPayload.base64}`;
+    try {
+      const downloadId: number = await new Promise((resolve, reject) => {
+        chrome.downloads.download(
+          { url: dataUrl, filename: this.coverPayload!.filename, conflictAction: "overwrite", saveAs: false },
+          (id) => (chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve(id!)),
+        );
+      });
+      const path = await new Promise<string | null>((resolve) => {
+        const check = () =>
+          chrome.downloads.search({ id: downloadId }, (items) => {
+            const it = items?.[0];
+            if (it && it.state === "complete" && it.filename) resolve(it.filename);
+            else if (it && it.state === "interrupted") resolve(null);
+            else setTimeout(check, 200);
+          });
+        check();
+      });
+      this.coverPath = path;
+      return path;
+    } catch {
+      return null;
+    }
   }
 
   /** Interactive elements on the page, discovered fresh each turn. Index in
@@ -332,9 +365,21 @@ export class CdpSession {
    * shadow DOM. This is the reliable upload path; the chooser-interception
    * is only a fallback. */
   async uploadResume(labelHint?: string): Promise<{ ok: boolean; note?: string }> {
-    if (!this.filePayload) return { ok: false, note: "no resume loaded for this run" };
-    const path = await this.materializeResume();
-    if (!path) return { ok: false, note: "could not prepare the resume PDF" };
+    const wantCover = (labelHint || "").toLowerCase().includes("cover");
+    // For a cover-letter file field, attach the generated cover-letter PDF (if
+    // prepared); otherwise the resume. Falls back to the resume if no cover PDF.
+    let path: string | null = null;
+    let attachedName = "";
+    if (wantCover && this.coverPayload) {
+      path = await this.materializeCover();
+      attachedName = this.coverPayload.filename;
+    }
+    if (!path) {
+      if (!this.filePayload) return { ok: false, note: "no resume loaded for this run" };
+      path = await this.materializeResume();
+      attachedName = this.filePayload.filename;
+    }
+    if (!path) return { ok: false, note: "could not prepare the file" };
     const hint = JSON.stringify((labelHint || "resume").toLowerCase());
     // Resolve the best file input to an objectId (returnByValue:false).
     const objRes = await this.send("Runtime.evaluate", {
@@ -365,7 +410,7 @@ export class CdpSession {
     try {
       const node = await this.send("DOM.requestNode", { objectId });
       await this.send("DOM.setFileInputFiles", { files: [path], nodeId: node.nodeId });
-      return { ok: true, note: `attached ${this.filePayload.filename}` };
+      return { ok: true, note: `attached ${attachedName}` };
     } catch (e: any) {
       return { ok: false, note: `attach failed: ${e?.message || e}` };
     }

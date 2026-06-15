@@ -366,11 +366,13 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
           opts.onEvent({ kind: "text", text: "Generating a cover letter from your resume…" });
           try {
             const jobText = await cdp.getPageText().catch(() => "");
-            const { text } = await generateCoverLetter({
+            const { text, pdf } = await generateCoverLetter({
               title: opts.jobContext?.title,
               company: opts.jobContext?.company,
               jdText: jobText.slice(0, 6000),
             });
+            // Make the PDF available for a cover-letter FILE field.
+            if (pdf) cdp.coverPayload = { base64: pdf, filename: "cover-letter.pdf" };
             const shot = await cdp.screenshot();
             const marks = await cdp.enumerateElements();
             toolResults.push({
@@ -380,9 +382,12 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
                 {
                   type: "text",
                   text:
-                    "Cover letter (grounded in the resume — use as-is or lightly trim; do NOT add skills not in it):\n\n" +
+                    "Cover letter ready (grounded in the resume — do NOT add skills not in it).\n\n" +
+                    "• If the cover-letter field is a TEXTAREA/text box: type this with type_in_element:\n\n" +
                     text +
-                    "\n\nNow type this into the cover-letter field/textarea with type_in_element, then continue.\n\n" +
+                    (pdf
+                      ? "\n\n• If the cover-letter field is a FILE upload: call upload_resume with label:\"cover\" — it attaches the generated cover-letter PDF (not the resume).\n\n"
+                      : "\n\n") +
                     renderMarks(marks),
                 },
                 { type: "image", source: { type: "base64", media_type: "image/png", data: shot } },
