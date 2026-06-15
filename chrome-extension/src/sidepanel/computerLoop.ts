@@ -73,6 +73,11 @@ function trackSpawnedTab(openerTabId: number, onSpawn: (id: number) => void) {
 export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> {
   const cdp = new CdpSession(opts.tabId, DISPLAY_W, DISPLAY_H);
   let spawnedTabId: number | null = null;
+  // Only follow a spawned tab when the AGENT just clicked something (an apply
+  // link opening a new tab). Without this, opening your own tab (Cmd+T, which
+  // Chrome stamps with the app tab as opener) would drag the agent onto your
+  // chrome://newtab and lose it.
+  let followArmed = false;
   const untrack = trackSpawnedTab(opts.tabId, (id) => (spawnedTabId = id));
 
   try {
@@ -144,16 +149,29 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
         for (const m of queued) opts.onEvent({ kind: "user_said", text: m });
       }
 
-      // Follow a newly-spawned tab (external apply opened a new tab).
+      // Follow a newly-spawned tab ONLY if the agent's last action was a click
+      // (an apply link → new tab) AND the tab is a real web page — never the
+      // user's own new tab or a chrome:// page. The arm is one-shot (consumed
+      // each turn) so a later Cmd+T can't ride a stale arm.
+      const armed = followArmed;
+      followArmed = false;
       if (spawnedTabId) {
         const newTab = spawnedTabId;
         spawnedTabId = null;
+        let url = "";
         try {
-          await chrome.tabs.update(newTab, { active: true });
-          await new Promise((r) => setTimeout(r, 800));
-          await cdp.retarget(newTab);
-        } catch {
-          /* keep current tab */
+          const ti = await chrome.tabs.get(newTab);
+          url = ti.url || ti.pendingUrl || "";
+        } catch { /* tab may be gone */ }
+        const isWeb = /^https?:\/\//i.test(url);
+        if (armed && isWeb) {
+          try {
+            await chrome.tabs.update(newTab, { active: true });
+            await new Promise((r) => setTimeout(r, 800));
+            await cdp.retarget(newTab);
+          } catch {
+            /* keep current tab */
+          }
         }
       }
 
@@ -384,6 +402,13 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
         // ---- The computer tool -------------------------------------------
         if (tu.name === "computer") {
           const action = tu.input as ComputerAction;
+          // A click/Enter can open a new tab → allow following it this turn.
+          // Anything else (scroll, screenshot, type) must NOT, so the user
+          // opening their own tab never drags the agent away.
+          followArmed =
+            action.action === "left_click" ||
+            action.action === "click_element" ||
+            action.action === "key";
           opts.onEvent({
             kind: "action",
             action: action.action,
