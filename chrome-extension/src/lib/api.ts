@@ -120,7 +120,7 @@ export async function generateCoverLetter(job: {
   jdText?: string;
   keywords?: string[];
   confirmedSkills?: string[];
-}): Promise<{ subject: string; text: string; doc: any }> {
+}): Promise<{ subject: string; text: string; doc: any; pdf?: string }> {
   const r = await authedFetch("/api/extension/cover-letter", {
     method: "POST",
     body: JSON.stringify(job),
@@ -129,7 +129,7 @@ export async function generateCoverLetter(job: {
     const j = await r.json().catch(() => ({}));
     throw new Error(j?.detail || j?.error || "cover_letter_failed");
   }
-  return (await r.json()) as { subject: string; text: string; doc: any };
+  return (await r.json()) as { subject: string; text: string; doc: any; pdf?: string };
 }
 
 /** Computer-use planner turn. Sends the running message history; returns the

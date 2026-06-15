@@ -66,6 +66,7 @@ export default function SidePanel() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverText, setCoverText] = useState<string>("");
+  const [coverPdf, setCoverPdf] = useState<string>("");
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
@@ -649,9 +650,11 @@ export default function SidePanel() {
                 onClick={async () => {
                   setCoverBusy(true);
                   setCoverText("");
+                  setCoverPdf("");
                   try {
-                    const { text } = await generateCoverLetter({ title: activeTab?.title || "" });
+                    const { text, pdf } = await generateCoverLetter({ title: activeTab?.title || "" });
                     setCoverText(text);
+                    setCoverPdf(pdf || "");
                   } catch (e: any) {
                     setCoverText(`Couldn't generate: ${e?.message || e}`);
                   } finally {
@@ -673,12 +676,34 @@ export default function SidePanel() {
                     value={coverText}
                     style={{ width: "100%", height: 160, fontSize: 12, padding: 8, border: `1px solid ${COLORS.border}`, borderRadius: 6, boxSizing: "border-box", resize: "vertical" }}
                   />
-                  <button
-                    onClick={() => { try { navigator.clipboard.writeText(coverText); } catch {} }}
-                    style={{ marginTop: 6, background: "white", color: COLORS.brand, border: `1px solid ${COLORS.brand}`, borderRadius: 8, padding: "6px 10px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
-                  >
-                    Copy
-                  </button>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button
+                      onClick={() => { try { navigator.clipboard.writeText(coverText); } catch {} }}
+                      style={{ background: "white", color: COLORS.brand, border: `1px solid ${COLORS.brand}`, borderRadius: 8, padding: "6px 10px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
+                    >
+                      Copy
+                    </button>
+                    {coverPdf && (
+                      <button
+                        onClick={() => {
+                          try {
+                            const bytes = Uint8Array.from(atob(coverPdf), (c) => c.charCodeAt(0));
+                            const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = "cover-letter.pdf";
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                          } catch {}
+                        }}
+                        style={{ background: COLORS.brand, color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontWeight: 600, cursor: "pointer", fontSize: 12 }}
+                      >
+                        Download PDF
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </Section>

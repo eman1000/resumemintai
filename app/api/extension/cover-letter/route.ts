@@ -9,7 +9,8 @@ import { NextResponse } from "next/server";
 import { userIdFromExtensionRequest } from "@/lib/extensionToken";
 import { checkAiUsage, recordAiUsage, quotaBlockedResponse } from "@/lib/aiUsage";
 import { getMasterResume } from "@/lib/masterResume";
-import { generateCoverLetterDoc, coverLetterToText } from "@/lib/coverLetterGen";
+import { generateCoverLetterDoc, coverLetterToText, coverLetterToHtml } from "@/lib/coverLetterGen";
+import { renderHtmlToPdf } from "@/lib/resumeThemes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,14 @@ export async function POST(req: Request) {
     const doc = await generateCoverLetterDoc({ resumeData: (master as any).data, job, confirmedSkills });
     await recordAiUsage(userId, "cover-letter-tailor");
 
-    return NextResponse.json({ subject: doc.subject, text: coverLetterToText(doc), doc });
+    // Also render a one-page PDF (base64) for download / form file-attach.
+    let pdfBase64 = "";
+    try {
+      const pdf = await renderHtmlToPdf(coverLetterToHtml(doc));
+      pdfBase64 = pdf.toString("base64");
+    } catch { /* text still works without the PDF */ }
+
+    return NextResponse.json({ subject: doc.subject, text: coverLetterToText(doc), doc, pdf: pdfBase64 });
   } catch (e: any) {
     if (e?.message === "unauthorized" || e?.name === "UNAUTHORIZED") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
