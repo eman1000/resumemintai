@@ -50,7 +50,10 @@ export type ComputerLoopOptions = {
   awaitUploadChoice?: () => Promise<"tailor" | "existing">;
 };
 
-const MAX_TURNS = 40; // computer-use takes more, smaller steps than DOM
+// Computer-use takes many small steps; long multi-question forms (citizenship,
+// screening, EEO…) routinely exceed 40. Higher cap so a single run can finish
+// them. (Re-running "Apply with AI" also resumes from the page's current state.)
+const MAX_TURNS = 120;
 const DISPLAY_W = 1280;
 const DISPLAY_H = 800;
 
@@ -427,7 +430,7 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
       pruneOldScreenshots(messages, 3);
     }
 
-    opts.onEvent({ kind: "done", message: `Stopped after ${MAX_TURNS} steps. Review and finish manually.` });
+    opts.onEvent({ kind: "done", message: `Paused after ${MAX_TURNS} steps (safety limit). Click "Apply with AI" again to continue from where it left off, or finish the rest manually.` });
 
     async function logCompletionSafe() {
       try {
