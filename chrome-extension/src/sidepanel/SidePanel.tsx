@@ -190,7 +190,7 @@ export default function SidePanel() {
   }
 
   // ---- Computer-use (CDP trusted input) agent --------------------------
-  const submitConfirmResolverRef = useRef<((go: boolean) => void) | null>(null);
+  const submitConfirmResolverRef = useRef<((go: boolean | { redirect: string }) => void) | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState<{ summary: string; confidence?: number } | null>(null);
   const [debuggerBanner, setDebuggerBanner] = useState(false);
   const uploadChoiceResolverRef = useRef<((c: "tailor" | "existing") => void) | null>(null);
@@ -228,7 +228,7 @@ export default function SidePanel() {
             loginResolverRef.current = resolve;
           }),
         awaitSubmitConfirm: () =>
-          new Promise<boolean>((resolve) => {
+          new Promise<boolean | { redirect: string }>((resolve) => {
             submitConfirmResolverRef.current = resolve;
           }),
         drainUserMessages: () => {
@@ -277,10 +277,19 @@ export default function SidePanel() {
   function sendChat() {
     const t = chatInput.trim();
     if (!t) return;
-    userMsgQueueRef.current.push(t);
     // Optimistically show it in the log immediately.
     setAgentLog((prev) => [...prev, { kind: "user_said", text: t } as unknown as AgentEvent]);
     setChatInput("");
+    // If we're at the submit gate, a typed message is an instruction to act on
+    // (e.g. "generate a cover letter") — redirect the agent instead of stopping.
+    if (pendingSubmit && submitConfirmResolverRef.current) {
+      setPendingSubmit(null);
+      const r = submitConfirmResolverRef.current;
+      submitConfirmResolverRef.current = null;
+      r({ redirect: t });
+      return;
+    }
+    userMsgQueueRef.current.push(t);
     // Wake the loop if it's paused (needs_login / ask_user) so a chat message
     // can redirect it instead of being stuck behind a pause button.
     const w = userMsgWaiterRef.current;

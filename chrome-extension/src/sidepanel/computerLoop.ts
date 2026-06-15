@@ -10,7 +10,7 @@
 //   3. Execute computer actions via CDP, collect tool_result blocks
 //      (screenshots), append, and loop. Custom tools pause/inform the UI.
 
-import { computerPlan, fetchResumePdf, logApply, tailorForJob, saveProfileAnswers } from "../lib/api";
+import { computerPlan, fetchResumePdf, logApply, tailorForJob, saveProfileAnswers, generateCoverLetter } from "../lib/api";
 import type { AgentJobContext } from "../types";
 import { CdpSession, type ComputerAction } from "./cdp";
 
@@ -37,7 +37,9 @@ export type ComputerLoopOptions = {
   awaitAnswers: () => Promise<Record<string, string>>;
   awaitLoginCompleted: () => Promise<void>;
   /** Resolve true to submit, false to stop, when auto-submit is off. */
-  awaitSubmitConfirm: () => Promise<boolean>;
+  // true = submit; false = stop; { redirect } = a live instruction to act on
+  // instead of submitting (e.g. "generate a cover letter").
+  awaitSubmitConfirm: () => Promise<boolean | { redirect: string }>;
   /** Drain any messages the user typed in the chat box since last turn. The
    * loop injects them so the user can steer the agent while it works. */
   drainUserMessages?: () => string[];
@@ -290,6 +292,27 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
           if (!opts.autoSubmit) {
             opts.onEvent({ kind: "confirm_submit", summary, confidence });
             const go = await opts.awaitSubmitConfirm();
+            // The user typed an instruction at the gate instead of approving →
+            // act on it (e.g. add a cover letter) rather than stopping.
+            if (go && typeof go === "object" && "redirect" in go && go.redirect) {
+              const shot = await cdp.screenshot();
+              const marks = await cdp.enumerateElements();
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: tu.id,
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      `Do NOT submit yet. The user says: "${go.redirect}". Do that first ` +
+                      `(if it's a cover letter, call cover_letter then type it in), then re-verify and propose submit again.\n\n` +
+                      renderMarks(marks),
+                  },
+                  { type: "image", source: { type: "base64", media_type: "image/png", data: shot } },
+                ],
+              });
+              continue;
+            }
             if (!go) {
               opts.onEvent({ kind: "done", message: "Stopped before submit — review and submit manually." });
               return;
@@ -318,6 +341,44 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
           opts.onEvent({ kind: "done", message: tu.input?.message });
           pausedOrEnded = true;
           break;
+        }
+
+        // ---- Generate a grounded cover letter, hand the text back to fill ----
+        if (tu.name === "cover_letter") {
+          opts.onEvent({ kind: "text", text: "Generating a cover letter from your resume…" });
+          try {
+            const jobText = await cdp.getPageText().catch(() => "");
+            const { text } = await generateCoverLetter({
+              title: opts.jobContext?.title,
+              company: opts.jobContext?.company,
+              jdText: jobText.slice(0, 6000),
+            });
+            const shot = await cdp.screenshot();
+            const marks = await cdp.enumerateElements();
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: [
+                {
+                  type: "text",
+                  text:
+                    "Cover letter (grounded in the resume — use as-is or lightly trim; do NOT add skills not in it):\n\n" +
+                    text +
+                    "\n\nNow type this into the cover-letter field/textarea with type_in_element, then continue.\n\n" +
+                    renderMarks(marks),
+                },
+                { type: "image", source: { type: "base64", media_type: "image/png", data: shot } },
+              ],
+            });
+          } catch (e: any) {
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: [{ type: "text", text: `Cover letter generation failed: ${e?.message || e}` }],
+              is_error: true,
+            });
+          }
+          continue;
         }
 
         // ---- The computer tool -------------------------------------------

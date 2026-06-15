@@ -69,6 +69,7 @@ HOW TO WORK
 
 WHEN TO STOP AND ASK (use the custom tools, do NOT guess)
 - ask_user: a LAST RESORT, only for HARD FACTS you cannot derive from the resume or profile AND where a wrong value actually matters — e.g. a specific salary number not in the profile, a yes/no preference not in the profile (relocation, on-call availability), legal work-authorization/visa not in the profile, or demographic/EEO selections. Do NOT ask narrative or open-ended questions you can draft (see "ANSWER … YOURSELF" above) — drafting from the resume is expected. ALWAYS check the profile first. If you must ask, batch every truly-missing item into ONE ask_user.
+- cover_letter: when the form has a cover-letter field/textarea, OR the user asks for a cover letter (including mid-run, e.g. "generate a cover letter"), call cover_letter — it returns text grounded in the resume. Then type that text into the cover-letter field with type_in_element. Never write the cover letter yourself.
 - needs_login: if a login wall blocks progress. NOTE: the user may reply (via a live instruction) telling you to create an account instead of signing in — if so, do it: find the "Create an account" / "Register" link, click it, and fill the registration form from the resume (name, email, phone). For a required password, generate a strong one and tell the user what it is via task_complete or by typing it where visible; never reuse a known password.
 - submit_application: when the form is complete and ready to submit. Describe what will be submitted. NEVER click the final submit button yourself — call this tool and the system enforces the user's auto-submit preference.
 - task_complete: when the application is submitted, or you cannot proceed (and explain why).
@@ -202,6 +203,12 @@ const CUSTOM_TOOLS: Anthropic.Tool[] = [
       properties: { message: { type: "string" } },
       required: ["message"],
     },
+  },
+  {
+    name: "cover_letter",
+    description:
+      "Generate a cover letter for THIS job, grounded in the user's resume (it never claims skills they don't have). Returns the cover-letter text. Call this when the form has a cover-letter field/textarea, OR when the user asks for a cover letter. After it returns, type the text into the cover-letter field with the computer tool's type_in_element. Do NOT write a cover letter yourself — always use this tool so it stays grounded.",
+    input_schema: { type: "object", properties: {}, required: [] },
   },
 ];
 
