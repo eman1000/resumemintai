@@ -37,6 +37,7 @@ import BottomToolbar from "@/app/builder/components/BottomToolbar";
 import { RENDERERS as RESUME_RENDERERS } from "@/app/builder/components/A4Preview";
 import { auth } from "@/app/firebase";
 import { findMissingSkills } from "@/lib/skillGap";
+import { ChatEditBar } from "@/components/ChatEditBar";
 
 
 type AISuggestProfile = { kind: "profile"; headline?: string; summaryHtml?: string };
@@ -3216,6 +3217,24 @@ function applyCleanup() {
   toast.success("Cleanup applied.");
 }
 
+// Conversational edits: "make it shorter", "remove the PHP skill", etc.
+async function handleChatEdit(instruction: string) {
+  try {
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
+    const res = await fetch("/api/assist/edit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ kind: "resume", data: doc, instruction }),
+    });
+    if (res.status === 401) { toast.error("Please sign in."); return; }
+    if (!res.ok) throw new Error(await res.text().catch(() => "failed"));
+    const out = await res.json();
+    if (out?.data?.sections) { setDoc(out.data); toast.success("Updated"); }
+  } catch (e: any) {
+    toast.error(`Couldn't edit: ${(e?.message || e).toString().slice(0, 100)}`);
+  }
+}
+
 // Handoff from /resume-checker: open the Smart Tailor pane with the JD
 // the user was scoring against, so they can one-click apply the tailoring.
 const handoffJdAppliedRef = React.useRef(false);
@@ -3719,6 +3738,15 @@ async function handleAISuggest(section: CVSection) {
                 ✨ Clean up{cleanupBusy ? "…" : ""}
               </button>
 
+            </div>
+
+            {/* Conversational edits */}
+            <div className="mb-4">
+              <ChatEditBar
+                label="Edit this resume with AI"
+                placeholder="e.g. “make it shorter”, “remove the PHP skill”, “stronger bullets for the Sam Media role”"
+                onSend={handleChatEdit}
+              />
             </div>
 
             <div className="w-full border rounded-lg p-3 bg-white">

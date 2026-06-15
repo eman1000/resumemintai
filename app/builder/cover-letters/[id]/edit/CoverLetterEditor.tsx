@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
 import { withAuth } from "@/app/builder/_client/withAuth";
+import { ChatEditBar } from "@/components/ChatEditBar";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
@@ -269,6 +270,26 @@ export default function CoverLetterEditor({
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left - Form */}
         <div className="space-y-5">
+          {/* Conversational edits */}
+          <ChatEditBar
+            label="Edit this cover letter with AI"
+            placeholder="e.g. “make it shorter”, “punchier opening”, “mention my A/B testing work”"
+            onSend={async (instruction) => {
+              try {
+                const res = await fetch("/api/assist/edit", await withAuth({
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ kind: "coverLetter", data, instruction }),
+                }));
+                if (!res.ok) throw new Error(await res.text().catch(() => "failed"));
+                const out = await res.json();
+                if (out?.data) onDataChange(out.data);
+                toast.success("Updated");
+              } catch (e: any) {
+                toast.error(`Couldn't edit: ${(e?.message || e).toString().slice(0, 100)}`);
+              }
+            }}
+          />
           {/* AI Tailor panel */}
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
             <div className="flex items-center justify-between gap-3">
