@@ -36,6 +36,7 @@ interface Props {
   onRendererChange: (r: string) => void;
   onDataChange: (d: CoverLetterData) => void;
   onDelete: () => void;
+  onDownload?: () => void;
 }
 
 export default function CoverLetterEditor({
@@ -48,6 +49,7 @@ export default function CoverLetterEditor({
   onRendererChange,
   onDataChange,
   onDelete,
+  onDownload,
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
@@ -244,12 +246,22 @@ export default function CoverLetterEditor({
             </div>
           </div>
 
-          <button
-            onClick={onDelete}
-            className="px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50 text-sm"
-          >
-            Delete
-          </button>
+          <div className="flex items-center gap-2">
+            {onDownload && (
+              <button
+                onClick={onDownload}
+                className="px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+              >
+                Download
+              </button>
+            )}
+            <button
+              onClick={onDelete}
+              className="px-3 py-1.5 rounded-lg text-red-600 hover:bg-red-50 text-sm"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </header>
 

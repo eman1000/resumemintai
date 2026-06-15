@@ -463,6 +463,26 @@ export async function renderResumeThemedPdf(
   }
 }
 
+/** Render a self-contained HTML document (e.g. a cover letter) to an A4 PDF.
+ * Generic — the HTML must already inline its own styles. */
+export async function renderHtmlToPdf(html: string): Promise<Buffer> {
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 820, height: 1130, deviceScaleFactor: 2 });
+    await page.emulateMediaType("screen");
+    await page.setContent(html, { waitUntil: "networkidle2", timeout: 30_000 });
+    await page.evaluate(async () => {
+      // @ts-ignore
+      if (document.fonts?.ready) await document.fonts.ready;
+    });
+    const pdf = await page.pdf({ printBackground: true, format: "A4", preferCSSPageSize: true });
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
 /** Render the FIRST page of a resume to a PNG for the builder's thumbnail cards.
  * Uses the same theme pipeline as the PDF/preview so the card matches. Applies
  * the page margin as screenshot padding (the screenshot is screen media, where

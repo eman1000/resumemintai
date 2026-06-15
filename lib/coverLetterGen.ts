@@ -79,9 +79,10 @@ export async function generateCoverLetterDoc(args: GenCoverArgs): Promise<CoverL
       "HONESTY (critical): only reference skills, tools, and experience present in the RESUME " +
       "SUMMARY or in CONFIRMED SKILLS. NEVER claim a skill/tool/achievement not evidenced there, " +
       "even if the job requires it. No fabricated metrics or facts. No clichés, no 'I am writing to apply'.\n" +
-      'Return JSON only: { "subject": string, "paragraphs": string[] } — 3–4 paragraphs, 50–90 words each. ' +
-      "Open with a concrete hook naming the role + company; close action-oriented. Do NOT put the candidate's " +
-      "email/phone in the body.";
+      'Return JSON only: { "subject": string, "paragraphs": string[] } — keep it SHORT: exactly 3 ' +
+      "paragraphs, ~40–70 words each, so the whole letter fits on ONE page. Open with a concrete hook " +
+      "naming the role + company; middle ties 1–2 resume-evidenced wins to the job; close action-oriented. " +
+      "No filler. Do NOT put the candidate's email/phone in the body.";
     const userPrompt = [
       `ROLE: ${title || "(unspecified)"}`,
       `COMPANY: ${company || "(unspecified)"}`,
@@ -132,4 +133,41 @@ export async function generateCoverLetterDoc(args: GenCoverArgs): Promise<CoverL
 /** The cover-letter body as plain text (for filling a form's cover-letter field). */
 export function coverLetterToText(doc: CoverLetterDoc): string {
   return [doc.salutation, "", ...doc.paragraphs, "", doc.closing, doc.signatureName].filter((l) => l !== undefined).join("\n");
+}
+
+function esc(s: any): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** A clean, single-page A4 HTML cover letter (self-contained) for PDF render. */
+export function coverLetterToHtml(doc: CoverLetterDoc): string {
+  const contact = [doc.sender.email, doc.sender.phone, [doc.sender.city, doc.sender.address].filter(Boolean).join(", ")]
+    .filter(Boolean)
+    .map(esc)
+    .join("  ·  ");
+  const recipient = [doc.recipient.name, doc.recipient.company].filter(Boolean).map(esc).join(" — ");
+  const paras = doc.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    @page { size: A4; margin: 22mm 20mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: Georgia, "Times New Roman", serif; color: #1f1f1f; font-size: 12px; line-height: 1.55; }
+    .name { font-size: 22px; font-weight: 700; letter-spacing: .3px; }
+    .contact { color: #555; font-size: 11px; margin-top: 2px; }
+    .meta { color: #555; font-size: 11px; margin: 18px 0 0; }
+    .subject { font-weight: 700; margin: 16px 0 12px; }
+    p { margin: 0 0 11px; }
+    .close { margin-top: 18px; }
+    .sign { font-weight: 700; }
+  </style></head><body>
+    <div class="name">${esc(doc.sender.fullName)}</div>
+    ${contact ? `<div class="contact">${contact}</div>` : ""}
+    ${doc.date ? `<div class="meta">${esc(doc.date)}</div>` : ""}
+    ${recipient ? `<div class="meta">${recipient}</div>` : ""}
+    ${doc.subject ? `<div class="subject">${esc(doc.subject)}</div>` : ""}
+    <p>${esc(doc.salutation)}</p>
+    ${paras}
+    <div class="close">${esc(doc.closing)}</div>
+    <div class="sign">${esc(doc.signatureName)}</div>
+  </body></html>`;
 }

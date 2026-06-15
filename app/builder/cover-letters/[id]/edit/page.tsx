@@ -149,6 +149,27 @@ export default function CoverLetterEditPage() {
         onTitleChange={handleTitleChange}
         onRendererChange={setRenderer}
         onDataChange={handleDataChange}
+        onDownload={async () => {
+          try {
+            const res = await fetch("/api/cover-letters/pdf", await withAuth({
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ data, filename: title || "cover-letter" }),
+            }));
+            if (!res.ok) throw new Error(await res.text().catch(() => "failed"));
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${(title || "cover-letter").replace(/[^a-z0-9_-]+/gi, "-")}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          } catch (e: any) {
+            toast.error(`Couldn't download: ${(e?.message || e).toString().slice(0, 100)}`);
+          }
+        }}
         onDelete={async () => {
           try {
             await fetch(`/api/cover-letters/${id}`, await withAuth({ method: "DELETE" }));
