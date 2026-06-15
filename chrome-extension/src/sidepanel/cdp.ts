@@ -69,7 +69,24 @@ export class CdpSession {
     // page opens a file dialog, we set the files via CDP instead of the OS
     // picker (which an extension can't otherwise drive).
     await this.send("Page.setInterceptFileChooserDialog", { enabled: true });
+    // Keep the page "visible" + unfrozen even when the user switches to another
+    // tab — otherwise Chrome throttles/freezes the backgrounded tab's renderer
+    // (timers, rAF, painting), which makes the agent appear to PAUSE until you
+    // return to it. These keep it running in the background. (Best-effort; some
+    // builds don't support every command.)
+    await this.keepAwake();
     chrome.debugger.onEvent.addListener(this.onEvent);
+  }
+
+  /** Override visibility/lifecycle so a backgrounded tab keeps rendering and
+   * processing, so the agent doesn't stall when the user changes tabs. */
+  async keepAwake(): Promise<void> {
+    try { await this.send("Emulation.setVisibilityState", { visibility: "visible" }); } catch {}
+    try { await this.send("Page.setWebLifecycleState", { state: "active" }); } catch {}
+    try {
+      // Stop the renderer from being treated as background (timer throttling).
+      await this.send("Emulation.setFocusEmulationEnabled", { enabled: true });
+    } catch {}
   }
 
   async detach(): Promise<void> {
@@ -405,6 +422,9 @@ export class CdpSession {
    * via Page.captureScreenshot's clip+scale so image space == CSS space and
    * the mapping is 1:1. */
   async screenshot(): Promise<string> {
+    // Re-assert visibility/focus each turn — these overrides can reset after a
+    // same-tab navigation, and without them a backgrounded tab stalls.
+    await this.keepAwake();
     // Read the CSS viewport AND current scroll offset. A clip captures from
     // DOCUMENT coordinates, so we must clip from the scroll position (pageX/
     // pageY) — clipping from (0,0) captures the top of the document, which is
