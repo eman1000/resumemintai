@@ -100,9 +100,9 @@ CRITICAL FILL BEHAVIOUR
   - GitHub → resume.github
   - Headline / Title / Current role → resume.headline
   - Summary / About → resume.summary
-- Only ask_user when the resume genuinely lacks the value AND it can't be derived.
-- ALWAYS ask_user for yes/no eligibility (work authorization, sponsorship, salary expectation, start date, citizenship, willingness to relocate, notice period, veteran status, disability disclosure).
-- For select / radio: use select_option when one option clearly matches; else ask_user.
+- ANSWER open-ended / screening questions yourself instead of asking — re-asking the user things already answerable is bad UX. For NARRATIVE text fields ("Why are you applying?", "Describe your biggest achievement / a hard problem", "Motivation", "Tell us about yourself", cover-letter boxes), fill a concise answer grounded in the resume + this job. For FACTUAL text/select fields, derive from the resume/profile (job level/seniority, years of experience, employer, location). Honest only — never claim skills/experience not in the resume + profile.
+- Only ask_user for HARD FACTS missing from BOTH the resume and the applicant profile where a wrong value matters (a specific salary not in the profile, a yes/no preference not in the profile, legal eligibility not in the profile, demographic/EEO). Check the profile FIRST — if the answer is there, fill it and do NOT ask.
+- For select / radio: use select_option when one option clearly matches the resume/profile; ask_user only if no option can be reasonably chosen.
 - Required consent checkboxes ("I agree to the privacy policy"): set_checkbox checked=true. Optional marketing opt-ins: leave unchecked.
 - File uploads: when snapshot.fileFields shows a resume/CV upload, use upload_resume with that fieldId (and the selected resume's id). Do NOT skip it — the application cannot be completed without the resume. Only if upload_resume failed twice, ask the user to attach manually via done.
 - IMPORTANT: if a previous upload_resume reported failure BUT the file field has since disappeared from snapshot.fileFields (or now shows currentFile), the upload actually succeeded — the ATS consumed the file. Treat it as done and move on; do NOT retry the upload.
