@@ -9,6 +9,11 @@ import {
   fetchProfile,
   saveProfileFields,
   generateCoverLetter,
+  fetchLatestVersion,
+  tailorForJob,
+  apiBaseUrl,
+  fetchResumes,
+  fetchCoverLetters,
   type ProfileField,
   type ApplicantProfile,
 } from "../lib/api";
@@ -24,6 +29,17 @@ const COLORS = {
   border: "#e5e7eb",
   line: "#e5e7eb",
 };
+
+/** a < b ? true. Plain numeric semver compare ("0.6.0" vs "0.7.0"). */
+function versionLt(a: string, b: string): boolean {
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x < y;
+  }
+  return false;
+}
 
 function fmtElapsed(s: number): string {
   const m = Math.floor(s / 60);
@@ -67,6 +83,47 @@ export default function SidePanel() {
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverText, setCoverText] = useState<string>("");
   const [coverPdf, setCoverPdf] = useState<string>("");
+  const [tailorBusy, setTailorBusy] = useState(false);
+  const [tab, setTab] = useState<"apply" | "resumes" | "covers">("apply");
+
+  // Tailor a resume to the current job (without applying) → opens the new copy.
+  async function tailorResumeForJob() {
+    if (!activeTab?.id || tailorBusy) return;
+    setTailorBusy(true);
+    try {
+      let pageText = "";
+      try {
+        const [r] = await chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          func: () => (document.body?.innerText || "").slice(0, 8000),
+        });
+        pageText = (r?.result as string) || "";
+      } catch { /* fall back to title only */ }
+      const { resumeId } = await tailorForJob({
+        title: activeTab.title || "",
+        description: pageText,
+        source: activeTab.url,
+      });
+      chrome.tabs.create({ url: `${apiBaseUrl()}/builder/${resumeId}/edit` });
+    } catch (e: any) {
+      setAgentLog((prev) => [...prev, { kind: "text", text: `Couldn't tailor: ${e?.message || e}` } as unknown as AgentEvent]);
+    } finally {
+      setTailorBusy(false);
+    }
+  }
+  const [outdated, setOutdated] = useState<{ installed: string; latest: string } | null>(null);
+
+  // Block a stale extension: if a newer version has been published, this build
+  // must be removed and reinstalled (endpoints/agent protocol move with it).
+  useEffect(() => {
+    (async () => {
+      try {
+        const installed = chrome.runtime.getManifest().version;
+        const latest = await fetchLatestVersion();
+        if (latest && versionLt(installed, latest)) setOutdated({ installed, latest });
+      } catch { /* ignore — don't block on a check failure */ }
+    })();
+  }, []);
   const [pendingQuestions, setPendingQuestions] =
     useState<Extract<AgentAction, { type: "ask_user" }>["questions"] | null>(null);
   const [pendingLogin, setPendingLogin] = useState<{ providers: string[]; message?: string; suggestGoogle?: boolean } | null>(null);
@@ -360,6 +417,28 @@ export default function SidePanel() {
     setResume(null);
   }
 
+  if (outdated) {
+    return (
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, color: COLORS.ink, background: "#fafbfd" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>⬆️</div>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Update required</div>
+        <div style={{ fontSize: 13, color: COLORS.meta, lineHeight: 1.6, maxWidth: 320, marginBottom: 16 }}>
+          A new version of ResumeMint Apply (v{outdated.latest}) has been released — your installed
+          version (v{outdated.installed}) is out of date and has been disabled. Please <b>remove this
+          extension</b> from <code>chrome://extensions</code> and install the latest build.
+        </div>
+        <a
+          href="https://www.resumemintai.com/extension/install"
+          target="_blank"
+          rel="noreferrer"
+          style={{ background: COLORS.brand, color: "#fff", textDecoration: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, fontSize: 13 }}
+        >
+          Get the latest version
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", color: COLORS.ink, background: "#fafbfd" }}>
       {/* Header */}
@@ -400,6 +479,31 @@ export default function SidePanel() {
           </Section>
         ) : (
           <>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {([["apply", "Apply"], ["resumes", "Resumes"], ["covers", "Cover letters"]] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setTab(k)}
+                  style={{
+                    flex: 1, padding: "7px 6px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    borderRadius: 8, border: `1px solid ${tab === k ? COLORS.brand : COLORS.border}`,
+                    background: tab === k ? COLORS.brand : "white", color: tab === k ? "white" : COLORS.ink,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "resumes" && (
+              <DocTable kind="resumes" baseUrl={apiBaseUrl()} load={fetchResumes} />
+            )}
+            {tab === "covers" && (
+              <DocTable kind="covers" baseUrl={apiBaseUrl()} load={fetchCoverLetters} />
+            )}
+
+            {tab === "apply" && (
+            <>
             <Section title="Current page">
               {activeTab ? (
                 <>
@@ -613,22 +717,29 @@ export default function SidePanel() {
                       and click Refresh below.
                     </div>
                   )}
-                  <button
-                    onClick={refreshResume}
-                    style={{
-                      marginTop: 10,
-                      background: "white",
-                      color: COLORS.brand,
-                      border: `1px solid ${COLORS.brand}`,
-                      borderRadius: 8,
-                      padding: "6px 10px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontSize: 12,
-                    }}
-                  >
-                    Refresh from ResumeMint
-                  </button>
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={tailorResumeForJob}
+                      disabled={tailorBusy || !activeTab}
+                      style={{
+                        background: COLORS.brand, color: "#fff", border: "none", borderRadius: 8,
+                        padding: "6px 12px", fontWeight: 600, cursor: tailorBusy ? "default" : "pointer",
+                        fontSize: 12, opacity: tailorBusy || !activeTab ? 0.6 : 1,
+                      }}
+                      title="Create a copy of your master resume tailored to this job (doesn't apply)"
+                    >
+                      {tailorBusy ? "Tailoring…" : "✨ Tailor resume for this job"}
+                    </button>
+                    <button
+                      onClick={refreshResume}
+                      style={{
+                        background: "white", color: COLORS.brand, border: `1px solid ${COLORS.brand}`,
+                        borderRadius: 8, padding: "6px 10px", fontWeight: 600, cursor: "pointer", fontSize: 12,
+                      }}
+                    >
+                      Refresh
+                    </button>
+                  </div>
                 </>
               ) : (
                 <p style={{ fontSize: 12, color: COLORS.meta }}>
@@ -785,6 +896,8 @@ export default function SidePanel() {
                 Sign out
               </button>
             </Section>
+            </>
+            )}
           </>
         )}
       </main>
@@ -1279,4 +1392,95 @@ function detectAtsFromUrl(url: string): string | null {
   if (host.includes("linkedin.com")) return "LinkedIn";
   if (host.includes("indeed.com")) return "Indeed";
   return null;
+}
+
+// ---- Resumes / Cover letters tab: searchable, paginated list ----
+function DocTable({
+  kind,
+  baseUrl,
+  load,
+}: {
+  kind: "resumes" | "covers";
+  baseUrl: string;
+  load: () => Promise<any[]>;
+}) {
+  const [items, setItems] = useState<any[] | null>(null);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const PER = 8;
+
+  useEffect(() => {
+    let alive = true;
+    load().then((rows) => { if (alive) setItems(rows || []); }).catch(() => { if (alive) setItems([]); });
+    return () => { alive = false; };
+  }, []);
+
+  const editPath = (id: string) =>
+    kind === "covers" ? `${baseUrl}/builder/cover-letters/${id}/edit` : `${baseUrl}/builder/${id}/edit`;
+
+  const filtered = (items || []).filter((it) => {
+    const hay = `${it.title || ""} ${it.tailoredFor?.company || ""} ${it.tailoredFor?.title || ""}`.toLowerCase();
+    return hay.includes(q.trim().toLowerCase());
+  });
+  const pages = Math.max(1, Math.ceil(filtered.length / PER));
+  const cur = Math.min(page, pages - 1);
+  const slice = filtered.slice(cur * PER, cur * PER + PER);
+
+  if (items === null) return <div style={{ color: COLORS.meta, fontSize: 12, padding: 8 }}>Loading…</div>;
+
+  return (
+    <div>
+      <input
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setPage(0); }}
+        placeholder={`Search ${kind === "covers" ? "cover letters" : "resumes"}…`}
+        style={{ width: "100%", padding: 8, fontSize: 12, border: `1px solid ${COLORS.border}`, borderRadius: 8, boxSizing: "border-box", marginBottom: 10 }}
+      />
+      {filtered.length === 0 ? (
+        <div style={{ color: COLORS.meta, fontSize: 12, padding: 8 }}>
+          {q ? "No matches." : `No ${kind === "covers" ? "cover letters" : "resumes"} yet.`}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {slice.map((it) => (
+            <a
+              key={it.id}
+              href={editPath(it.id)}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "block", textDecoration: "none", color: COLORS.ink, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 10px", background: "white" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                  {it.title || "Untitled"}
+                </span>
+                {it.isMaster ? (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#92600a", background: "#fde9b8", borderRadius: 999, padding: "1px 6px" }}>★ Master</span>
+                ) : it.isTailored ? (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "#fff", background: "#4b5563", borderRadius: 999, padding: "1px 6px" }}>Tailored</span>
+                ) : null}
+              </div>
+              <div style={{ fontSize: 10, color: COLORS.meta, marginTop: 2 }}>
+                {it.tailoredFor?.company ? `${it.tailoredFor.company} · ` : ""}
+                {it.updatedAt ? new Date(it.updatedAt).toLocaleDateString() : ""}
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+      {pages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 10 }}>
+          <button onClick={() => setPage(Math.max(0, cur - 1))} disabled={cur === 0}
+            style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.border}`, background: "white", cursor: cur === 0 ? "default" : "pointer", opacity: cur === 0 ? 0.5 : 1 }}>
+            ‹ Prev
+          </button>
+          <span style={{ fontSize: 11, color: COLORS.meta }}>Page {cur + 1} / {pages}</span>
+          <button onClick={() => setPage(Math.min(pages - 1, cur + 1))} disabled={cur >= pages - 1}
+            style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: `1px solid ${COLORS.border}`, background: "white", cursor: cur >= pages - 1 ? "default" : "pointer", opacity: cur >= pages - 1 ? 0.5 : 1 }}>
+            Next ›
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

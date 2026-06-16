@@ -46,6 +46,17 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
   return fetch(`${RESUMEMINT_ORIGIN}${path}`, { ...init, headers });
 }
 
+/** The latest published extension version (no auth) — used to block stale builds. */
+export async function fetchLatestVersion(): Promise<string | null> {
+  try {
+    const r = await fetch(`${API_BASE}/api/extension/version`, { cache: "no-store" });
+    if (!r.ok) return null;
+    return (await r.json())?.latest ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchMe(): Promise<{ email: string; uid: string } | null> {
   try {
     const r = await authedFetch("/api/extension/me");
@@ -82,6 +93,20 @@ export async function fetchResumes(): Promise<ResumeSummary[]> {
   const r = await authedFetch("/api/extension/resumes");
   if (!r.ok) return [];
   return ((await r.json()).resumes || []) as ResumeSummary[];
+}
+
+export type CoverLetterSummary = {
+  id: string;
+  title: string;
+  isTailored: boolean;
+  tailoredFor?: { title?: string; company?: string };
+  updatedAt: string;
+};
+
+export async function fetchCoverLetters(): Promise<CoverLetterSummary[]> {
+  const r = await authedFetch("/api/extension/cover-letters");
+  if (!r.ok) return [];
+  return ((await r.json()).coverLetters || []) as CoverLetterSummary[];
 }
 
 export async function agentPlan(
@@ -176,6 +201,10 @@ export async function saveProfileAnswers(answers: Record<string, string>): Promi
 }
 
 /** Create a job-tailored resume and return its new id (for upload). */
+export function apiBaseUrl(): string {
+  return API_BASE;
+}
+
 export async function tailorForJob(
   job: { title?: string; company?: string; description?: string; source?: string },
   baseResumeId?: string,
