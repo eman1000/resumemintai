@@ -346,6 +346,16 @@ export class CdpSession {
     return { ok: true, note: `typed into #${idx} "${m.label}"` };
   }
 
+  /** Current document URL of the attached tab (for off-track detection). */
+  async currentUrl(): Promise<string> {
+    try {
+      const r = await this.send("Runtime.evaluate", { expression: "location.href", returnByValue: true });
+      return r?.result?.value || "";
+    } catch {
+      return "";
+    }
+  }
+
   /** Grab the visible page text (for tailoring the resume to the job). */
   async getPageText(max = 6000): Promise<string> {
     try {

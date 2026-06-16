@@ -78,6 +78,9 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
   // Chrome stamps with the app tab as opener) would drag the agent onto your
   // chrome://newtab and lose it.
   let followArmed = false;
+  // The application tab we must always come back to (e.g. if a resume PDF opens
+  // in a new tab and the agent drifts onto it).
+  const originalTabId = opts.tabId;
   const untrack = trackSpawnedTab(opts.tabId, (id) => (spawnedTabId = id));
 
   try {
@@ -163,8 +166,9 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
           const ti = await chrome.tabs.get(newTab);
           url = ti.url || ti.pendingUrl || "";
         } catch { /* tab may be gone */ }
-        const isWeb = /^https?:\/\//i.test(url);
-        if (armed && isWeb) {
+        // A real application page — never a PDF preview, blob, or chrome:// page.
+        const isApp = /^https?:\/\//i.test(url) && !/\.pdf(\?|#|$)/i.test(url);
+        if (armed && isApp) {
           try {
             await chrome.tabs.update(newTab, { active: true });
             await new Promise((r) => setTimeout(r, 800));
@@ -172,6 +176,21 @@ export async function runComputerLoop(opts: ComputerLoopOptions): Promise<void> 
           } catch {
             /* keep current tab */
           }
+        }
+      }
+
+      // Recovery: if the agent has drifted onto a PDF preview / blank / chrome://
+      // page (e.g. a resume PDF opened in a new tab), snap back to the original
+      // application tab instead of flailing to close the viewer.
+      if (cdp.tabId !== originalTabId) {
+        const here = await cdp.currentUrl();
+        const offTrack = !here || /\.pdf(\?|#|$)/i.test(here) || /^(chrome|about|blob|view-source):/i.test(here);
+        if (offTrack) {
+          try {
+            await chrome.tabs.update(originalTabId, { active: true });
+            await cdp.retarget(originalTabId);
+            opts.onEvent({ kind: "text", text: "Returned to the application tab." });
+          } catch { /* original tab may be gone */ }
         }
       }
 
