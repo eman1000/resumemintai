@@ -47,6 +47,26 @@ function ShortlistTool() {
     setFiles(next);
   };
 
+  const getPdf = async (): Promise<string | null> => {
+    if (!savedRunId) return null;
+    const r = await fetchAuthed(`/api/recruiter/runs/${savedRunId}/pdf`);
+    if (!r.ok) { alert("Could not generate the PDF."); return null; }
+    return URL.createObjectURL(await r.blob());
+  };
+  const exportPdf = async () => {
+    const url = await getPdf(); if (!url) return;
+    const a = document.createElement("a");
+    a.href = url; a.download = `${(name.trim() || "shortlist").replace(/[^a-z0-9._-]+/gi, "_")}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
+  const printPdf = async () => {
+    const url = await getPdf(); if (!url) return;
+    const w = window.open(url, "_blank");
+    if (w) w.onload = () => { try { w.focus(); w.print(); } catch {} };
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
   const run = async () => {
     if (!jd.trim() && !jdFile) { setError("Paste the job description or upload a JD file first."); return; }
     if (!files.length) { setError("Add at least one candidate resume."); return; }
@@ -141,9 +161,20 @@ function ShortlistTool() {
 
           {/* Resumes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Candidate resumes <span className="text-gray-400">(PDF / DOCX · up to {MAX})</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Candidate resumes <span className="text-gray-400">(PDF / DOCX · up to {MAX})</span>
+              </label>
+              {files.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setFiles([]); if (inputRef.current) inputRef.current.value = ""; }}
+                  className="text-xs text-gray-500 hover:text-red-600"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
             <div
               onClick={() => inputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
@@ -213,9 +244,11 @@ function ShortlistTool() {
                 Ranked candidates {results.length > 0 && <span className="text-gray-400 text-base">({results.length})</span>}
               </h2>
               {savedRunId && (
-                <a href={`/recruiter/shortlists/${savedRunId}`} className="text-sm text-mint-700 hover:underline">
-                  Saved ✓ — view in Shortlists
-                </a>
+                <div className="flex items-center gap-3 text-sm">
+                  <button onClick={printPdf} className="text-gray-600 hover:text-gray-900">Print</button>
+                  <button onClick={exportPdf} className="text-gray-600 hover:text-gray-900">Export PDF</button>
+                  <a href={`/recruiter/shortlists/${savedRunId}`} className="text-mint-700 hover:underline">Saved ✓</a>
+                </div>
               )}
             </div>
             <div className="space-y-3">

@@ -6,7 +6,7 @@
 import React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Printer, Download } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import CandidateContact from "@/components/recruiter/CandidateContact";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
@@ -57,6 +57,25 @@ function Detail() {
     router.replace("/recruiter/shortlists");
   };
 
+  const getPdf = async (): Promise<string | null> => {
+    const r = await fetchAuthed(`/api/recruiter/runs/${id}/pdf`);
+    if (!r.ok) { alert("Could not generate the PDF."); return null; }
+    return URL.createObjectURL(await r.blob());
+  };
+  const exportPdf = async () => {
+    const url = await getPdf(); if (!url) return;
+    const a = document.createElement("a");
+    a.href = url; a.download = `${(run?.label || "shortlist").replace(/[^a-z0-9._-]+/gi, "_")}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
+  const printPdf = async () => {
+    const url = await getPdf(); if (!url) return;
+    const w = window.open(url, "_blank");
+    if (w) w.onload = () => { try { w.focus(); w.print(); } catch {} };
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
   if (loading) return <div className="max-w-4xl mx-auto px-4 py-8 text-sm text-[#52525a]">Loading…</div>;
   if (missing || !run) return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -83,6 +102,12 @@ function Detail() {
           {run.jobPostingId && (
             <Link href={`/recruiter/jobs/${run.jobPostingId}`} className="text-sm text-mint-700 hover:underline mr-1">Open posting</Link>
           )}
+          <button onClick={printPdf} className="inline-flex items-center gap-1.5 text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">
+            <Printer className="w-3.5 h-3.5" /> Print
+          </button>
+          <button onClick={exportPdf} className="inline-flex items-center gap-1.5 text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">
+            <Download className="w-3.5 h-3.5" /> Export PDF
+          </button>
           <button onClick={rename} className="inline-flex items-center gap-1.5 text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">
             <Pencil className="w-3.5 h-3.5" /> Rename
           </button>
