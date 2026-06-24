@@ -23,14 +23,14 @@ export default function AudienceHero() {
         <div
           role="tablist"
           aria-label="Choose what you're here to do"
-          className="inline-flex items-center rounded-full bg-gray-100 p-1.5 text-base font-semibold shadow-sm ring-1 ring-gray-200"
+          className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 p-1.5 text-base font-semibold shadow-sm ring-1 ring-gray-200"
         >
           <button
             role="tab"
             aria-selected={!isRecruiter}
             onClick={() => setAudience('seeker')}
             className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
-              !isRecruiter ? 'bg-brand text-white shadow-md' : 'text-[#52525a] hover:text-[#1d1d20]'
+              !isRecruiter ? 'bg-brand text-white shadow-md' : 'bg-brand-50 text-brand hover:bg-brand-100'
             }`}
           >
             <FileText className="w-5 h-5" /> I&apos;m job hunting
@@ -40,7 +40,7 @@ export default function AudienceHero() {
             aria-selected={isRecruiter}
             onClick={() => setAudience('recruiter')}
             className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
-              isRecruiter ? 'bg-mint-600 text-white shadow-md' : 'text-[#52525a] hover:text-[#1d1d20]'
+              isRecruiter ? 'bg-mint-600 text-white shadow-md' : 'bg-mint-50 text-mint-700 hover:bg-mint-100'
             }`}
           >
             <Users className="w-5 h-5" /> I&apos;m hiring
