@@ -194,7 +194,7 @@ function ShortlistTool() {
           <button
             onClick={run}
             disabled={busy}
-            className="btn-primary px-6 py-3 text-base disabled:opacity-60"
+            className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-6 py-3 text-base disabled:opacity-60 transition-colors"
           >
             {busy ? "Ranking candidates…" : `Shortlist ${files.length || ""} candidate${files.length === 1 ? "" : "s"}`}
           </button>

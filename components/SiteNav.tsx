@@ -31,14 +31,18 @@ export default function SiteNav() {
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6 text-sm">
           {navLinks.map((l) => (
-            <Link key={l.href} href={l.href} className="text-[#52525a] hover:text-brand transition-colors">
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`transition-colors ${l.href.startsWith('/recruiter') ? 'text-mint-700 hover:text-mint-800 font-medium' : 'text-[#52525a] hover:text-brand'}`}
+            >
               {l.label}
             </Link>
           ))}
           {loggedIn ? (
             <>
               {isRecruiter && (
-                <Link href="/recruiter/dashboard" className="text-[#52525a] hover:text-brand transition-colors">Recruiter</Link>
+                <Link href="/recruiter/dashboard" className="text-mint-700 hover:text-mint-800 font-medium transition-colors">Recruiter</Link>
               )}
               <Link href="/builder" className="text-[#52525a] hover:text-brand transition-colors">My Resumes</Link>
               <Link href="/profile" className="btn-primary text-sm !px-5 !py-2">
