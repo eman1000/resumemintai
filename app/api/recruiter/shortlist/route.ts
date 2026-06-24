@@ -163,6 +163,7 @@ export async function POST(req: Request) {
               name: r.name,
               score: r.score,
               verdict: r.verdict || null,
+              fitCategory: r.fitCategory,
               strengths: r.strengths as any,
               gaps: r.gaps as any,
               email: r.email,

@@ -35,6 +35,7 @@ export async function loadRunReport(
     name: c.name,
     score: c.score,
     verdict: c.verdict,
+    fitCategory: c.fitCategory,
     strengths: (c.strengths as string[]) || [],
     gaps: (c.gaps as string[]) || [],
     email: c.email,

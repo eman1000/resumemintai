@@ -290,6 +290,9 @@ model ShortlistCandidate {
   name          String
   score         Int
   verdict       String?
+  // At-a-glance fit bucket: strong | possible | stretch | underqualified |
+  // overqualified | different_field. Distinguishes "wrong field" from "weak".
+  fitCategory   String?  @map("fit_category")
   strengths     Json     @default("[]")
   gaps          Json     @default("[]")
   // Contact details extracted from the resume so recruiters can reach out.

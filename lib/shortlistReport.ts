@@ -3,10 +3,20 @@
 // its candidates. Columns adapt to the run's candidateType (experienced vs
 // intern). Age/gender appear only for display — they never affect scoring.
 
+export const FIT_LABEL: Record<string, string> = {
+  strong: "Strong fit",
+  possible: "Possible",
+  stretch: "Stretch",
+  underqualified: "Under-qualified",
+  overqualified: "Over-qualified",
+  different_field: "Different field",
+};
+
 export type ReportCandidate = {
   name: string;
   score: number;
   verdict: string | null;
+  fitCategory: string | null;
   strengths: string[];
   gaps: string[];
   email: string | null;
@@ -74,6 +84,7 @@ function columns(run: ReportRun): { h: string; v: (c: ReportCandidate, i: number
     : [{ h: "Qualifications & Experience", v: (c: ReportCandidate) => qualExp(c) }];
   const tail = [
     { h: "Source", v: (c: ReportCandidate) => c.source || "" },
+    { h: "Fit", v: (c: ReportCandidate) => (c.fitCategory ? FIT_LABEL[c.fitCategory] || c.fitCategory : "") },
     { h: "Score", v: (c: ReportCandidate) => `${c.score}/100` },
     { h: "Comment", v: (c: ReportCandidate) => commentText(c) },
   ];
@@ -121,6 +132,7 @@ export function buildCardsHtml(run: ReportRun, cands: ReportCandidate[]): string
   const cards = cands
     .map((c, i) => {
       const facts: string[] = [];
+      if (c.fitCategory && FIT_LABEL[c.fitCategory]) facts.push(FIT_LABEL[c.fitCategory]);
       if (c.age != null) facts.push(`Age ${c.age}`);
       if (c.gender) facts.push(esc(c.gender));
       if (isIntern(run)) {

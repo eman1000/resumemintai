@@ -9,9 +9,10 @@ import { useParams, useRouter } from "next/navigation";
 import { ExternalLink, Wand2, Trash2 } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import CandidateContact from "@/components/recruiter/CandidateContact";
+import FitChip from "@/components/recruiter/FitChip";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
-type Ranking = { score: number; verdict: string | null; strengths: string[]; gaps: string[] };
+type Ranking = { score: number; fitCategory?: string | null; verdict: string | null; strengths: string[]; gaps: string[] };
 type Applicant = {
   id: string;
   name: string;
@@ -202,6 +203,7 @@ function Manage() {
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="font-semibold text-[#1d1d20]">{a.name}</span>
                     <div className="flex items-center gap-2">
+                      {a.ranking?.fitCategory && <FitChip category={a.ranking.fitCategory} />}
                       {a.ranking && (
                         <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${scoreColor(a.ranking.score)}`}>{a.ranking.score}/100</span>
                       )}

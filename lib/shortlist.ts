@@ -20,6 +20,23 @@ const MODEL = process.env.OPENAI_MODEL_PREMIUM || process.env.OPENAI_MODEL || "g
 
 export type CandidateType = "experienced" | "intern";
 
+export type FitCategory =
+  | "strong"
+  | "possible"
+  | "stretch"
+  | "underqualified"
+  | "overqualified"
+  | "different_field";
+
+const FIT_CATEGORIES = new Set<FitCategory>([
+  "strong",
+  "possible",
+  "stretch",
+  "underqualified",
+  "overqualified",
+  "different_field",
+]);
+
 export type ShortlistInput = { id: string; name: string; text: string };
 
 export type ShortlistResult = {
@@ -27,6 +44,7 @@ export type ShortlistResult = {
   name: string;
   score: number; // 0–100 fit
   verdict: string; // one-line recommendation
+  fitCategory: FitCategory; // at-a-glance bucket
   strengths: string[]; // resume-evidenced reasons they fit
   gaps: string[]; // requirements not evidenced in the resume
   // Structured fields (null when not stated on the resume).
@@ -60,6 +78,11 @@ function systemPrompt(type: CandidateType): string {
     "FAIRNESS (critical): age and gender MUST NOT affect the score in any way. Extract them ONLY " +
     "if explicitly stated on the resume, purely for the recruiter's records. NEVER infer gender " +
     "from a name or photo; if not explicitly stated, return null.\n\n" +
+    'Also assign a fitCategory — one of: "strong" (clearly meets the role), ' +
+    '"possible" (meets most, worth a look), "stretch" (some relevant basis but light), ' +
+    '"underqualified" (right field, not enough yet), "overqualified" (right field but ' +
+    'clearly too senior for this role), "different_field" (skilled, but in a different ' +
+    "domain than the JD). Base it on relevance to THIS job.\n\n" +
     "For EACH candidate also extract (null if not stated):\n" +
     "- name: full name from the resume\n" +
     "- age: number, only if explicitly stated\n" +
@@ -73,7 +96,8 @@ function systemPrompt(type: CandidateType): string {
     'Return STRICT JSON: { "candidates": [ { "id": string, "name": string|null, "age": number|null, ' +
     '"gender": string|null, "yearsExperience": number|null, "currentRole": string|null, ' +
     '"qualification": string|null, "certifications": string|null, "education": string|null, ' +
-    '"academicResults": string|null, "score": number (0-100), "verdict": string (one concise line), ' +
+    '"academicResults": string|null, "score": number (0-100), "fitCategory": string, ' +
+    '"verdict": string (one concise line), ' +
     '"strengths": string[] (2-4, each citing resume evidence), "gaps": string[] (0-4 missing/weak) } ] }. ' +
     "Include EVERY candidate. Sort by score descending. Be discerning — spread scores; do not cluster at the top."
   );
@@ -129,6 +153,9 @@ export async function shortlistCandidates(
         name: llmName || fileName || "Candidate",
         score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))),
         verdict: String(r.verdict || "").trim(),
+        fitCategory: (FIT_CATEGORIES.has(String(r.fitCategory) as FitCategory)
+          ? (String(r.fitCategory) as FitCategory)
+          : "possible"),
         strengths: strList(r.strengths),
         gaps: strList(r.gaps),
         age: numOrNull(r.age),

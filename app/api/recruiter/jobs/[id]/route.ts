@@ -40,9 +40,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     });
 
     // score-by-applicationId from the latest run (if any)
-    const scoreByApp = new Map<string, { score: number; verdict: string | null; strengths: any; gaps: any; phone: string | null; links: any }>();
+    const scoreByApp = new Map<string, { score: number; fitCategory: string | null; verdict: string | null; strengths: any; gaps: any; phone: string | null; links: any }>();
     for (const c of latestRun?.candidates || []) {
-      if (c.applicationId) scoreByApp.set(c.applicationId, { score: c.score, verdict: c.verdict, strengths: c.strengths, gaps: c.gaps, phone: c.phone, links: c.links });
+      if (c.applicationId) scoreByApp.set(c.applicationId, { score: c.score, fitCategory: c.fitCategory, verdict: c.verdict, strengths: c.strengths, gaps: c.gaps, phone: c.phone, links: c.links });
     }
 
     return NextResponse.json({
@@ -75,7 +75,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
           resumeUrl: a.resumeId ? `/api/recruiter/applications/${a.id}/resume` : null,
           hasResumeText: !!a.resumeText,
           createdAt: a.createdAt.toISOString(),
-          ranking: rank ? { score: rank.score, verdict: rank.verdict, strengths: rank.strengths, gaps: rank.gaps } : null,
+          ranking: rank ? { score: rank.score, fitCategory: rank.fitCategory, verdict: rank.verdict, strengths: rank.strengths, gaps: rank.gaps } : null,
         };
       }),
       shortlist: latestRun

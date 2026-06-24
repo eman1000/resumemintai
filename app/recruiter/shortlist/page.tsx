@@ -7,11 +7,13 @@ import React from "react";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import CandidateContact from "@/components/recruiter/CandidateContact";
+import FitChip from "@/components/recruiter/FitChip";
 
 type Result = {
   id: string;
   name: string;
   score: number;
+  fitCategory?: string | null;
   verdict: string;
   strengths: string[];
   gaps: string[];
@@ -325,11 +327,14 @@ function ShortlistTool() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span className="font-semibold text-gray-900">{r.name}</span>
-                        <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${
-                          r.score >= 75 ? "bg-green-100 text-green-800" :
-                          r.score >= 50 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {r.score}/100 fit
+                        <span className="flex items-center gap-2">
+                          <FitChip category={r.fitCategory} />
+                          <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${
+                            r.score >= 75 ? "bg-green-100 text-green-800" :
+                            r.score >= 50 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700"
+                          }`}>
+                            {r.score}/100 fit
+                          </span>
                         </span>
                       </div>
                       <CandidateFacts r={r} intern={candidateType === "intern"} />

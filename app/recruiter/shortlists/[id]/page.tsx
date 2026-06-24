@@ -9,10 +9,11 @@ import { useParams, useRouter } from "next/navigation";
 import { Pencil, Trash2, Printer, Download } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import CandidateContact from "@/components/recruiter/CandidateContact";
+import FitChip from "@/components/recruiter/FitChip";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
 type Candidate = {
-  id: string; name: string; score: number; verdict: string | null; strengths: string[]; gaps: string[];
+  id: string; name: string; score: number; fitCategory?: string | null; verdict: string | null; strengths: string[]; gaps: string[];
   email?: string | null; phone?: string | null; links?: string[]; resumeUrl?: string | null; resumeName?: string | null;
   age?: number | null; gender?: string | null; yearsExperience?: number | null; currentRole?: string | null;
   qualification?: string | null; certifications?: string | null; education?: string | null; academicResults?: string | null;
@@ -170,7 +171,10 @@ function Detail() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="font-semibold text-[#1d1d20]">{c.name}</span>
-                  <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${scoreColor(c.score)}`}>{c.score}/100</span>
+                  <span className="flex items-center gap-2">
+                    <FitChip category={c.fitCategory} />
+                    <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${scoreColor(c.score)}`}>{c.score}/100</span>
+                  </span>
                 </div>
                 {facts(c, run.candidateType === "intern").length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">{facts(c, run.candidateType === "intern").join("  ·  ")}</p>

@@ -42,6 +42,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         name: c.name,
         score: c.score,
         verdict: c.verdict,
+        fitCategory: c.fitCategory,
         strengths: (c.strengths as string[]) || [],
         gaps: (c.gaps as string[]) || [],
         applicationId: c.applicationId,
