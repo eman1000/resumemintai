@@ -6,11 +6,11 @@
 // and metered (recruiter-shortlist; one run per call).
 
 import { NextResponse } from "next/server";
-import { getUserFromRequest } from "@/app/api/server/auth/getUserFromRequest";
 import prisma from "@/lib/prisma";
 import { checkAiUsage, recordAiUsage, quotaBlockedResponse, MAX_SHORTLIST_RESUMES } from "@/lib/aiUsage";
 import { extractFileText } from "@/lib/extractText";
 import { shortlistCandidates, type ShortlistInput } from "@/lib/shortlist";
+import { requireRecruiter, RecruiterGateError, recruiterGateResponse } from "@/lib/recruiterBilling";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,9 +18,8 @@ export const maxDuration = 120;
 
 export async function POST(req: Request) {
   try {
-    const fb = await getUserFromRequest();
-    const dbUser = await prisma.user.findUnique({ where: { firebaseUid: fb.uid }, select: { id: true } });
-    if (!dbUser?.id) return NextResponse.json({ error: "no_user" }, { status: 403 });
+    const { userId } = await requireRecruiter();
+    const dbUser = { id: userId };
 
     const quota = await checkAiUsage(dbUser.id, "recruiter-shortlist");
     if (!quota.ok) return NextResponse.json(quotaBlockedResponse(quota), { status: 429 });
@@ -66,7 +65,35 @@ export async function POST(req: Request) {
     const results = await shortlistCandidates(jdText, candidates);
     await recordAiUsage(dbUser.id, "recruiter-shortlist");
 
+    // Persist the run for the recruiter's history (no resume files stored —
+    // only the ranking metadata).
+    let runId: string | null = null;
+    try {
+      const run = await prisma.shortlistRun.create({
+        data: {
+          recruiterId: dbUser.id,
+          jobPostingId: null,
+          label: "Ad-hoc upload",
+          jdText: jdText.slice(0, 20000),
+          candidates: {
+            create: results.map((r) => ({
+              name: r.name,
+              score: r.score,
+              verdict: r.verdict || null,
+              strengths: r.strengths as any,
+              gaps: r.gaps as any,
+            })),
+          },
+        },
+        select: { id: true },
+      });
+      runId = run.id;
+    } catch (e) {
+      console.warn("[recruiter/shortlist] run persist failed:", (e as any)?.message || e);
+    }
+
     return NextResponse.json({
+      runId,
       results,
       skipped,
       counted: candidates.length,
@@ -77,6 +104,10 @@ export async function POST(req: Request) {
       },
     });
   } catch (e: any) {
+    if (e instanceof RecruiterGateError) {
+      const r = recruiterGateResponse(e);
+      return NextResponse.json(r.body, { status: r.status });
+    }
     if (e?.name === "UNAUTHORIZED" || e?.code === "UNAUTHORIZED") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }

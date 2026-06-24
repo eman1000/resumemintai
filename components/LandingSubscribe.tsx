@@ -127,7 +127,7 @@ function CheckoutForm({
       conversion_name: 'purchase',
       subscription_id: j.subscriptionId,
       value: (start.priceAmount ?? 0) / 100,
-      currency: (start.priceCurrency || 'EUR').toUpperCase(),
+      currency: (start.priceCurrency || 'USD').toUpperCase(),
     });
     toast.success('Subscription activated!');
     // Clear cached SI so a returning user doesn't reuse a now-spent one.

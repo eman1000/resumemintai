@@ -8,6 +8,10 @@ type AuthStatus = {
   user: User | null;
   isAuthenticated: boolean;
   isSubscribed: boolean;
+  /** Active recruiter subscription (recruiter plan). */
+  isRecruiterSubscribed: boolean;
+  /** "candidate" | "recruiter" — primary account type for routing/UX. */
+  userType: string;
   loading: boolean;
 };
 
@@ -19,6 +23,8 @@ export function useAuthStatus(): AuthStatus {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isRecruiterSubscribed, setIsRecruiterSubscribed] = useState(false);
+  const [userType, setUserType] = useState('candidate');
 
   useEffect(() => {
     let alive = true;
@@ -29,6 +35,8 @@ export function useAuthStatus(): AuthStatus {
       if (!firebaseUser) {
         setUser(null);
         setIsSubscribed(false);
+        setIsRecruiterSubscribed(false);
+        setUserType('candidate');
         setLoading(false);
         return;
       }
@@ -47,12 +55,16 @@ export function useAuthStatus(): AuthStatus {
         if (res.ok) {
           const json = await res.json();
           setIsSubscribed(!!json.subscribed);
+          setIsRecruiterSubscribed(!!json.recruiterSubscribed);
+          setUserType(json.userType || 'candidate');
         } else {
           setIsSubscribed(false);
+          setIsRecruiterSubscribed(false);
         }
       } catch {
         if (!alive) return;
         setIsSubscribed(false);
+        setIsRecruiterSubscribed(false);
       } finally {
         if (alive) setLoading(false);
       }
@@ -68,6 +80,8 @@ export function useAuthStatus(): AuthStatus {
     user,
     isAuthenticated: !!user,
     isSubscribed,
+    isRecruiterSubscribed,
+    userType,
     loading,
   };
 }

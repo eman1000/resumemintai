@@ -3,6 +3,7 @@ import { adminAuth } from '@/lib/firebaseAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { ensureDbUserByFirebaseUid } from '../../server/db/user';
+import { hasActiveRecruiterSub } from '@/lib/recruiterBilling';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,13 +29,19 @@ export async function POST(req: NextRequest) {
     const email = (dec.email || '').toLowerCase() || null;
 
     const userId = await ensureDbUserByFirebaseUid(firebaseUid, email);
-    const subscribed = await hasActiveSubByUserId(userId);
+    const [subscribed, recruiterSubscribed, dbUser] = await Promise.all([
+      hasActiveSubByUserId(userId),
+      hasActiveRecruiterSub(userId),
+      prisma.user.findUnique({ where: { id: userId }, select: { userType: true } }),
+    ]);
 
     return NextResponse.json({
       userId,
       firebaseUid,
       primaryEmail: email || '',
       subscribed,
+      recruiterSubscribed,
+      userType: dbUser?.userType || 'candidate',
     });
   } catch (e: any) {
     console.error('[account/ensure] error', e);

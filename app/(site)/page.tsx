@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { CheckCircle2, Wand2, ShieldCheck, Clock, FileText, Star, ChevronDown, Briefcase, PenLine, LayoutTemplate } from 'lucide-react';
+import { CheckCircle2, Wand2, ShieldCheck, Clock, FileText, Star, ChevronDown, Briefcase, PenLine, LayoutTemplate, Users, ListChecks, Megaphone } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 import LaidOffBanner from '@/components/LaidOffBanner';
+import AudienceHero from '@/components/AudienceHero';
 import {
   organizationLd,
   webSiteLd,
@@ -13,9 +14,9 @@ import {
 } from '@/lib/seo-ld';
 
 export const metadata: Metadata = {
-  title: 'AI Resume Builder & ATS Optimizer',
+  title: 'AI Resume Builder & Recruiter Shortlisting',
   description:
-    'Create ATS-friendly resumes in minutes with AI. Tailor your resume to any job, generate matching cover letters, and apply with one click. Try ResumeMint today.',
+    'For job seekers: build ATS-friendly resumes, tailor to any job, and apply in one click. For recruiters: AI shortlists the best-fit candidates from a stack of resumes. Try ResumeMint today.',
   alternates: { canonical: '/' },
   openGraph: {
     url: '/',
@@ -48,6 +49,12 @@ const steps = [
   { n: '3', t: 'Download & apply', d: 'Export as PDF and start applying to jobs with confidence.' },
 ];
 
+const recruiterPoints = [
+  { icon: ListChecks, t: 'AI candidate shortlisting', d: 'Upload a JD and a stack of resumes — AI ranks the best fits with evidence-based reasons and honest gaps.' },
+  { icon: Megaphone, t: 'Post jobs to our board', d: 'Publish openings to the ResumeMint job board and reach candidates who are actively applying.' },
+  { icon: Users, t: 'Applications, end to end', d: 'Receive applications, then shortlist applicants with the same AI ranking — all in one place.' },
+];
+
 const faqs = [
   { q: 'Is there a free trial?', a: 'Yes! You get a 14-day free trial with full access to all features, templates, and AI tools. No commitment required.' },
   { q: 'Can I cancel anytime?', a: 'Absolutely. You can cancel your subscription at any time from your account settings. No questions asked.' },
@@ -66,27 +73,8 @@ export default function LandingPage() {
       <SiteNav />
       <LaidOffBanner />
 
-      {/* Hero */}
-      <header className="bg-white">
-        <div className="max-w-site mx-auto px-4 py-20 text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#1d1d20] leading-tight">
-            Create your professional resume
-          </h1>
-          <p className="mt-4 text-[#52525a] text-lg max-w-2xl mx-auto">
-            Build a job-winning resume in minutes with AI-powered suggestions, professional templates, and one-click PDF export.
-          </p>
-          <div className="mt-8 flex justify-center gap-3">
-            <Link href="/builder" className="btn-primary text-base">
-              Get started
-            </Link>
-          </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> 14-day free trial</span>
-            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand" /> No credit card to start</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> Cancel anytime</span>
-          </div>
-        </div>
-      </header>
+      {/* Hero — dual audience (job seekers + recruiters) */}
+      <AudienceHero />
 
       {/* How it Works */}
       <section className="bg-[#f8fbfc]">
@@ -158,6 +146,47 @@ export default function LandingPage() {
             </p>
             <Link href="/resume-checker" className="btn-primary mt-6 inline-flex text-base">
               Check my resume free
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* For recruiters */}
+      <section id="recruiters" className="bg-[#0f1b2d]">
+        <div className="max-w-site mx-auto px-4 py-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-200 bg-white/10 rounded-full px-3 py-1">
+              <Users className="w-3.5 h-3.5" /> For recruiters &amp; hiring teams
+            </span>
+            <h2 className="mt-4 text-3xl font-bold text-white">Hiring? Let AI do the first pass.</h2>
+            <p className="mt-3 text-blue-100/80 max-w-2xl mx-auto">
+              Stop reading hundreds of resumes by hand. Drop in a job description and a stack of
+              resumes — AI ranks the best-fit candidates with reasons you can trust.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 mt-10">
+            {recruiterPoints.map((p) => (
+              <div key={p.t} className="rounded-2xl bg-white/5 border border-white/10 p-6">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mb-3">
+                  <p.icon className="w-5 h-5 text-blue-300" />
+                </div>
+                <h3 className="font-semibold text-white">{p.t}</h3>
+                <p className="mt-1 text-sm text-blue-100/70">{p.d}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/recruiter/shortlist"
+              className="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 text-base transition-colors"
+            >
+              Shortlist candidates
+            </Link>
+            <Link
+              href="/recruiter"
+              className="rounded-lg border border-white/25 text-white font-semibold px-6 py-3 text-base hover:bg-white/10 transition-colors"
+            >
+              See how it works
             </Link>
           </div>
         </div>

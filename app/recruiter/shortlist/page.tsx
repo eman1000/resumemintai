@@ -4,10 +4,8 @@
 // with evidence-based reasons. Phase 1 of the recruiter product (stateless).
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
-import { useAuthStatus } from "@/hooks/useAuthStatus";
-import SiteNav from "@/components/SiteNav";
+import RecruiterShell from "@/components/recruiter/RecruiterShell";
 
 type Result = {
   id: string;
@@ -20,9 +18,7 @@ type Result = {
 
 const MAX = 50;
 
-export default function ShortlistPage() {
-  const router = useRouter();
-  const { isAuthenticated, loading: authLoading } = useAuthStatus();
+function ShortlistTool() {
   const [jd, setJd] = React.useState("");
   const [files, setFiles] = React.useState<File[]>([]);
   const [busy, setBusy] = React.useState(false);
@@ -30,10 +26,6 @@ export default function ShortlistPage() {
   const [results, setResults] = React.useState<Result[] | null>(null);
   const [skipped, setSkipped] = React.useState<string[]>([]);
   const inputRef = React.useRef<HTMLInputElement>(null);
-
-  React.useEffect(() => {
-    if (!authLoading && !isAuthenticated) router.replace("/login?next=/recruiter/shortlist");
-  }, [authLoading, isAuthenticated, router]);
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
@@ -66,8 +58,6 @@ export default function ShortlistPage() {
   };
 
   return (
-    <>
-      <SiteNav />
       <main className="max-w-5xl mx-auto px-4 py-10">
         <div className="mb-6">
           <span className="inline-block text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-700 bg-blue-50 rounded-full px-3 py-1">
@@ -206,6 +196,13 @@ export default function ShortlistPage() {
           </div>
         )}
       </main>
-    </>
+  );
+}
+
+export default function ShortlistPage() {
+  return (
+    <RecruiterShell>
+      <ShortlistTool />
+    </RecruiterShell>
   );
 }

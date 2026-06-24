@@ -9,13 +9,15 @@ export default function SiteNav() {
   const pathname = usePathname();
   const onHome = pathname === '/';
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { isAuthenticated, loading: authLoading } = useAuthStatus();
+  const { isAuthenticated, loading: authLoading, userType } = useAuthStatus();
   const loggedIn = isAuthenticated && !authLoading;
+  const isRecruiter = loggedIn && userType === 'recruiter';
 
   const navLinks = [
     { label: 'ATS Check', href: '/resume-checker' },
     { label: 'Templates', href: '/templates' },
     { label: 'Cover Letters', href: '/cover-letter-templates' },
+    { label: 'For recruiters', href: '/recruiter' },
     { label: 'Pricing', href: '/pricing' },
   ];
 
@@ -35,6 +37,9 @@ export default function SiteNav() {
           ))}
           {loggedIn ? (
             <>
+              {isRecruiter && (
+                <Link href="/recruiter/dashboard" className="text-[#52525a] hover:text-brand transition-colors">Recruiter</Link>
+              )}
               <Link href="/builder" className="text-[#52525a] hover:text-brand transition-colors">My Resumes</Link>
               <Link href="/profile" className="btn-primary text-sm !px-5 !py-2">
                 My Profile
@@ -77,6 +82,11 @@ export default function SiteNav() {
           ))}
           {loggedIn ? (
             <>
+              {isRecruiter && (
+                <Link href="/recruiter/dashboard" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
+                  Recruiter dashboard
+                </Link>
+              )}
               <Link href="/builder" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
                 My Resumes
               </Link>

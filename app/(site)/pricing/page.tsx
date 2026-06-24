@@ -7,9 +7,9 @@ import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 
 const plans = {
-  monthly: { amount: '€19.99', period: '/month', billed: '' },
-  quarterly: { amount: '€14.99', period: '/month', billed: 'Billed €44.97 every 3 months' },
-  annual: { amount: '€9.99', period: '/month', billed: 'Billed €119.88 per year' },
+  monthly: { amount: '$19.99', period: '/month', billed: '' },
+  quarterly: { amount: '$14.99', period: '/month', billed: 'Billed $44.97 every 3 months' },
+  annual: { amount: '$9.99', period: '/month', billed: 'Billed $119.88 per year' },
 } as const;
 
 type BillingPeriod = keyof typeof plans;

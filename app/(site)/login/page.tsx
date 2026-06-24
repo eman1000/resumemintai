@@ -23,7 +23,8 @@ export default function LoginPage() {
 function LoginInner() {
   const router = useRouter();
   const params = useQuery();
-  const ret = params?.get('return') || '/builder';
+  const isRecruiter = params?.get('role') === 'recruiter';
+  const ret = params?.get('return') || (isRecruiter ? '/recruiter/shortlist' : '/builder');
 
   const [step, setStep] = useState<'email' | 'password'>('email');
   const [email, setEmail] = useState(params?.get('email') || '');
@@ -98,7 +99,10 @@ function LoginInner() {
   }
 
   return (
-    <PageShell title="Sign in" subtitle="Access your resumes and cover letters.">
+    <PageShell
+      title={isRecruiter ? 'Recruiter sign in' : 'Sign in'}
+      subtitle={isRecruiter ? 'Access candidate shortlisting and your job postings.' : 'Access your resumes and cover letters.'}
+    >
       <div className="max-w-sm mx-auto">
         {/* Google OAuth */}
         <button
@@ -184,7 +188,8 @@ function LoginInner() {
         )}
 
         <p className="text-center text-xs text-[#a1a1aa] mt-6">
-          No account yet? Just enter your email and password to create one.
+          No account yet? Just enter your email and password to create one
+          {isRecruiter ? ' — your recruiter trial starts free.' : '.'}
         </p>
       </div>
     </PageShell>

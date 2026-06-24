@@ -107,7 +107,7 @@ export default function BillingReturn() {
           const j = await r.json();
           if (!r.ok) throw new Error(j?.error || j?.detail || 'activate_failed');
 
-          fireAdsConversionDirect({ value: 19.99, currency: 'EUR', transactionId: j.subscriptionId });
+          fireAdsConversionDirect({ value: 19.99, currency: 'USD', transactionId: j.subscriptionId });
           if (j.subscriptionId) {
             trackSubscribeSuccess({
               subscriptionId: j.subscriptionId,
@@ -135,7 +135,7 @@ export default function BillingReturn() {
         if (j.accountId) localStorage.setItem('resumemint_account_id', j.accountId);
         if (j.customerId) localStorage.setItem('resumemint_stripe_customer_id', j.customerId);
 
-        fireAdsConversionDirect({ value: 1, currency: 'EUR', transactionId: j.subscriptionId });
+        fireAdsConversionDirect({ value: 1, currency: 'USD', transactionId: j.subscriptionId });
         try{
             track({ event: 'sale', props: { page: 'landing'} });
             if (j.subscriptionId) {

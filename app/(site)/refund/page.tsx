@@ -29,8 +29,8 @@ export default function Refund() {
 
         <h2>Trials, Charges & Renewals</h2>
         <ul>
-          <li><strong>Trial:</strong> €0.00 for 1 day.</li>
-          <li><strong>After trial:</strong> €19.99 every 28 days, auto-renewing.</li>
+          <li><strong>Trial:</strong> $0.00 for 1 day.</li>
+          <li><strong>After trial:</strong> $19.99 every 28 days, auto-renewing.</li>
           <li>Cancel during the trial to avoid the recurring fee.</li>
         </ul>
 
