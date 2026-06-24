@@ -3,10 +3,16 @@
 // Inline "FINAL SHORTLIST" table view (the recruiter's format) — mirrors the
 // Word/PDF table export. Type-aware columns; our analysis married into Comment.
 
-import { FIT_LABEL } from "@/components/recruiter/fitLabels";
+import FitChip from "@/components/recruiter/FitChip";
 
 function hostLabel(url: string) {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "link"; }
+}
+
+function scoreRing(s: number) {
+  if (s >= 75) return "text-green-700 ring-green-300 bg-green-50";
+  if (s >= 50) return "text-amber-700 ring-amber-300 bg-amber-50";
+  return "text-gray-600 ring-gray-300 bg-gray-50";
 }
 
 export type TableCandidate = {
@@ -45,6 +51,7 @@ export default function ReportTable({ candidates, intern }: { candidates: TableC
             <th className={cell}>Gender</th>
             <th className={cell}>{intern ? "Program of Study & College" : "Qualifications & Experience"}</th>
             <th className={cell}>Source</th>
+            <th className={`${cell} text-center`}>Score</th>
             <th className={cell}>Comment</th>
           </tr>
         </thead>
@@ -103,10 +110,14 @@ export default function ReportTable({ candidates, intern }: { candidates: TableC
                 )}
               </td>
               <td className={cell}>{c.source || ""}</td>
-              <td className={cell}>
-                <div className="font-semibold">
-                  {c.fitCategory ? `${FIT_LABEL[c.fitCategory] || c.fitCategory} · ` : ""}{c.score}/100
+              <td className={`${cell} text-center`}>
+                <div className={`mx-auto w-14 h-14 rounded-full ring-2 grid place-items-center leading-none ${scoreRing(c.score)}`}>
+                  <span className="text-xl font-extrabold">{c.score}</span>
                 </div>
+                <div className="text-[10px] text-gray-400 mt-0.5">/ 100</div>
+                {c.fitCategory && <div className="mt-1 flex justify-center"><FitChip category={c.fitCategory} /></div>}
+              </td>
+              <td className={cell}>
                 {c.verdict && <div>{c.verdict}</div>}
                 {(c.strengths?.length ?? 0) > 0 && <div className="mt-1"><b>Strengths:</b> {c.strengths!.join("; ")}</div>}
                 {(c.gaps?.length ?? 0) > 0 && <div className="mt-1"><b>Gaps:</b> {c.gaps!.join("; ")}</div>}

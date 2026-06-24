@@ -133,13 +133,19 @@ function midCellHtml(c: ReportCandidate, intern: boolean): string {
   return out.join("") || "—";
 }
 
-// Comment cell marries our analysis: fit + score, verdict, strengths, gaps.
+// Big colored score cell.
+function scoreCellHtml(c: ReportCandidate): string {
+  const color = c.score >= 75 ? "#15803d" : c.score >= 50 ? "#b45309" : "#4b5563";
+  const fit = c.fitCategory ? `<div style="font-size:7.5pt;color:#555;margin-top:1pt;">${esc(FIT_LABEL[c.fitCategory] || c.fitCategory)}</div>` : "";
+  return `<div style="text-align:center;"><span style="font-size:22pt;font-weight:800;color:${color};">${c.score}</span><span style="font-size:8pt;color:#999;">/100</span>${fit}</div>`;
+}
+
+// Comment cell: verdict, strengths, gaps (score/fit shown in the Score column).
 function commentCellHtml(c: ReportCandidate): string {
-  const tag = `<div><b>${c.fitCategory ? esc(FIT_LABEL[c.fitCategory] || c.fitCategory) + " · " : ""}${c.score}/100</b></div>`;
   const verdict = c.verdict ? `<div>${esc(c.verdict)}</div>` : "";
   const s = c.strengths.length ? `<div style='margin-top:3pt;'><b>Strengths:</b> ${esc(c.strengths.join("; "))}</div>` : "";
   const g = c.gaps.length ? `<div style='margin-top:3pt;'><b>Gaps:</b> ${esc(c.gaps.join("; "))}</div>` : "";
-  return tag + verdict + s + g;
+  return verdict + s + g || "—";
 }
 
 function hostLabel(url: string): string {
@@ -173,6 +179,7 @@ export function buildTableHtml(run: ReportRun, cands: ReportCandidate[]): string
         <td>${esc(c.gender || "")}</td>
         <td>${midCellHtml(c, intern)}</td>
         <td>${esc(c.source || "")}</td>
+        <td>${scoreCellHtml(c)}</td>
         <td>${commentCellHtml(c)}</td>
       </tr>`,
     )
@@ -188,7 +195,7 @@ export function buildTableHtml(run: ReportRun, cands: ReportCandidate[]): string
     <h1>FINAL SHORTLIST – ${esc((run.label || "Shortlist").toUpperCase())}</h1>
     <table><thead><tr>
       <th>#</th><th>Candidate Name &amp; Contact Details</th><th>Resume</th><th>Age</th><th>Gender</th>
-      <th>${midHead}</th><th>Source</th><th>Comment</th>
+      <th>${midHead}</th><th>Source</th><th>Score</th><th>Comment</th>
     </tr></thead><tbody>${rows}</tbody></table>
   </body></html>`;
 }
