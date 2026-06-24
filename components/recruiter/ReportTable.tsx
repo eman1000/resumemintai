@@ -38,10 +38,21 @@ export type TableCandidate = {
 };
 
 export default function ReportTable({ candidates, intern }: { candidates: TableCandidate[]; intern: boolean }) {
-  const cell = "border border-gray-300 px-3 py-2 align-top text-xs";
+  const cell = "border border-gray-300 px-2.5 py-2 align-top text-xs";
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-      <table className="w-full border-collapse text-xs">
+      <table className="min-w-[1180px] w-full table-fixed border-collapse text-xs">
+        <colgroup>
+          <col style={{ width: 34 }} />
+          <col style={{ width: 188 }} />
+          <col style={{ width: 82 }} />
+          <col style={{ width: 44 }} />
+          <col style={{ width: 62 }} />
+          <col style={{ width: intern ? 300 : 360 }} />
+          <col style={{ width: 74 }} />
+          <col style={{ width: 96 }} />
+          <col style={{ width: intern ? 320 : 280 }} />
+        </colgroup>
         <thead>
           <tr className="bg-[#0f1b2d] text-white text-left">
             <th className={cell}>#</th>
@@ -95,12 +106,17 @@ export default function ReportTable({ candidates, intern }: { candidates: TableC
                   <>
                     {(c.experienceHistory?.length ?? 0) > 0 && (
                       <>
-                        <div className="font-semibold">Experience</div>
-                        <ul className="list-disc ms-4 mb-1">
-                          {c.experienceHistory!.map((e, j) => (
-                            <li key={j}>{[e.period, e.role, e.company].filter(Boolean).join(" – ")}</li>
-                          ))}
-                        </ul>
+                        <div className="font-semibold mb-0.5">Experience</div>
+                        <table className="w-full border-collapse mb-1">
+                          <tbody>
+                            {c.experienceHistory!.map((e, j) => (
+                              <tr key={j} className="align-top">
+                                <td className="pr-2 py-0.5 text-gray-500 whitespace-nowrap w-px">{e.period}</td>
+                                <td className="py-0.5">{[e.role, e.company].filter(Boolean).join(" — ")}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </>
                     )}
                     {c.yearsExperience != null && <div className="italic">Years of Experience: {c.yearsExperience}</div>}

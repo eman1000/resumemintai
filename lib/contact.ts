@@ -29,7 +29,17 @@ function cleanPhone(raw: string): string | null {
 export function extractContact(text: string): ExtractedContact {
   const t = text || "";
 
-  const email = (t.match(EMAIL_RE)?.[0] || "").toLowerCase() || null;
+  let email = (t.match(EMAIL_RE)?.[0] || "").toLowerCase() || null;
+  // pdf-parse often strips spaces, gluing a phone onto the email
+  // ("+60166500924emanzoelife@gmail.com"). Drop a leading +/digit run (7+) from
+  // the local part — almost certainly a phone, not part of the address.
+  if (email) {
+    const at = email.indexOf("@");
+    let local = email.slice(0, at);
+    const domain = email.slice(at);
+    local = local.replace(/^\+?\d{7,}/, "");
+    email = local ? local + domain : email;
+  }
 
   let phone: string | null = null;
   const phoneMatches = t.match(PHONE_RE) || [];
