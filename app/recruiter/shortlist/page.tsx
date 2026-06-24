@@ -103,11 +103,10 @@ function ShortlistTool() {
               Job description <span className="text-gray-400">(paste or upload)</span>
             </label>
             <textarea
-              className="w-full h-52 rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-              placeholder={jdFile ? "Using the uploaded JD file…" : "Paste the full job description / requirements here…"}
+              className="w-full h-52 rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder={jdFile ? "Using the uploaded JD file — or paste here to override it…" : "Paste the full job description / requirements here…"}
               value={jd}
               onChange={(e) => setJd(e.target.value)}
-              disabled={!!jdFile}
             />
             <div className="mt-2 flex items-center gap-2 text-sm">
               {jdFile ? (

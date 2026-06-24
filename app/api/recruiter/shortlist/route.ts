@@ -37,18 +37,33 @@ export async function POST(req: Request) {
     if (!jdText) {
       const jdFile = form.get("jdFile");
       if (jdFile instanceof File) {
+        let extracted = "";
         try {
-          const t = await extractFileText(jdFile);
-          if (t && t.trim().length > 20) jdText = t.trim();
+          const jdBuf = Buffer.from(await jdFile.arrayBuffer());
+          extracted = (await extractBufferText(jdBuf, jdFile.name || "jd", jdFile.type)).trim();
         } catch {
+          /* fall through to the friendly error below */
+        }
+        if (extracted.length > 20) {
+          jdText = extracted;
+        } else {
           return NextResponse.json(
-            { error: "jd_unreadable", detail: "Couldn't read the JD file (scanned PDFs aren't supported)." },
+            {
+              error: "jd_unreadable",
+              detail:
+                "Couldn't read text from the JD file. If it's a scanned/image PDF it has no text layer — paste the job description into the box instead.",
+            },
             { status: 422 },
           );
         }
       }
     }
-    if (!jdText) return NextResponse.json({ error: "missing_jd" }, { status: 400 });
+    if (!jdText) {
+      return NextResponse.json(
+        { error: "missing_jd", detail: "Paste the job description or upload a JD file with selectable text." },
+        { status: 400 },
+      );
+    }
 
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
     if (!files.length) return NextResponse.json({ error: "no_resumes" }, { status: 400 });
