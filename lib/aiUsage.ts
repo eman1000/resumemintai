@@ -21,7 +21,8 @@ export type AiFeature =
   | 'section-suggest'
   | 'extension-fill'
   | 'extension-agent'
-  | 'extension-resume-pdf';
+  | 'extension-resume-pdf'
+  | 'recruiter-shortlist';
 
 type Limit = { day: number; month: number };
 
@@ -45,7 +46,14 @@ const LIMITS: Record<AiFeature, Limit> = {
   // Chrome extension: Puppeteer PDF render for upload_resume. Heavyweight
   // (full headless-Chrome render) — one per application is the normal rate.
   'extension-resume-pdf': { day: 40, month: 400 },
+  // Recruiter shortlisting: one run = a JD + up to MAX_SHORTLIST_RESUMES resumes
+  // ranked by gpt-4o (~$0.10–0.20 worst case). 15/day, 100/month caps worst-case
+  // AI spend near ~$20/recruiter/month — the €49 recruiter plan's token guardrail.
+  'recruiter-shortlist': { day: 15, month: 100 },
 };
+
+/** Max resumes a single shortlist run will process (bounds per-run token cost). */
+export const MAX_SHORTLIST_RESUMES = 50;
 
 export function getAiLimit(feature: AiFeature): Limit {
   return LIMITS[feature];
