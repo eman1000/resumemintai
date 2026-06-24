@@ -17,32 +17,33 @@ export default function AudienceHero() {
 
   return (
     <header className="bg-white">
-      <div className="max-w-site mx-auto px-4 pt-12 pb-20 text-center">
+      <div className="max-w-site mx-auto px-4 pt-10 pb-20 text-center">
         {/* Audience switch */}
+        <p className="text-sm font-medium text-[#52525a] mb-3">I&apos;m here to…</p>
         <div
           role="tablist"
           aria-label="Choose what you're here to do"
-          className="inline-flex items-center rounded-full bg-gray-100 p-1 text-sm font-medium"
+          className="inline-flex items-center rounded-full bg-gray-100 p-1.5 text-base font-semibold shadow-sm ring-1 ring-gray-200"
         >
           <button
             role="tab"
             aria-selected={!isRecruiter}
             onClick={() => setAudience('seeker')}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${
-              !isRecruiter ? 'bg-white text-[#1d1d20] shadow-sm' : 'text-[#52525a] hover:text-[#1d1d20]'
+            className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
+              !isRecruiter ? 'bg-brand text-white shadow-md' : 'text-[#52525a] hover:text-[#1d1d20]'
             }`}
           >
-            <FileText className="w-4 h-4" /> I&apos;m job hunting
+            <FileText className="w-5 h-5" /> I&apos;m job hunting
           </button>
           <button
             role="tab"
             aria-selected={isRecruiter}
             onClick={() => setAudience('recruiter')}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-2 transition-colors ${
-              isRecruiter ? 'bg-white text-[#1d1d20] shadow-sm' : 'text-[#52525a] hover:text-[#1d1d20]'
+            className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
+              isRecruiter ? 'bg-blue-600 text-white shadow-md' : 'text-[#52525a] hover:text-[#1d1d20]'
             }`}
           >
-            <Users className="w-4 h-4" /> I&apos;m hiring
+            <Users className="w-5 h-5" /> I&apos;m hiring
           </button>
         </div>
 
