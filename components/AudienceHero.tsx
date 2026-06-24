@@ -6,7 +6,7 @@
 // where they land after login.
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle2, ShieldCheck, Users, FileText, Sparkles } from 'lucide-react';
 
 type Audience = 'seeker' | 'recruiter';
@@ -14,6 +14,23 @@ type Audience = 'seeker' | 'recruiter';
 export default function AudienceHero() {
   const [audience, setAudience] = useState<Audience>('seeker');
   const isRecruiter = audience === 'recruiter';
+
+  // Restore the view from a shareable ?for= param on load (e.g. /?for=recruiter).
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('for');
+    if (p === 'recruiter' || p === 'hiring') setAudience('recruiter');
+    else if (p === 'candidate' || p === 'seeker') setAudience('seeker');
+  }, []);
+
+  // Switch the view AND update the URL (no scroll/navigation) so it's shareable.
+  const choose = (a: Audience) => {
+    setAudience(a);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('for', a === 'recruiter' ? 'recruiter' : 'candidate');
+      window.history.replaceState({}, '', url);
+    }
+  };
 
   return (
     <header className="bg-white">
@@ -28,7 +45,7 @@ export default function AudienceHero() {
           <button
             role="tab"
             aria-selected={!isRecruiter}
-            onClick={() => setAudience('seeker')}
+            onClick={() => choose('seeker')}
             className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
               !isRecruiter ? 'bg-brand text-white shadow-md' : 'bg-brand-50 text-brand hover:bg-brand-100'
             }`}
@@ -38,7 +55,7 @@ export default function AudienceHero() {
           <button
             role="tab"
             aria-selected={isRecruiter}
-            onClick={() => setAudience('recruiter')}
+            onClick={() => choose('recruiter')}
             className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
               isRecruiter ? 'bg-mint-600 text-white shadow-md' : 'bg-mint-50 text-mint-700 hover:bg-mint-100'
             }`}
