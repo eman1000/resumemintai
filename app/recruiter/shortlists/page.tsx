@@ -57,7 +57,7 @@ function Shortlists() {
     <div className="max-w-site mx-auto px-4 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#1d1d20]">Saved shortlists</h1>
-        <Link href="/recruiter/shortlist" className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors">
+        <Link href="/recruiter/shortlist" className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors">
           New shortlist
         </Link>
       </div>
@@ -73,7 +73,7 @@ function Shortlists() {
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
             placeholder="Search by name…"
-            className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200"
           />
         </form>
         <select
@@ -92,7 +92,7 @@ function Shortlists() {
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-[#52525a]">
           No saved shortlists{q ? " match your search" : " yet"}.
-          {!q && <> Run one from the <Link href="/recruiter/shortlist" className="text-blue-700 underline">shortlist tool</Link>.</>}
+          {!q && <> Run one from the <Link href="/recruiter/shortlist" className="text-mint-700 underline">shortlist tool</Link>.</>}
         </div>
       ) : (
         <>
@@ -112,10 +112,10 @@ function Shortlists() {
                 {items.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <Link href={`/recruiter/shortlists/${r.id}`} className="font-medium text-[#1d1d20] hover:text-blue-700">{r.label}</Link>
+                      <Link href={`/recruiter/shortlists/${r.id}`} className="font-medium text-[#1d1d20] hover:text-mint-700">{r.label}</Link>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${r.type === "posting" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>
+                      <span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${r.type === "posting" ? "bg-mint-50 text-mint-700" : "bg-gray-100 text-gray-700"}`}>
                         {r.type === "posting" ? "Posting" : "Ad-hoc"}
                       </span>
                     </td>
@@ -123,7 +123,7 @@ function Shortlists() {
                     <td className="px-4 py-3 text-[#52525a]">{r.top ? `${r.top.name} (${r.top.score}/100)` : "—"}</td>
                     <td className="px-4 py-3 text-[#a1a1aa]">{new Date(r.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <Link href={`/recruiter/shortlists/${r.id}`} className="text-blue-700 hover:underline">View</Link>
+                      <Link href={`/recruiter/shortlists/${r.id}`} className="text-mint-700 hover:underline">View</Link>
                       <button onClick={() => rename(r)} className="text-[#52525a] hover:text-[#1d1d20] ml-3">Rename</button>
                       <button onClick={() => del(r)} className="text-red-600 hover:underline ml-3">Delete</button>
                     </td>

@@ -119,7 +119,7 @@ export default function SocialProof({ variant = "candidate" }: { variant?: "cand
 
   if (muted || !toast) return null;
 
-  const accent = variant === "recruiter" ? "bg-blue-600" : "bg-brand";
+  const accent = variant === "recruiter" ? "bg-mint-600" : "bg-brand";
 
   return (
     <div className="fixed bottom-4 left-4 z-[60] max-w-[20rem] animate-[fadeInUp_.3s_ease-out]">

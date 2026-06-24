@@ -40,7 +40,7 @@ export default function AudienceHero() {
             aria-selected={isRecruiter}
             onClick={() => setAudience('recruiter')}
             className={`flex items-center gap-2 rounded-full px-6 py-2.5 transition-all ${
-              isRecruiter ? 'bg-blue-600 text-white shadow-md' : 'text-[#52525a] hover:text-[#1d1d20]'
+              isRecruiter ? 'bg-mint-600 text-white shadow-md' : 'text-[#52525a] hover:text-[#1d1d20]'
             }`}
           >
             <Users className="w-5 h-5" /> I&apos;m hiring
@@ -49,7 +49,7 @@ export default function AudienceHero() {
 
         {isRecruiter ? (
           <div className="mt-8">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-700 bg-blue-50 rounded-full px-3 py-1">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-mint-700 bg-mint-50 rounded-full px-3 py-1">
               <Sparkles className="w-3.5 h-3.5" /> For recruiters &amp; hiring teams
             </span>
             <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl font-bold text-[#1d1d20] leading-tight">
@@ -63,7 +63,7 @@ export default function AudienceHero() {
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
                 href="/recruiter/shortlist"
-                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 text-base transition-colors"
+                className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-6 py-3 text-base transition-colors"
               >
                 Shortlist candidates
               </Link>
@@ -75,9 +75,9 @@ export default function AudienceHero() {
               </Link>
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-blue-600" /> 14-day free trial</span>
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-blue-600" /> Evidence-based ranking</span>
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-blue-600" /> Cancel anytime</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-600" /> 14-day free trial</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-mint-600" /> Evidence-based ranking</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-600" /> Cancel anytime</span>
             </div>
           </div>
         ) : (

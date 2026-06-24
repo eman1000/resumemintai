@@ -155,11 +155,11 @@ export default function LandingPage() {
       <section id="recruiters" className="bg-[#0f1b2d]">
         <div className="max-w-site mx-auto px-4 py-16">
           <div className="text-center">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-200 bg-white/10 rounded-full px-3 py-1">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-mint-200 bg-white/10 rounded-full px-3 py-1">
               <Users className="w-3.5 h-3.5" /> For recruiters &amp; hiring teams
             </span>
             <h2 className="mt-4 text-3xl font-bold text-white">Hiring? Let AI do the first pass.</h2>
-            <p className="mt-3 text-blue-100/80 max-w-2xl mx-auto">
+            <p className="mt-3 text-mint-100/80 max-w-2xl mx-auto">
               Stop reading hundreds of resumes by hand. Drop in a job description and a stack of
               resumes — AI ranks the best-fit candidates with reasons you can trust.
             </p>
@@ -167,18 +167,18 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6 mt-10">
             {recruiterPoints.map((p) => (
               <div key={p.t} className="rounded-2xl bg-white/5 border border-white/10 p-6">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mb-3">
-                  <p.icon className="w-5 h-5 text-blue-300" />
+                <div className="w-10 h-10 rounded-lg bg-mint-500/20 flex items-center justify-center mb-3">
+                  <p.icon className="w-5 h-5 text-mint-300" />
                 </div>
                 <h3 className="font-semibold text-white">{p.t}</h3>
-                <p className="mt-1 text-sm text-blue-100/70">{p.d}</p>
+                <p className="mt-1 text-sm text-mint-100/70">{p.d}</p>
               </div>
             ))}
           </div>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Link
               href="/recruiter/shortlist"
-              className="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 text-base transition-colors"
+              className="rounded-lg bg-mint-600 hover:bg-mint-500 text-white font-semibold px-6 py-3 text-base transition-colors"
             >
               Shortlist candidates
             </Link>

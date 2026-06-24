@@ -91,7 +91,7 @@ function CheckoutInner({ clientSecret }: { clientSecret: string }) {
       <button
         onClick={onSubmit}
         disabled={!stripe || !elements || submitting}
-        className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 font-semibold disabled:opacity-60 transition-colors"
+        className="w-full rounded-lg bg-mint-600 hover:bg-mint-700 text-white px-4 py-3 font-semibold disabled:opacity-60 transition-colors"
       >
         {submitting ? "Processing…" : "Start 14-day free trial"}
       </button>

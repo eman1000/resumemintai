@@ -61,19 +61,19 @@ function Detail() {
   if (missing || !run) return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <p className="text-[#52525a]">This shortlist isn&apos;t available.</p>
-      <Link href="/recruiter/shortlists" className="text-blue-700 underline mt-2 inline-block">Back to shortlists</Link>
+      <Link href="/recruiter/shortlists" className="text-mint-700 underline mt-2 inline-block">Back to shortlists</Link>
     </div>
   );
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <Link href="/recruiter/shortlists" className="text-sm text-blue-700 hover:underline">← Shortlists</Link>
+      <Link href="/recruiter/shortlists" className="text-sm text-mint-700 hover:underline">← Shortlists</Link>
 
       <div className="mt-3 flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#1d1d20]">{run.label}</h1>
           <p className="text-sm text-[#a1a1aa] mt-1">
-            <span className={`text-xs font-semibold rounded-full px-2 py-0.5 mr-2 ${run.type === "posting" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-700"}`}>
+            <span className={`text-xs font-semibold rounded-full px-2 py-0.5 mr-2 ${run.type === "posting" ? "bg-mint-50 text-mint-700" : "bg-gray-100 text-gray-700"}`}>
               {run.type === "posting" ? "From a posting" : "Ad-hoc upload"}
             </span>
             {candidates.length} candidate{candidates.length === 1 ? "" : "s"} · {new Date(run.createdAt).toLocaleString()}
@@ -81,7 +81,7 @@ function Detail() {
         </div>
         <div className="flex items-center gap-2">
           {run.jobPostingId && (
-            <Link href={`/recruiter/jobs/${run.jobPostingId}`} className="text-sm text-blue-700 hover:underline mr-1">Open posting</Link>
+            <Link href={`/recruiter/jobs/${run.jobPostingId}`} className="text-sm text-mint-700 hover:underline mr-1">Open posting</Link>
           )}
           <button onClick={rename} className="inline-flex items-center gap-1.5 text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">
             <Pencil className="w-3.5 h-3.5" /> Rename
@@ -94,7 +94,7 @@ function Detail() {
 
       {run.jdText && (
         <div className="mt-4">
-          <button onClick={() => setShowJd((v) => !v)} className="text-sm text-blue-700 hover:underline">
+          <button onClick={() => setShowJd((v) => !v)} className="text-sm text-mint-700 hover:underline">
             {showJd ? "Hide" : "Show"} job description
           </button>
           {showJd && (
@@ -109,7 +109,7 @@ function Detail() {
         {candidates.map((c, i) => (
           <div key={c.id} className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-start gap-3">
-              <div className="grid place-items-center h-9 w-9 rounded-full bg-blue-600 text-white font-bold shrink-0">{i + 1}</div>
+              <div className="grid place-items-center h-9 w-9 rounded-full bg-mint-600 text-white font-bold shrink-0">{i + 1}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="font-semibold text-[#1d1d20]">{c.name}</span>

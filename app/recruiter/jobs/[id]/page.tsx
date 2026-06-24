@@ -116,7 +116,7 @@ function Manage() {
 
   return (
     <div className="max-w-site mx-auto px-4 py-8">
-      <Link href="/recruiter/dashboard" className="text-sm text-blue-700 hover:underline">← Dashboard</Link>
+      <Link href="/recruiter/dashboard" className="text-sm text-mint-700 hover:underline">← Dashboard</Link>
 
       {/* Header */}
       <div className="mt-3 flex items-start justify-between flex-wrap gap-3">
@@ -125,13 +125,13 @@ function Manage() {
           <p className="text-[#52525a]">{job.company}{job.location ? ` · ${job.location}` : ""}</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             {job.employmentType && <span className="rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">{job.employmentType}</span>}
-            {job.remote && <span className="rounded-full bg-blue-50 text-blue-700 px-2 py-0.5">Remote-friendly</span>}
+            {job.remote && <span className="rounded-full bg-mint-50 text-mint-700 px-2 py-0.5">Remote-friendly</span>}
             {salaryLabel(job) && <span className="rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">{salaryLabel(job)}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2">
           {job.status === "open" && (
-            <Link href={`/careers/${job.slug}`} target="_blank" className="inline-flex items-center gap-1.5 text-sm text-blue-700 hover:underline">
+            <Link href={`/careers/${job.slug}`} target="_blank" className="inline-flex items-center gap-1.5 text-sm text-mint-700 hover:underline">
               <ExternalLink className="w-4 h-4" /> View public listing
             </Link>
           )}
@@ -160,7 +160,7 @@ function Manage() {
         <button
           onClick={runShortlist}
           disabled={ranking || withResume === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 text-sm disabled:opacity-60 transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2 text-sm disabled:opacity-60 transition-colors"
           title={withResume === 0 ? "No applicants with readable resumes yet" : "Rank applicants with AI"}
         >
           <Wand2 className="w-4 h-4" /> {ranking ? "Ranking…" : "AI shortlist applicants"}
@@ -170,7 +170,7 @@ function Manage() {
 
       {applicants.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-[#52525a]">
-          No applications yet. Share your <Link href={`/careers/${job.slug}`} className="text-blue-700 underline">public listing</Link>.
+          No applications yet. Share your <Link href={`/careers/${job.slug}`} className="text-mint-700 underline">public listing</Link>.
         </div>
       ) : (
         <div className="mt-4 space-y-3">
@@ -178,7 +178,7 @@ function Manage() {
             <div key={a.id} className="rounded-xl border border-gray-200 bg-white p-4">
               <div className="flex items-start gap-3">
                 {a.ranking ? (
-                  <div className="grid place-items-center h-9 w-9 rounded-full bg-blue-600 text-white font-bold shrink-0">{i + 1}</div>
+                  <div className="grid place-items-center h-9 w-9 rounded-full bg-mint-600 text-white font-bold shrink-0">{i + 1}</div>
                 ) : (
                   <div className="grid place-items-center h-9 w-9 rounded-full bg-gray-100 text-gray-500 font-bold shrink-0">–</div>
                 )}

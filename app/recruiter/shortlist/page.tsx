@@ -73,7 +73,7 @@ function ShortlistTool() {
   return (
       <main className="max-w-5xl mx-auto px-4 py-10">
         <div className="mb-6">
-          <span className="inline-block text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-700 bg-blue-50 rounded-full px-3 py-1">
+          <span className="inline-block text-[11px] font-semibold tracking-[0.18em] uppercase text-mint-700 bg-mint-50 rounded-full px-3 py-1">
             For recruiters
           </span>
           <h1 className="mt-3 text-3xl font-bold text-gray-900">AI candidate shortlisting</h1>
@@ -89,7 +89,7 @@ function ShortlistTool() {
             Shortlist name <span className="text-gray-400">(optional)</span>
           </label>
           <input
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200"
             placeholder="e.g. Backend Engineer — June batch"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -103,18 +103,18 @@ function ShortlistTool() {
               Job description <span className="text-gray-400">(paste or upload)</span>
             </label>
             <textarea
-              className="w-full h-52 rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full h-52 rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200"
               placeholder={jdFile ? "Using the uploaded JD file — or paste here to override it…" : "Paste the full job description / requirements here…"}
               value={jd}
               onChange={(e) => setJd(e.target.value)}
             />
             <div className="mt-2 flex items-center gap-2 text-sm">
               {jdFile ? (
-                <span className="flex items-center gap-2 bg-blue-50 text-blue-800 rounded px-2 py-1">
+                <span className="flex items-center gap-2 bg-mint-50 text-mint-800 rounded px-2 py-1">
                   <span className="truncate max-w-[16rem]">{jdFile.name}</span>
                   <button
                     type="button"
-                    className="text-blue-700 hover:text-red-600"
+                    className="text-mint-700 hover:text-red-600"
                     onClick={() => { setJdFile(null); if (jdInputRef.current) jdInputRef.current.value = ""; }}
                   >
                     ✕
@@ -124,7 +124,7 @@ function ShortlistTool() {
                 <button
                   type="button"
                   onClick={() => jdInputRef.current?.click()}
-                  className="text-blue-700 hover:underline"
+                  className="text-mint-700 hover:underline"
                 >
                   ＋ Upload JD (PDF / DOCX)
                 </button>
@@ -213,7 +213,7 @@ function ShortlistTool() {
                 Ranked candidates {results.length > 0 && <span className="text-gray-400 text-base">({results.length})</span>}
               </h2>
               {savedRunId && (
-                <a href={`/recruiter/shortlists/${savedRunId}`} className="text-sm text-blue-700 hover:underline">
+                <a href={`/recruiter/shortlists/${savedRunId}`} className="text-sm text-mint-700 hover:underline">
                   Saved ✓ — view in Shortlists
                 </a>
               )}
@@ -222,7 +222,7 @@ function ShortlistTool() {
               {results.map((r, i) => (
                 <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <div className="grid place-items-center h-9 w-9 rounded-full bg-blue-600 text-white font-bold shrink-0">
+                    <div className="grid place-items-center h-9 w-9 rounded-full bg-mint-600 text-white font-bold shrink-0">
                       {i + 1}
                     </div>
                     <div className="flex-1 min-w-0">

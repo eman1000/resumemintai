@@ -35,7 +35,7 @@ export default function RecruiterPricingPage() {
       <SiteNav />
       <main className="max-w-site mx-auto px-4 py-16">
         <div className="text-center mb-10">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-blue-700 bg-blue-50 rounded-full px-3 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase text-mint-700 bg-mint-50 rounded-full px-3 py-1">
             For recruiters
           </span>
           <h1 className="mt-4 text-4xl font-bold text-[#1d1d20]">Recruiter plan</h1>
@@ -53,7 +53,7 @@ export default function RecruiterPricingPage() {
             <ul className="mt-8 space-y-3">
               {FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-3 text-[#1d1d20]">
-                  <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <Check className="w-5 h-5 text-mint-600 flex-shrink-0 mt-0.5" />
                   <span className="text-sm">{f}</span>
                 </li>
               ))}

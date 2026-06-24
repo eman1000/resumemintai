@@ -89,7 +89,7 @@ export default function RecruiterShell({
                 href={t.href}
                 className={`whitespace-nowrap px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   active
-                    ? "border-blue-600 text-blue-700"
+                    ? "border-mint-600 text-mint-700"
                     : "border-transparent text-[#52525a] hover:text-[#1d1d20]"
                 }`}
               >

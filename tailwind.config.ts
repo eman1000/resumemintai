@@ -21,6 +21,21 @@ export default {
           800: '#0f4275',
           900: '#0a2d50',
         },
+        // Recruiter accent — the logo green. Differentiates the "hiring" side
+        // from the blue candidate brand.
+        mint: {
+          DEFAULT: '#00b67a',
+          50: '#e9f9f2',
+          100: '#c8f0e0',
+          200: '#92e3c7',
+          300: '#54d0a9',
+          400: '#1fbd8d',
+          500: '#00b67a',
+          600: '#00a06b',
+          700: '#00855a',
+          800: '#076a49',
+          900: '#08573d',
+        },
         surface: '#f8fbfc',
         'text-primary': '#1d1d20',
         'text-muted': '#52525a',

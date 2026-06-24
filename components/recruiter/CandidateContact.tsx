@@ -36,7 +36,7 @@ export default function CandidateContact({ email, phone, links = [], resumeUrl, 
     <div className="mt-3 flex flex-wrap gap-2">
       {resumeUrl && (
         <a href={resumeUrl} target="_blank" rel="noopener noreferrer"
-          className={`${chip} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}>
+          className={`${chip} border-mint-200 bg-mint-50 text-mint-700 hover:bg-mint-100`}>
           <FileText className="w-3.5 h-3.5" /> {resumeName ? "Resume" : "View resume"}
         </a>
       )}

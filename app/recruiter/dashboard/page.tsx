@@ -59,7 +59,7 @@ function Dashboard() {
         <div className="flex items-center gap-2">
           <Link
             href="/recruiter/shortlist"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors"
           >
             <Wand2 className="w-4 h-4" /> Shortlist candidates
           </Link>
@@ -78,14 +78,14 @@ function Dashboard() {
         className="block mb-8 rounded-2xl bg-[#0f1b2d] p-6 hover:bg-[#13233a] transition-colors"
       >
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
-            <Wand2 className="w-6 h-6 text-blue-300" />
+          <div className="w-12 h-12 rounded-xl bg-mint-500/20 flex items-center justify-center shrink-0">
+            <Wand2 className="w-6 h-6 text-mint-300" />
           </div>
           <div className="flex-1">
             <div className="text-white font-semibold text-lg">AI candidate shortlisting</div>
-            <div className="text-blue-100/70 text-sm">Paste or upload a JD and a stack of resumes — get a ranked shortlist with evidence and honest gaps.</div>
+            <div className="text-mint-100/70 text-sm">Paste or upload a JD and a stack of resumes — get a ranked shortlist with evidence and honest gaps.</div>
           </div>
-          <span className="hidden sm:inline-flex items-center rounded-lg bg-blue-600 text-white font-semibold px-4 py-2 text-sm">Open tool →</span>
+          <span className="hidden sm:inline-flex items-center rounded-lg bg-mint-600 text-white font-semibold px-4 py-2 text-sm">Open tool →</span>
         </div>
       </Link>
 
@@ -105,11 +105,11 @@ function Dashboard() {
       ) : jobs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
           <p className="text-[#52525a]">You haven&apos;t posted any jobs yet.</p>
-          <Link href="/recruiter/jobs/new" className="inline-flex mt-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors">
+          <Link href="/recruiter/jobs/new" className="inline-flex mt-4 rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors">
             Post your first job
           </Link>
           <p className="text-xs text-[#a1a1aa] mt-4">
-            Or use the <Link href="/recruiter/shortlist" className="text-blue-700 underline">ad-hoc shortlist tool</Link> to rank a stack of resumes without posting.
+            Or use the <Link href="/recruiter/shortlist" className="text-mint-700 underline">ad-hoc shortlist tool</Link> to rank a stack of resumes without posting.
           </p>
         </div>
       ) : (
@@ -135,7 +135,7 @@ function Dashboard() {
                   </td>
                   <td className="px-4 py-3 text-[#1d1d20]">{j.applicants}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/recruiter/jobs/${j.id}`} className="text-blue-700 font-medium hover:underline">Manage</Link>
+                    <Link href={`/recruiter/jobs/${j.id}`} className="text-mint-700 font-medium hover:underline">Manage</Link>
                   </td>
                 </tr>
               ))}
@@ -149,7 +149,7 @@ function Dashboard() {
         <>
           <div className="flex items-center justify-between mt-10 mb-3">
             <h2 className="text-lg font-semibold text-[#1d1d20]">Recent shortlists</h2>
-            <Link href="/recruiter/shortlists" className="text-sm text-blue-700 hover:underline">View all</Link>
+            <Link href="/recruiter/shortlists" className="text-sm text-mint-700 hover:underline">View all</Link>
           </div>
           <div className="space-y-2">
             {runs.slice(0, 8).map((r) => (
@@ -161,7 +161,7 @@ function Dashboard() {
                     {r.top ? ` · top: ${r.top.name} (${r.top.score}/100)` : ""} · {new Date(r.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-                <span className="text-sm text-blue-700">View</span>
+                <span className="text-sm text-mint-700">View</span>
               </Link>
             ))}
           </div>
@@ -174,8 +174,8 @@ function Dashboard() {
 function Stat({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-        <Icon className="w-5 h-5 text-blue-700" />
+      <div className="w-10 h-10 rounded-lg bg-mint-50 flex items-center justify-center">
+        <Icon className="w-5 h-5 text-mint-700" />
       </div>
       <div>
         <div className="text-2xl font-bold text-[#1d1d20]">{value}</div>

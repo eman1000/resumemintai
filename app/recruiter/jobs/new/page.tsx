@@ -59,7 +59,7 @@ function NewJob() {
     }
   };
 
-  const input = "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200";
+  const input = "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200";
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -131,7 +131,7 @@ function NewJob() {
           <button
             onClick={() => submit("open")}
             disabled={busy}
-            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 text-sm disabled:opacity-60 transition-colors"
+            className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-5 py-2.5 text-sm disabled:opacity-60 transition-colors"
           >
             {busy ? "Publishing…" : "Publish to job board"}
           </button>
