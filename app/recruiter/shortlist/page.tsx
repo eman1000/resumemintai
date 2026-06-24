@@ -20,12 +20,14 @@ const MAX = 50;
 
 function ShortlistTool() {
   const [jd, setJd] = React.useState("");
+  const [jdFile, setJdFile] = React.useState<File | null>(null);
   const [files, setFiles] = React.useState<File[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [results, setResults] = React.useState<Result[] | null>(null);
   const [skipped, setSkipped] = React.useState<string[]>([]);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const jdInputRef = React.useRef<HTMLInputElement>(null);
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
@@ -38,12 +40,13 @@ function ShortlistTool() {
   };
 
   const run = async () => {
-    if (!jd.trim()) { setError("Paste the job description first."); return; }
+    if (!jd.trim() && !jdFile) { setError("Paste the job description or upload a JD file first."); return; }
     if (!files.length) { setError("Add at least one candidate resume."); return; }
     setBusy(true); setError(null); setResults(null); setSkipped([]);
     try {
       const fd = new FormData();
       fd.append("jdText", jd);
+      if (jdFile) fd.append("jdFile", jdFile);
       files.forEach((f) => fd.append("files", f));
       const res = await fetchAuthed("/api/recruiter/shortlist", { method: "POST", body: fd });
       const json = await res.json().catch(() => ({}));
@@ -73,13 +76,45 @@ function ShortlistTool() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* JD */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job description</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Job description <span className="text-gray-400">(paste or upload)</span>
+            </label>
             <textarea
-              className="w-full h-64 rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="Paste the full job description / requirements here…"
+              className="w-full h-52 rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+              placeholder={jdFile ? "Using the uploaded JD file…" : "Paste the full job description / requirements here…"}
               value={jd}
               onChange={(e) => setJd(e.target.value)}
+              disabled={!!jdFile}
             />
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              {jdFile ? (
+                <span className="flex items-center gap-2 bg-blue-50 text-blue-800 rounded px-2 py-1">
+                  <span className="truncate max-w-[16rem]">{jdFile.name}</span>
+                  <button
+                    type="button"
+                    className="text-blue-700 hover:text-red-600"
+                    onClick={() => { setJdFile(null); if (jdInputRef.current) jdInputRef.current.value = ""; }}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => jdInputRef.current?.click()}
+                  className="text-blue-700 hover:underline"
+                >
+                  ＋ Upload JD (PDF / DOCX)
+                </button>
+              )}
+              <input
+                ref={jdInputRef}
+                type="file"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) { setJdFile(f); setJd(""); } }}
+              />
+            </div>
           </div>
 
           {/* Resumes */}

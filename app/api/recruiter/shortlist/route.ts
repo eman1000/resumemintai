@@ -25,7 +25,24 @@ export async function POST(req: Request) {
     if (!quota.ok) return NextResponse.json(quotaBlockedResponse(quota), { status: 429 });
 
     const form = await req.formData();
-    const jdText = String(form.get("jdText") || "").trim();
+    let jdText = String(form.get("jdText") || "").trim();
+
+    // JD can be pasted OR uploaded as a PDF/DOCX. If no text was pasted, extract
+    // it from the uploaded JD file.
+    if (!jdText) {
+      const jdFile = form.get("jdFile");
+      if (jdFile instanceof File) {
+        try {
+          const t = await extractFileText(jdFile);
+          if (t && t.trim().length > 20) jdText = t.trim();
+        } catch {
+          return NextResponse.json(
+            { error: "jd_unreadable", detail: "Couldn't read the JD file (scanned PDFs aren't supported)." },
+            { status: 422 },
+          );
+        }
+      }
+    }
     if (!jdText) return NextResponse.json({ error: "missing_jd" }, { status: 400 });
 
     const files = form.getAll("files").filter((f): f is File => f instanceof File);
