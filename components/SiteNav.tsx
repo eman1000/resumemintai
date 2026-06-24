@@ -13,13 +13,22 @@ export default function SiteNav() {
   const loggedIn = isAuthenticated && !authLoading;
   const isRecruiter = loggedIn && userType === 'recruiter';
 
-  const navLinks = [
+  // Candidate / guest marketing links vs. a lean recruiter set (candidate-only
+  // tools are hidden for recruiters).
+  const candidateLinks = [
     { label: 'ATS Check', href: '/resume-checker' },
     { label: 'Templates', href: '/templates' },
     { label: 'Cover Letters', href: '/cover-letter-templates' },
     { label: 'For recruiters', href: '/recruiter' },
     { label: 'Pricing', href: '/pricing' },
   ];
+  const recruiterLinks = [
+    { label: 'Job board', href: '/careers' },
+    { label: 'Pricing', href: '/recruiter/pricing' },
+  ];
+  const links = isRecruiter ? recruiterLinks : candidateLinks;
+
+  const mintBtn = 'rounded-lg bg-mint-600 hover:bg-mint-700 text-white text-sm font-medium px-5 py-2 transition-colors';
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -30,20 +39,30 @@ export default function SiteNav() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6 text-sm">
-          {navLinks.map((l) => (
+          {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={`transition-colors ${l.href.startsWith('/recruiter') ? 'text-mint-700 hover:text-mint-800 font-medium' : 'text-[#52525a] hover:text-brand'}`}
+              className={`transition-colors ${
+                l.href.startsWith('/recruiter') ? 'text-mint-700 hover:text-mint-800 font-medium' : 'text-[#52525a] hover:text-brand'
+              }`}
             >
               {l.label}
             </Link>
           ))}
-          {loggedIn ? (
+          {isRecruiter ? (
             <>
-              {isRecruiter && (
-                <Link href="/recruiter/dashboard" className="text-mint-700 hover:text-mint-800 font-medium transition-colors">Recruiter</Link>
-              )}
+              <Link
+                href="/builder"
+                className="text-[#52525a] hover:text-brand transition-colors"
+                title="Use ResumeMint as a job seeker (you'll set up a candidate account)"
+              >
+                Switch to candidate mode
+              </Link>
+              <Link href="/recruiter/dashboard" className={mintBtn}>Recruiter dashboard</Link>
+            </>
+          ) : loggedIn ? (
+            <>
               <Link href="/builder" className="text-[#52525a] hover:text-brand transition-colors">My Resumes</Link>
               <Link href="/profile" className="btn-primary text-sm !px-5 !py-2">
                 My Profile
@@ -74,23 +93,27 @@ export default function SiteNav() {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white px-4 py-4 space-y-3">
-          {navLinks.map((l) => (
+          {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="block text-[#52525a] hover:text-brand py-1"
+              className={`block py-1 ${l.href.startsWith('/recruiter') ? 'text-mint-700 font-medium' : 'text-[#52525a] hover:text-brand'}`}
               onClick={() => setMobileOpen(false)}
             >
               {l.label}
             </Link>
           ))}
-          {loggedIn ? (
+          {isRecruiter ? (
             <>
-              {isRecruiter && (
-                <Link href="/recruiter/dashboard" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
-                  Recruiter dashboard
-                </Link>
-              )}
+              <Link href="/recruiter/dashboard" className={`${mintBtn} block text-center`} onClick={() => setMobileOpen(false)}>
+                Recruiter dashboard
+              </Link>
+              <Link href="/builder" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
+                Switch to candidate mode
+              </Link>
+            </>
+          ) : loggedIn ? (
+            <>
               <Link href="/builder" className="block text-[#52525a] hover:text-brand py-1" onClick={() => setMobileOpen(false)}>
                 My Resumes
               </Link>
