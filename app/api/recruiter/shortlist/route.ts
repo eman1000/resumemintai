@@ -179,6 +179,7 @@ export async function POST(req: Request) {
               certifications: r.certifications,
               education: r.education,
               academicResults: r.academicResults,
+              experienceHistory: r.experienceHistory as any,
               source: "external",
             })),
           },

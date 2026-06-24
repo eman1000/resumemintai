@@ -49,6 +49,7 @@ export async function loadRunReport(
     certifications: c.certifications,
     education: c.education,
     academicResults: c.academicResults,
+    experienceHistory: (c.experienceHistory as any) || [],
     source: c.source,
   }));
   const reportRun: ReportRun = {

@@ -30,6 +30,7 @@ export type ReportCandidate = {
   certifications: string | null;
   education: string | null;
   academicResults: string | null;
+  experienceHistory: { period: string; role: string; company: string }[];
   source: string | null;
 };
 
@@ -105,24 +106,78 @@ export function buildCsv(run: ReportRun, cands: ReportCandidate[]): string {
   return [header, ...rows].join("\r\n");
 }
 
-/** Word-compatible HTML table (served as application/msword .doc). */
+// "Qualifications & Experience" (experienced) or "Program & Academics" (intern)
+// rich cell — mirrors the recruiter's manual report layout.
+function midCellHtml(c: ReportCandidate, intern: boolean): string {
+  if (intern) {
+    const bits: string[] = [];
+    if (c.education) bits.push(`<div>${esc(c.education)}</div>`);
+    if (c.academicResults) bits.push(`<div><b>Academic results:</b> ${esc(c.academicResults)}</div>`);
+    if (c.qualification) bits.push(`<div>${esc(c.qualification)}</div>`);
+    return bits.join("") || "—";
+  }
+  const out: string[] = [];
+  if (c.experienceHistory?.length) {
+    out.push("<b>Experience</b><ul style='margin:2pt 0 4pt;padding-left:16px;'>");
+    for (const e of c.experienceHistory) {
+      out.push(`<li>${esc([e.period, e.role, e.company].filter(Boolean).join(" – "))}</li>`);
+    }
+    out.push("</ul>");
+  }
+  if (c.yearsExperience != null) out.push(`<div><i>Years of Experience: ${c.yearsExperience}</i></div>`);
+  if (c.qualification) out.push(`<div style='margin-top:4pt;'><b>Qualifications</b><br>${esc(c.qualification)}</div>`);
+  if (c.certifications) out.push(`<div style='margin-top:4pt;'><b>Professional Training</b><br>${esc(c.certifications)}</div>`);
+  return out.join("") || "—";
+}
+
+// Comment cell marries our analysis: fit + score, verdict, strengths, gaps.
+function commentCellHtml(c: ReportCandidate): string {
+  const tag = `<div><b>${c.fitCategory ? esc(FIT_LABEL[c.fitCategory] || c.fitCategory) + " · " : ""}${c.score}/100</b></div>`;
+  const verdict = c.verdict ? `<div>${esc(c.verdict)}</div>` : "";
+  const s = c.strengths.length ? `<div style='margin-top:3pt;'><b>Strengths:</b> ${esc(c.strengths.join("; "))}</div>` : "";
+  const g = c.gaps.length ? `<div style='margin-top:3pt;'><b>Gaps:</b> ${esc(c.gaps.join("; "))}</div>` : "";
+  return tag + verdict + s + g;
+}
+
+function nameCellHtml(c: ReportCandidate): string {
+  const lines = [`<b>${esc(c.name)}</b>`];
+  if (c.phone) lines.push(`📞 ${esc(c.phone)}`);
+  if (c.email) lines.push(`✉ ${esc(c.email)}`);
+  for (const u of c.links || []) lines.push(`<a href="${esc(u)}">${esc(u)}</a>`);
+  return lines.join("<br>");
+}
+
+/** Word-compatible HTML table in the recruiter's "FINAL SHORTLIST" format
+ * (served as application/msword .doc). */
 export function buildTableHtml(run: ReportRun, cands: ReportCandidate[]): string {
-  const cols = columns(run);
-  const head = cols.map((c) => `<th>${esc(c.h)}</th>`).join("");
-  const body = cands
-    .map((c, i) => `<tr>${cols.map((col) => `<td>${esc(col.v(c, i))}</td>`).join("")}</tr>`)
+  const intern = isIntern(run);
+  const midHead = intern ? "Program of Study &amp; College" : "Qualifications &amp; Experience";
+  const rows = cands
+    .map(
+      (c, i) => `<tr>
+        <td>${i + 1}</td>
+        <td>${nameCellHtml(c)}</td>
+        <td>${c.age != null ? c.age : ""}</td>
+        <td>${esc(c.gender || "")}</td>
+        <td>${midCellHtml(c, intern)}</td>
+        <td>${esc(c.source || "")}</td>
+        <td>${commentCellHtml(c)}</td>
+      </tr>`,
+    )
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     body{font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#1d1d20;}
-    h1{font-size:15pt;margin:0 0 2pt;}
-    .meta{color:#666;font-size:9pt;margin-bottom:10pt;}
+    h1{font-size:14pt;text-align:center;margin:0 0 8pt;}
     table{border-collapse:collapse;width:100%;}
-    th,td{border:1px solid #999;padding:5pt 7pt;vertical-align:top;text-align:left;font-size:9pt;}
+    th,td{border:1px solid #444;padding:5pt 7pt;vertical-align:top;text-align:left;font-size:9pt;}
     th{background:#0f1b2d;color:#fff;}
+    ul{margin:2pt 0;}
   </style></head><body>
-    <h1>${esc(run.label || "Shortlist")} — Final Shortlist</h1>
-    <div class="meta">${esc(meta(run, cands.length))}</div>
-    <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+    <h1>FINAL SHORTLIST – ${esc((run.label || "Shortlist").toUpperCase())}</h1>
+    <table><thead><tr>
+      <th>#</th><th>Candidate Name &amp; Contact Details</th><th>Age</th><th>Gender</th>
+      <th>${midHead}</th><th>Source</th><th>Comment</th>
+    </tr></thead><tbody>${rows}</tbody></table>
   </body></html>`;
 }
 

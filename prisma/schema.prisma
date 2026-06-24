@@ -22,6 +22,9 @@ model User {
   userType             String   @default("candidate") @map("user_type")
   // Recruiter company name (shown on job postings). Null for candidates.
   companyName          String?  @map("company_name")
+  // Preferred shortlist report style: "cards" (default) | "table". Saved from
+  // the recruiter UI via "save as default".
+  recruiterReportStyle String?  @map("recruiter_report_style")
   // Persisted answers to common application screening questions (work
   // authorization, citizenship, salary, notice period, …) so the Apply agent
   // stops re-asking them every application.
@@ -316,6 +319,9 @@ model ShortlistCandidate {
   certifications  String?
   education       String?
   academicResults String? @map("academic_results")
+  // Work-history timeline for the "Qualifications & Experience" report cell:
+  // [{ period, role, company }]. Empty for students with no experience.
+  experienceHistory Json  @default("[]") @map("experience_history")
   // "external" (uploaded) | "internal" (applied via the board).
   source          String? @default("external")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz

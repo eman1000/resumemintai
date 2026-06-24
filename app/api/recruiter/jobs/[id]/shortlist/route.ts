@@ -94,6 +94,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             certifications: r.certifications,
             education: r.education,
             academicResults: r.academicResults,
+            experienceHistory: r.experienceHistory as any,
             source: "internal",
           })),
         },

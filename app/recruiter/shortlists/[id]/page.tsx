@@ -10,6 +10,7 @@ import { Pencil, Trash2, Printer, Download } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import CandidateContact from "@/components/recruiter/CandidateContact";
 import FitChip from "@/components/recruiter/FitChip";
+import ReportTable from "@/components/recruiter/ReportTable";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
 type Candidate = {
@@ -17,6 +18,7 @@ type Candidate = {
   email?: string | null; phone?: string | null; links?: string[]; resumeUrl?: string | null; resumeName?: string | null;
   age?: number | null; gender?: string | null; yearsExperience?: number | null; currentRole?: string | null;
   qualification?: string | null; certifications?: string | null; education?: string | null; academicResults?: string | null;
+  experienceHistory?: { period: string; role: string; company: string }[];
   source?: string | null;
 };
 type Run = { id: string; label: string; type: "posting" | "adhoc"; candidateType: string; jobPostingId: string | null; jdText: string; createdAt: string };
@@ -49,6 +51,8 @@ function Detail() {
   const [loading, setLoading] = React.useState(true);
   const [missing, setMissing] = React.useState(false);
   const [showJd, setShowJd] = React.useState(false);
+  const [style, setStyle] = React.useState<"cards" | "table">("cards");
+  const [savingDefault, setSavingDefault] = React.useState(false);
 
   const load = React.useCallback(async () => {
     const r = await fetchAuthed(`/api/recruiter/runs/${id}`);
@@ -60,6 +64,22 @@ function Detail() {
   }, [id]);
 
   React.useEffect(() => { load(); }, [load]);
+
+  // Default the view to the recruiter's saved preference.
+  React.useEffect(() => {
+    fetchAuthed("/api/recruiter/report-style")
+      .then((r) => r.json())
+      .then((j) => { if (j?.style === "table" || j?.style === "cards") setStyle(j.style); })
+      .catch(() => {});
+  }, []);
+
+  const saveDefault = async () => {
+    setSavingDefault(true);
+    await fetchAuthed("/api/recruiter/report-style", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ style }),
+    }).catch(() => {});
+    setSavingDefault(false);
+  };
 
   const rename = async () => {
     if (!run) return;
@@ -79,7 +99,7 @@ function Detail() {
   };
 
   const getPdf = async (): Promise<string | null> => {
-    const r = await fetchAuthed(`/api/recruiter/runs/${id}/pdf`);
+    const r = await fetchAuthed(`/api/recruiter/runs/${id}/pdf?style=${style}`);
     if (!r.ok) { alert("Could not generate the PDF."); return null; }
     return URL.createObjectURL(await r.blob());
   };
@@ -163,7 +183,30 @@ function Detail() {
         </div>
       )}
 
-      <div className="mt-6 space-y-3">
+      {/* View style toggle */}
+      <div className="mt-6 flex items-center justify-between flex-wrap gap-2">
+        <div className="inline-flex rounded-lg border border-gray-300 p-0.5 text-sm">
+          {(["cards", "table"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStyle(s)}
+              className={`rounded-md px-3 py-1.5 transition-colors ${style === s ? "bg-mint-600 text-white" : "text-gray-600 hover:text-gray-900"}`}
+            >
+              {s === "cards" ? "Cards" : "Table (report)"}
+            </button>
+          ))}
+        </div>
+        <button onClick={saveDefault} className="text-sm text-mint-700 hover:underline">
+          {savingDefault ? "Saving…" : "Save as my default"}
+        </button>
+      </div>
+
+      {style === "table" ? (
+        <div className="mt-4">
+          <ReportTable candidates={candidates as any} intern={run.candidateType === "intern"} />
+        </div>
+      ) : (
+      <div className="mt-4 space-y-3">
         {candidates.map((c, i) => (
           <div key={c.id} className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-start gap-3">
@@ -198,6 +241,7 @@ function Detail() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

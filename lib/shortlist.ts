@@ -56,6 +56,7 @@ export type ShortlistResult = {
   certifications: string | null;
   education: string | null;
   academicResults: string | null;
+  experienceHistory: { period: string; role: string; company: string }[];
 };
 
 function systemPrompt(type: CandidateType): string {
@@ -92,11 +93,14 @@ function systemPrompt(type: CandidateType): string {
     "- qualification: highest qualification / degree (e.g. 'BCom Accounting')\n" +
     "- certifications: professional training / certs (e.g. 'CIMA, ACCA'); null if none\n" +
     "- education: university / college + program of study\n" +
-    "- academicResults: e.g. '10 Distinctions, 5 x 2:1' if present (mainly students); else null\n\n" +
+    "- academicResults: e.g. '10 Distinctions, 5 x 2:1' if present (mainly students); else null\n" +
+    "- experienceHistory: array of work-history entries newest-first, each " +
+    '{ "period": e.g. "2019–Present", "role": job title, "company": employer }; [] if none\n\n' +
     'Return STRICT JSON: { "candidates": [ { "id": string, "name": string|null, "age": number|null, ' +
     '"gender": string|null, "yearsExperience": number|null, "currentRole": string|null, ' +
     '"qualification": string|null, "certifications": string|null, "education": string|null, ' +
-    '"academicResults": string|null, "score": number (0-100), "fitCategory": string, ' +
+    '"academicResults": string|null, "experienceHistory": [{"period":string,"role":string,"company":string}], ' +
+    '"score": number (0-100), "fitCategory": string, ' +
     '"verdict": string (one concise line), ' +
     '"strengths": string[] (2-4, each citing resume evidence), "gaps": string[] (0-4 missing/weak) } ] }. ' +
     "Include EVERY candidate. Sort by score descending. Be discerning — spread scores; do not cluster at the top."
@@ -166,6 +170,14 @@ export async function shortlistCandidates(
         certifications: strOrNull(r.certifications),
         education: strOrNull(r.education),
         academicResults: strOrNull(r.academicResults),
+        experienceHistory: (Array.isArray(r.experienceHistory) ? r.experienceHistory : [])
+          .slice(0, 12)
+          .map((e: any) => ({
+            period: String(e?.period || "").trim(),
+            role: String(e?.role || "").trim(),
+            company: String(e?.company || "").trim(),
+          }))
+          .filter((e: any) => e.role || e.company),
       };
     })
     .filter((r) => nameById.has(r.id))
