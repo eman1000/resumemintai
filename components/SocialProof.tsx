@@ -130,7 +130,7 @@ export default function SocialProof({ variant = "candidate" }: { variant?: "cand
         </div>
         <div className="min-w-0">
           <p className="text-sm text-[#1d1d20] leading-snug">{toast.text}</p>
-          <p className="text-xs text-[#a1a1aa] mt-0.5">{toast.ago} · verified by ResumeMint</p>
+          <p className="text-xs text-[#a1a1aa] mt-0.5">{toast.ago} · on ResumeMint</p>
         </div>
         <button
           onClick={dismiss}
