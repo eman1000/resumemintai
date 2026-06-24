@@ -300,3 +300,20 @@ body { @apply bg-[#f8fbfc] text-[#1d1d20] antialiased;
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* Shortlist modal loading animation */
+@keyframes rmScanSweep {
+  0%   { transform: translateY(-10%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(820%); opacity: 0; }
+}
+@keyframes rmShimmer {
+  0% { opacity: .35; }
+  50% { opacity: .9; }
+  100% { opacity: .35; }
+}
+@keyframes rmSpin { to { transform: rotate(360deg); } }
+.rm-scan-bar { animation: rmScanSweep 1.8s ease-in-out infinite; }
+.rm-shimmer { animation: rmShimmer 1.4s ease-in-out infinite; }
+.rm-spin-ring { animation: rmSpin 1s linear infinite; }

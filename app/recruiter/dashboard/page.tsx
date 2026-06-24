@@ -58,7 +58,7 @@ function Dashboard() {
         <h1 className="text-2xl font-bold text-[#1d1d20]">Recruiter dashboard</h1>
         <div className="flex items-center gap-2">
           <Link
-            href="/recruiter/shortlist"
+            href="/recruiter/shortlists?new=1"
             className="inline-flex items-center gap-2 rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors"
           >
             <Wand2 className="w-4 h-4" /> Shortlist candidates
@@ -74,7 +74,7 @@ function Dashboard() {
 
       {/* Primary feature: AI shortlisting */}
       <Link
-        href="/recruiter/shortlist"
+        href="/recruiter/shortlists?new=1"
         className="block mb-8 rounded-2xl bg-[#0f1b2d] p-6 hover:bg-[#13233a] transition-colors"
       >
         <div className="flex items-center gap-4">
@@ -109,7 +109,7 @@ function Dashboard() {
             Post your first job
           </Link>
           <p className="text-xs text-[#a1a1aa] mt-4">
-            Or use the <Link href="/recruiter/shortlist" className="text-mint-700 underline">ad-hoc shortlist tool</Link> to rank a stack of resumes without posting.
+            Or use the <Link href="/recruiter/shortlists?new=1" className="text-mint-700 underline">ad-hoc shortlist tool</Link> to rank a stack of resumes without posting.
           </p>
         </div>
       ) : (

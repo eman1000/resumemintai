@@ -7,6 +7,7 @@ import React from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
+import ShortlistModal from "@/components/recruiter/ShortlistModal";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
 type Run = {
@@ -26,6 +27,14 @@ function Shortlists() {
   const [q, setQ] = React.useState("");
   const [qInput, setQInput] = React.useState("");
   const [type, setType] = React.useState<"all" | "posting" | "adhoc">("all");
+  const [modalOpen, setModalOpen] = React.useState(false);
+
+  // Auto-open the tool when arriving via the "Shortlist tool" tab (?new=1).
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") {
+      setModalOpen(true);
+    }
+  }, []);
 
   const load = React.useCallback(() => {
     setItems(null);
@@ -57,10 +66,12 @@ function Shortlists() {
     <div className="max-w-site mx-auto px-4 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#1d1d20]">Saved shortlists</h1>
-        <Link href="/recruiter/shortlist" className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors">
+        <button onClick={() => setModalOpen(true)} className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors">
           New shortlist
-        </Link>
+        </button>
       </div>
+
+      <ShortlistModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -92,7 +103,7 @@ function Shortlists() {
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-[#52525a]">
           No saved shortlists{q ? " match your search" : " yet"}.
-          {!q && <> Run one from the <Link href="/recruiter/shortlist" className="text-mint-700 underline">shortlist tool</Link>.</>}
+          {!q && <> <button onClick={() => setModalOpen(true)} className="text-mint-700 underline">Run one now</button>.</>}
         </div>
       ) : (
         <>

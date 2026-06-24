@@ -79,7 +79,7 @@ export default function AudienceHero() {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
-                href="/recruiter/shortlist"
+                href="/recruiter/shortlists?new=1"
                 className="rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-6 py-3 text-base transition-colors"
               >
                 Shortlist candidates

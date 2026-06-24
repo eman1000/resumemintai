@@ -19,7 +19,7 @@ import { fetchAuthed } from "@/app/builder/_client/withAuth";
 const TABS = [
   { href: "/recruiter/dashboard", label: "Dashboard" },
   { href: "/recruiter/jobs/new", label: "Post a job" },
-  { href: "/recruiter/shortlist", label: "Shortlist tool" },
+  { href: "/recruiter/shortlists?new=1", label: "Shortlist tool" },
   { href: "/recruiter/shortlists", label: "Shortlists" },
   { href: "/careers", label: "Job board" },
 ];
