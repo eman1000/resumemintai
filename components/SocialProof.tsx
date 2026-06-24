@@ -159,6 +159,18 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Geo cities sometimes arrive URL-encoded ("Kuala%20Lumpur") or with separators.
+// Decode + normalise to plain words, or return "" if it ends up junk.
+function cleanCity(raw?: string | null): string {
+  if (!raw) return "";
+  let s = raw;
+  try { s = decodeURIComponent(s.replace(/\+/g, " ")); } catch { /* lone % etc. */ }
+  s = s.replace(/%[0-9a-f]{2}/gi, " ").replace(/[%_+]+/g, " ").replace(/\s+/g, " ").trim();
+  // Drop anything left with odd characters; keep letters, spaces, hyphens, apostrophes.
+  if (!/^[\p{L}][\p{L}\s.'-]*$/u.test(s)) return "";
+  return s;
+}
+
 type Toast = { text: string; initial: string; ago: string };
 
 export default function SocialProof({ variant = "candidate" }: { variant?: "candidate" | "recruiter" }) {
@@ -182,7 +194,8 @@ export default function SocialProof({ variant = "candidate" }: { variant?: "cand
       const pack = PACKS[cc] || DEFAULT_PACK;
       const name = pick(pack.names);
       // Prefer the visitor's real city, else a city from their country pack.
-      const city = data?.city || (pack.cities.length ? pick(pack.cities) : "");
+      // The geo city can arrive URL-encoded (e.g. "Kuala%20Lumpur") — clean it.
+      const city = cleanCity(data?.city) || (pack.cities.length ? pick(pack.cities) : "");
       const k = 3 + Math.floor(Math.random() * 18);
       const tmpl = variant === "recruiter" ? pick(RECRUITER_MSGS) : pick(CANDIDATE_MSGS);
       const text = (tmpl as any)(name, city, k);
