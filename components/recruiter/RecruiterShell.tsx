@@ -20,6 +20,7 @@ const TABS = [
   { href: "/recruiter/dashboard", label: "Dashboard" },
   { href: "/recruiter/jobs/new", label: "Post a job" },
   { href: "/recruiter/shortlist", label: "Shortlist tool" },
+  { href: "/recruiter/shortlists", label: "Shortlists" },
   { href: "/careers", label: "Job board" },
 ];
 
@@ -81,7 +82,7 @@ export default function RecruiterShell({
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-site mx-auto px-4 flex items-center gap-1 overflow-x-auto">
           {TABS.map((t) => {
-            const active = pathname === t.href || (t.href !== "/careers" && pathname?.startsWith(t.href));
+            const active = pathname === t.href || (t.href !== "/careers" && !!pathname?.startsWith(t.href + "/"));
             return (
               <Link
                 key={t.href}

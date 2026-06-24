@@ -19,6 +19,7 @@ type Result = {
 const MAX = 50;
 
 function ShortlistTool() {
+  const [name, setName] = React.useState("");
   const [jd, setJd] = React.useState("");
   const [jdFile, setJdFile] = React.useState<File | null>(null);
   const [files, setFiles] = React.useState<File[]>([]);
@@ -26,6 +27,7 @@ function ShortlistTool() {
   const [error, setError] = React.useState<string | null>(null);
   const [results, setResults] = React.useState<Result[] | null>(null);
   const [skipped, setSkipped] = React.useState<string[]>([]);
+  const [savedRunId, setSavedRunId] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const jdInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -42,17 +44,19 @@ function ShortlistTool() {
   const run = async () => {
     if (!jd.trim() && !jdFile) { setError("Paste the job description or upload a JD file first."); return; }
     if (!files.length) { setError("Add at least one candidate resume."); return; }
-    setBusy(true); setError(null); setResults(null); setSkipped([]);
+    setBusy(true); setError(null); setResults(null); setSkipped([]); setSavedRunId(null);
     try {
       const fd = new FormData();
       fd.append("jdText", jd);
       if (jdFile) fd.append("jdFile", jdFile);
+      if (name.trim()) fd.append("label", name.trim());
       files.forEach((f) => fd.append("files", f));
       const res = await fetchAuthed("/api/recruiter/shortlist", { method: "POST", body: fd });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.detail || json?.error || "Shortlisting failed");
       setResults(json.results || []);
       setSkipped(json.skipped || []);
+      setSavedRunId(json.runId || null);
     } catch (e: any) {
       setError((e?.message || e).toString());
     } finally {
@@ -71,6 +75,19 @@ function ShortlistTool() {
             Drop in a job description and a stack of resumes — the AI ranks the best-fit candidates with
             evidence-based reasons and honest gaps. It only judges what each resume actually says.
           </p>
+        </div>
+
+        {/* Name */}
+        <div className="mb-4 max-w-md">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Shortlist name <span className="text-gray-400">(optional)</span>
+          </label>
+          <input
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            placeholder="e.g. Backend Engineer — June batch"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -186,9 +203,16 @@ function ShortlistTool() {
 
         {results && (
           <div className="mt-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Ranked candidates {results.length > 0 && <span className="text-gray-400 text-base">({results.length})</span>}
-            </h2>
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Ranked candidates {results.length > 0 && <span className="text-gray-400 text-base">({results.length})</span>}
+              </h2>
+              {savedRunId && (
+                <a href={`/recruiter/shortlists/${savedRunId}`} className="text-sm text-blue-700 hover:underline">
+                  Saved ✓ — view in Shortlists
+                </a>
+              )}
+            </div>
             <div className="space-y-3">
               {results.map((r, i) => (
                 <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">

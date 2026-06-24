@@ -120,10 +120,13 @@ function Dashboard() {
       {/* Recent runs */}
       {runs && runs.length > 0 && (
         <>
-          <h2 className="text-lg font-semibold text-[#1d1d20] mt-10 mb-3">Recent shortlist runs</h2>
+          <div className="flex items-center justify-between mt-10 mb-3">
+            <h2 className="text-lg font-semibold text-[#1d1d20]">Recent shortlists</h2>
+            <Link href="/recruiter/shortlists" className="text-sm text-blue-700 hover:underline">View all</Link>
+          </div>
           <div className="space-y-2">
             {runs.slice(0, 8).map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+              <Link key={r.id} href={`/recruiter/shortlists/${r.id}`} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 hover:bg-gray-50">
                 <div>
                   <div className="font-medium text-[#1d1d20]">{r.label}</div>
                   <div className="text-xs text-[#a1a1aa]">
@@ -131,10 +134,8 @@ function Dashboard() {
                     {r.top ? ` · top: ${r.top.name} (${r.top.score}/100)` : ""} · {new Date(r.createdAt).toLocaleDateString()}
                   </div>
                 </div>
-                {r.jobPostingId && (
-                  <Link href={`/recruiter/jobs/${r.jobPostingId}`} className="text-sm text-blue-700 hover:underline">View</Link>
-                )}
-              </div>
+                <span className="text-sm text-blue-700">View</span>
+              </Link>
             ))}
           </div>
         </>

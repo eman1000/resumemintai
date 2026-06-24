@@ -86,11 +86,12 @@ export async function POST(req: Request) {
     // only the ranking metadata).
     let runId: string | null = null;
     try {
+      const runLabel = String(form.get("label") || "").trim().slice(0, 120) || "Ad-hoc shortlist";
       const run = await prisma.shortlistRun.create({
         data: {
           recruiterId: dbUser.id,
           jobPostingId: null,
-          label: "Ad-hoc upload",
+          label: runLabel,
           jdText: jdText.slice(0, 20000),
           candidates: {
             create: results.map((r) => ({
