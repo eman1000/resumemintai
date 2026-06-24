@@ -5,6 +5,10 @@
 
 import { FIT_LABEL } from "@/components/recruiter/fitLabels";
 
+function hostLabel(url: string) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "link"; }
+}
+
 export type TableCandidate = {
   name: string;
   score: number;
@@ -36,6 +40,7 @@ export default function ReportTable({ candidates, intern }: { candidates: TableC
           <tr className="bg-[#0f1b2d] text-white text-left">
             <th className={cell}>#</th>
             <th className={cell}>Candidate Name &amp; Contact</th>
+            <th className={cell}>Resume</th>
             <th className={cell}>Age</th>
             <th className={cell}>Gender</th>
             <th className={cell}>{intern ? "Program of Study & College" : "Qualifications & Experience"}</th>
@@ -49,16 +54,26 @@ export default function ReportTable({ candidates, intern }: { candidates: TableC
               <td className={cell}>{i + 1}</td>
               <td className={cell}>
                 <div className="font-semibold text-[#1d1d20]">{c.name}</div>
-                {c.phone && <div>📞 {c.phone}</div>}
-                {c.email && <div className="break-all">✉ {c.email}</div>}
-                {c.resumeUrl && (
-                  <a href={c.resumeUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 rounded border border-mint-200 bg-mint-50 text-mint-700 px-2 py-0.5 font-medium">
-                    📄 View resume
-                  </a>
+                {c.phone && <div className="text-gray-600">📞 {c.phone}</div>}
+                {c.email && <div className="text-gray-600 break-all">✉ {c.email}</div>}
+                {(c.links || []).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {c.links!.map((u) => (
+                      <a key={u} href={u} target="_blank" rel="noopener noreferrer"
+                        className="inline-block rounded border border-gray-200 bg-gray-50 text-gray-600 px-1.5 py-0.5 hover:bg-gray-100">
+                        🔗 {hostLabel(u)}
+                      </a>
+                    ))}
+                  </div>
                 )}
-                {(c.links || []).map((u) => (
-                  <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block text-mint-700 break-all">{u}</a>
-                ))}
+              </td>
+              <td className={cell}>
+                {c.resumeUrl ? (
+                  <a href={c.resumeUrl} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-mint-200 bg-mint-50 text-mint-700 px-2 py-1 font-medium whitespace-nowrap">
+                    📄 View
+                  </a>
+                ) : <span className="text-gray-300">—</span>}
               </td>
               <td className={cell}>{c.age ?? ""}</td>
               <td className={cell}>{c.gender || ""}</td>

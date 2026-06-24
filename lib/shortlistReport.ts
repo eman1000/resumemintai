@@ -75,6 +75,8 @@ function columns(run: ReportRun): { h: string; v: (c: ReportCandidate, i: number
     { h: "#", v: (_c: ReportCandidate, i: number) => String(i + 1) },
     { h: "Name", v: (c: ReportCandidate) => c.name },
     { h: "Contact", v: (c: ReportCandidate) => contactText(c) },
+    { h: "Resume URL", v: (c: ReportCandidate) => c.resumeUrl || "" },
+    { h: "Links", v: (c: ReportCandidate) => (c.links || []).join(" ") },
     { h: "Age", v: (c: ReportCandidate) => (c.age != null ? String(c.age) : "") },
     { h: "Gender", v: (c: ReportCandidate) => c.gender || "" },
   ];
@@ -140,13 +142,20 @@ function commentCellHtml(c: ReportCandidate): string {
   return tag + verdict + s + g;
 }
 
+function hostLabel(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "link"; }
+}
+
 function nameCellHtml(c: ReportCandidate): string {
   const lines = [`<b>${esc(c.name)}</b>`];
   if (c.phone) lines.push(`📞 ${esc(c.phone)}`);
   if (c.email) lines.push(`✉ ${esc(c.email)}`);
-  if (c.resumeUrl) lines.push(`<a href="${esc(c.resumeUrl)}">📄 View resume</a>`);
-  for (const u of c.links || []) lines.push(`<a href="${esc(u)}">${esc(u)}</a>`);
+  for (const u of c.links || []) lines.push(`<a href="${esc(u)}">🔗 ${esc(hostLabel(u))}</a>`);
   return lines.join("<br>");
+}
+
+function resumeCellHtml(c: ReportCandidate): string {
+  return c.resumeUrl ? `<a href="${esc(c.resumeUrl)}">📄 View resume</a>` : "—";
 }
 
 /** Word-compatible HTML table in the recruiter's "FINAL SHORTLIST" format
@@ -159,6 +168,7 @@ export function buildTableHtml(run: ReportRun, cands: ReportCandidate[]): string
       (c, i) => `<tr>
         <td>${i + 1}</td>
         <td>${nameCellHtml(c)}</td>
+        <td>${resumeCellHtml(c)}</td>
         <td>${c.age != null ? c.age : ""}</td>
         <td>${esc(c.gender || "")}</td>
         <td>${midCellHtml(c, intern)}</td>
@@ -177,7 +187,7 @@ export function buildTableHtml(run: ReportRun, cands: ReportCandidate[]): string
   </style></head><body>
     <h1>FINAL SHORTLIST – ${esc((run.label || "Shortlist").toUpperCase())}</h1>
     <table><thead><tr>
-      <th>#</th><th>Candidate Name &amp; Contact Details</th><th>Age</th><th>Gender</th>
+      <th>#</th><th>Candidate Name &amp; Contact Details</th><th>Resume</th><th>Age</th><th>Gender</th>
       <th>${midHead}</th><th>Source</th><th>Comment</th>
     </tr></thead><tbody>${rows}</tbody></table>
   </body></html>`;
