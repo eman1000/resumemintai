@@ -6,8 +6,11 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
+import { COUNTRIES } from "@/lib/countries";
+import { CURRENCIES } from "@/lib/currencies";
 
 const EMPLOYMENT = ["full-time", "part-time", "contract", "internship", "temporary"];
+const COUNTRY_NAMES = COUNTRIES.filter((c) => c.code !== "all").map((c) => c.label);
 
 function NewJob() {
   const router = useRouter();
@@ -16,7 +19,8 @@ function NewJob() {
   const [f, setF] = React.useState({
     title: "",
     company: "",
-    location: "",
+    country: "",
+    city: "",
     employmentType: "full-time",
     remote: false,
     description: "",
@@ -32,6 +36,7 @@ function NewJob() {
     if (!f.title.trim()) { setError("Add a job title."); return; }
     if (!f.company.trim()) { setError("Add the company name."); return; }
     if (f.description.trim().length < 20) { setError("Add a fuller job description."); return; }
+    const location = [f.city.trim(), f.country.trim()].filter(Boolean).join(", ");
     setBusy(true); setError(null);
     try {
       const r = await fetchAuthed("/api/recruiter/jobs", {
@@ -39,6 +44,7 @@ function NewJob() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...f,
+          location,
           status,
           salaryMin: f.salaryMin ? Number(f.salaryMin) : null,
           salaryMax: f.salaryMax ? Number(f.salaryMax) : null,
@@ -64,31 +70,30 @@ function NewJob() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Job title *</label>
           <input className={input} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="Senior Backend Engineer" />
         </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company *</label>
-            <input className={input} value={f.company} onChange={(e) => set("company", e.target.value)} placeholder="Acme Inc." />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-            <input className={input} value={f.location} onChange={(e) => set("location", e.target.value)} placeholder="Dublin, Ireland" />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company *</label>
+          <input className={input} value={f.company} onChange={(e) => set("company", e.target.value)} placeholder="Acme Inc." />
         </div>
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+            <select className={input} value={f.country} onChange={(e) => set("country", e.target.value)}>
+              <option value="">Select country…</option>
+              {COUNTRY_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+            <input className={input} value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Dublin" />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Employment type</label>
             <select className={input} value={f.employmentType} onChange={(e) => set("employmentType", e.target.value)}>
               {EMPLOYMENT.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={f.remote} onChange={(e) => set("remote", e.target.checked)} />
-              Remote-friendly
-            </label>
-          </div>
         </div>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Salary min</label>
             <input className={input} type="number" value={f.salaryMin} onChange={(e) => set("salaryMin", e.target.value)} placeholder="60000" />
@@ -99,7 +104,15 @@ function NewJob() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-            <input className={input} value={f.currency} onChange={(e) => set("currency", e.target.value)} placeholder="USD" />
+            <select className={input} value={f.currency} onChange={(e) => set("currency", e.target.value)}>
+              {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
+            </select>
+          </div>
+          <div className="pb-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={f.remote} onChange={(e) => set("remote", e.target.checked)} />
+              Remote-friendly
+            </label>
           </div>
         </div>
         <div>

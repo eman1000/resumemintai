@@ -28,10 +28,23 @@ type Job = {
   title: string;
   company: string;
   location: string | null;
+  employmentType: string | null;
+  remote: boolean;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  currency: string | null;
   status: string;
   description: string;
   createdAt: string;
 };
+
+function salaryLabel(j: Job) {
+  if (!j.salaryMin && !j.salaryMax) return null;
+  const c = j.currency || "USD";
+  const fmt = (n: number) => `${c} ${n.toLocaleString()}`;
+  if (j.salaryMin && j.salaryMax) return `${fmt(j.salaryMin)} – ${fmt(j.salaryMax)}`;
+  return fmt((j.salaryMin || j.salaryMax)!);
+}
 
 const APP_STATUSES = ["submitted", "reviewing", "shortlisted", "rejected"];
 const scoreColor = (s: number) =>
@@ -106,6 +119,11 @@ function Manage() {
         <div>
           <h1 className="text-2xl font-bold text-[#1d1d20]">{job.title}</h1>
           <p className="text-[#52525a]">{job.company}{job.location ? ` · ${job.location}` : ""}</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {job.employmentType && <span className="rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">{job.employmentType}</span>}
+            {job.remote && <span className="rounded-full bg-blue-50 text-blue-700 px-2 py-0.5">Remote-friendly</span>}
+            {salaryLabel(job) && <span className="rounded-full bg-gray-100 text-gray-700 px-2 py-0.5">{salaryLabel(job)}</span>}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {job.status === "open" && (

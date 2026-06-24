@@ -4,7 +4,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Briefcase, Users, ListChecks, Plus } from "lucide-react";
+import { Briefcase, Users, ListChecks, Plus, Wand2 } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
@@ -56,19 +56,46 @@ function Dashboard() {
     <div className="max-w-site mx-auto px-4 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#1d1d20]">Recruiter dashboard</h1>
-        <Link
-          href="/recruiter/jobs/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Post a job
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/recruiter/shortlist"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 text-sm transition-colors"
+          >
+            <Wand2 className="w-4 h-4" /> Shortlist candidates
+          </Link>
+          <Link
+            href="/recruiter/jobs/new"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 text-[#1d1d20] hover:bg-gray-50 font-semibold px-4 py-2.5 text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Post a job
+          </Link>
+        </div>
       </div>
+
+      {/* Primary feature: AI shortlisting */}
+      <Link
+        href="/recruiter/shortlist"
+        className="block mb-8 rounded-2xl bg-[#0f1b2d] p-6 hover:bg-[#13233a] transition-colors"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+            <Wand2 className="w-6 h-6 text-blue-300" />
+          </div>
+          <div className="flex-1">
+            <div className="text-white font-semibold text-lg">AI candidate shortlisting</div>
+            <div className="text-blue-100/70 text-sm">Paste or upload a JD and a stack of resumes — get a ranked shortlist with evidence and honest gaps.</div>
+          </div>
+          <span className="hidden sm:inline-flex items-center rounded-lg bg-blue-600 text-white font-semibold px-4 py-2 text-sm">Open tool →</span>
+        </div>
+      </Link>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <Stat icon={Briefcase} label="Open postings" value={openCount} />
         <Stat icon={Users} label="Total applicants" value={totalApplicants} />
-        <Stat icon={ListChecks} label="Shortlist runs" value={runs?.length ?? 0} />
+        <Link href="/recruiter/shortlists" className="block">
+          <Stat icon={ListChecks} label="Saved shortlists" value={runs?.length ?? 0} />
+        </Link>
       </div>
 
       {/* Postings */}
