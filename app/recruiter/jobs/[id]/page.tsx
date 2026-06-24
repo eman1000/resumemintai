@@ -62,6 +62,7 @@ function Manage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [ranking, setRanking] = React.useState(false);
+  const [candidateType, setCandidateType] = React.useState<"experienced" | "intern">("experienced");
 
   const load = React.useCallback(async () => {
     const r = await fetchAuthed(`/api/recruiter/jobs/${id}`);
@@ -91,7 +92,11 @@ function Manage() {
   const runShortlist = async () => {
     setRanking(true); setError(null);
     try {
-      const r = await fetchAuthed(`/api/recruiter/jobs/${id}/shortlist`, { method: "POST" });
+      const r = await fetchAuthed(`/api/recruiter/jobs/${id}/shortlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateType }),
+      });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j?.detail || j?.error || "Shortlisting failed");
       await load();
@@ -157,14 +162,25 @@ function Manage() {
       {/* Applicants */}
       <div className="mt-8 flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold text-[#1d1d20]">Applicants ({applicants.length})</h2>
-        <button
-          onClick={runShortlist}
-          disabled={ranking || withResume === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2 text-sm disabled:opacity-60 transition-colors"
-          title={withResume === 0 ? "No applicants with readable resumes yet" : "Rank applicants with AI"}
-        >
-          <Wand2 className="w-4 h-4" /> {ranking ? "Ranking…" : "AI shortlist applicants"}
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={candidateType}
+            onChange={(e) => setCandidateType(e.target.value as any)}
+            className="text-sm rounded-lg border border-gray-300 px-2 py-2"
+            title="How to rank these applicants"
+          >
+            <option value="experienced">Experienced</option>
+            <option value="intern">Intern / student</option>
+          </select>
+          <button
+            onClick={runShortlist}
+            disabled={ranking || withResume === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-mint-600 hover:bg-mint-700 text-white font-semibold px-4 py-2 text-sm disabled:opacity-60 transition-colors"
+            title={withResume === 0 ? "No applicants with readable resumes yet" : "Rank applicants with AI"}
+          >
+            <Wand2 className="w-4 h-4" /> {ranking ? "Ranking…" : "AI shortlist applicants"}
+          </button>
+        </div>
       </div>
       {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
 

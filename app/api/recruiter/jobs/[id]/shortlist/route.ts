@@ -16,9 +16,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
     const { userId } = await requireRecruiter();
+    const body = (await req.json().catch(() => ({}))) as { candidateType?: string };
+    const candidateType = body.candidateType === "intern" ? "intern" : "experienced";
 
     const job = await prisma.jobPosting.findUnique({ where: { id: params.id } });
     if (!job || job.recruiterId !== userId) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -44,7 +46,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       text: a.resumeText || "",
     }));
 
-    const ranked = await shortlistCandidates(job.description, candidates);
+    const ranked = await shortlistCandidates(job.description, candidates, { candidateType });
     await recordAiUsage(userId, "recruiter-shortlist");
 
     // Enrich with contact details (email from the application, phone/links from
@@ -68,6 +70,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
         recruiterId: userId,
         jobPostingId: job.id,
         label: job.title,
+        candidateType,
         jdText: job.description.slice(0, 20000),
         candidates: {
           create: results.map((r) => ({
@@ -82,6 +85,15 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
             links: r.links as any,
             resumeUrl: r.resumeUrl,
             resumeName: r.resumeName,
+            age: r.age,
+            gender: r.gender,
+            yearsExperience: r.yearsExperience,
+            currentRole: r.currentRole,
+            qualification: r.qualification,
+            certifications: r.certifications,
+            education: r.education,
+            academicResults: r.academicResults,
+            source: "internal",
           })),
         },
       },

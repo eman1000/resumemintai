@@ -269,6 +269,8 @@ model ShortlistRun {
   jobPostingId String?  @map("job_posting_id") @db.Uuid
   // Human label for the history list (posting title, or "Ad-hoc upload").
   label        String?
+  // "experienced" (default) | "intern" — drives ranking criteria + report columns.
+  candidateType String? @default("experienced") @map("candidate_type")
   jdText       String   @map("jd_text")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
@@ -300,6 +302,19 @@ model ShortlistCandidate {
   // URL points at the recruiter resume-render endpoint.
   resumeUrl     String?  @map("resume_url")
   resumeName    String?  @map("resume_name")
+  // Structured fields for the recruiter report. Only what's explicitly on the
+  // resume (nulls when absent). age/gender are for display only — never used in
+  // AI scoring.
+  age             Int?
+  gender          String?
+  yearsExperience Int?    @map("years_experience")
+  currentRole     String? @map("current_role")
+  qualification   String?
+  certifications  String?
+  education       String?
+  academicResults String? @map("academic_results")
+  // "external" (uploaded) | "internal" (applied via the board).
+  source          String? @default("external")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   run         ShortlistRun    @relation(fields: [runId], references: [id], onDelete: Cascade)

@@ -14,8 +14,28 @@ import { fetchAuthed } from "@/app/builder/_client/withAuth";
 type Candidate = {
   id: string; name: string; score: number; verdict: string | null; strengths: string[]; gaps: string[];
   email?: string | null; phone?: string | null; links?: string[]; resumeUrl?: string | null; resumeName?: string | null;
+  age?: number | null; gender?: string | null; yearsExperience?: number | null; currentRole?: string | null;
+  qualification?: string | null; certifications?: string | null; education?: string | null; academicResults?: string | null;
+  source?: string | null;
 };
-type Run = { id: string; label: string; type: "posting" | "adhoc"; jobPostingId: string | null; jdText: string; createdAt: string };
+type Run = { id: string; label: string; type: "posting" | "adhoc"; candidateType: string; jobPostingId: string | null; jdText: string; createdAt: string };
+
+function facts(c: Candidate, intern: boolean): string[] {
+  const f: string[] = [];
+  if (c.age != null) f.push(`Age ${c.age}`);
+  if (c.gender) f.push(c.gender);
+  if (intern) {
+    if (c.education) f.push(c.education);
+    if (c.academicResults) f.push(c.academicResults);
+  } else {
+    if (c.yearsExperience != null) f.push(`${c.yearsExperience} yrs exp`);
+    if (c.currentRole) f.push(c.currentRole);
+    if (c.qualification) f.push(c.qualification);
+    if (c.certifications) f.push(c.certifications);
+  }
+  if (c.source) f.push(c.source);
+  return f;
+}
 
 const scoreColor = (s: number) =>
   s >= 75 ? "bg-green-100 text-green-800" : s >= 50 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700";
@@ -75,6 +95,16 @@ function Detail() {
     if (w) w.onload = () => { try { w.focus(); w.print(); } catch {} };
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
+  const downloadReport = async (fmt: "csv" | "docx") => {
+    const r = await fetchAuthed(`/api/recruiter/runs/${id}/${fmt}`);
+    if (!r.ok) { alert("Could not generate the file."); return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(run?.label || "shortlist").replace(/[^a-z0-9._-]+/gi, "_")}.${fmt === "docx" ? "doc" : "csv"}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
 
   if (loading) return <div className="max-w-4xl mx-auto px-4 py-8 text-sm text-[#52525a]">Loading…</div>;
   if (missing || !run) return (
@@ -106,8 +136,10 @@ function Detail() {
             <Printer className="w-3.5 h-3.5" /> Print
           </button>
           <button onClick={exportPdf} className="inline-flex items-center gap-1.5 text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">
-            <Download className="w-3.5 h-3.5" /> Export PDF
+            <Download className="w-3.5 h-3.5" /> PDF
           </button>
+          <button onClick={() => downloadReport("csv")} className="text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">CSV</button>
+          <button onClick={() => downloadReport("docx")} className="text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Word</button>
           <button onClick={rename} className="inline-flex items-center gap-1.5 text-sm rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">
             <Pencil className="w-3.5 h-3.5" /> Rename
           </button>
@@ -140,6 +172,9 @@ function Detail() {
                   <span className="font-semibold text-[#1d1d20]">{c.name}</span>
                   <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${scoreColor(c.score)}`}>{c.score}/100</span>
                 </div>
+                {facts(c, run.candidateType === "intern").length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">{facts(c, run.candidateType === "intern").join("  ·  ")}</p>
+                )}
                 {c.verdict && <p className="text-sm text-gray-700 mt-1">{c.verdict}</p>}
                 {c.strengths.length > 0 && (
                   <div className="mt-2">

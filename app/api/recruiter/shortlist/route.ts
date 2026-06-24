@@ -130,7 +130,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const ranked = await shortlistCandidates(jdText, candidates);
+    const candidateType = String(form.get("candidateType") || "") === "intern" ? "intern" : "experienced";
+    const ranked = await shortlistCandidates(jdText, candidates, { candidateType });
     await recordAiUsage(dbUser.id, "recruiter-shortlist");
 
     // Merge ranking + extracted contact/resume metadata by candidate id.
@@ -155,6 +156,7 @@ export async function POST(req: Request) {
           recruiterId: dbUser.id,
           jobPostingId: null,
           label: runLabel,
+          candidateType,
           jdText: jdText.slice(0, 20000),
           candidates: {
             create: results.map((r) => ({
@@ -168,6 +170,15 @@ export async function POST(req: Request) {
               links: r.links as any,
               resumeUrl: r.resumeUrl,
               resumeName: r.resumeName,
+              age: r.age,
+              gender: r.gender,
+              yearsExperience: r.yearsExperience,
+              currentRole: r.currentRole,
+              qualification: r.qualification,
+              certifications: r.certifications,
+              education: r.education,
+              academicResults: r.academicResults,
+              source: "external",
             })),
           },
         },

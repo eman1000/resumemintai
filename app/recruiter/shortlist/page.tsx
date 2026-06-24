@@ -20,12 +20,38 @@ type Result = {
   links?: string[];
   resumeUrl?: string | null;
   resumeName?: string | null;
+  age?: number | null;
+  gender?: string | null;
+  yearsExperience?: number | null;
+  currentRole?: string | null;
+  qualification?: string | null;
+  certifications?: string | null;
+  education?: string | null;
+  academicResults?: string | null;
 };
+
+function CandidateFacts({ r, intern }: { r: Result; intern: boolean }) {
+  const facts: string[] = [];
+  if (r.age != null) facts.push(`Age ${r.age}`);
+  if (r.gender) facts.push(r.gender);
+  if (intern) {
+    if (r.education) facts.push(r.education);
+    if (r.academicResults) facts.push(r.academicResults);
+  } else {
+    if (r.yearsExperience != null) facts.push(`${r.yearsExperience} yrs exp`);
+    if (r.currentRole) facts.push(r.currentRole);
+    if (r.qualification) facts.push(r.qualification);
+    if (r.certifications) facts.push(r.certifications);
+  }
+  if (!facts.length) return null;
+  return <p className="text-xs text-gray-500 mt-1">{facts.join("  ·  ")}</p>;
+}
 
 const MAX = 50;
 
 function ShortlistTool() {
   const [name, setName] = React.useState("");
+  const [candidateType, setCandidateType] = React.useState<"experienced" | "intern">("experienced");
   const [jd, setJd] = React.useState("");
   const [jdFile, setJdFile] = React.useState<File | null>(null);
   const [files, setFiles] = React.useState<File[]>([]);
@@ -66,6 +92,17 @@ function ShortlistTool() {
     if (w) w.onload = () => { try { w.focus(); w.print(); } catch {} };
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
+  const downloadReport = async (fmt: "csv" | "docx") => {
+    if (!savedRunId) return;
+    const r = await fetchAuthed(`/api/recruiter/runs/${savedRunId}/${fmt}`);
+    if (!r.ok) { alert("Could not generate the file."); return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(name.trim() || "shortlist").replace(/[^a-z0-9._-]+/gi, "_")}.${fmt === "docx" ? "doc" : "csv"}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
 
   const run = async () => {
     if (!jd.trim() && !jdFile) { setError("Paste the job description or upload a JD file first."); return; }
@@ -74,6 +111,7 @@ function ShortlistTool() {
     try {
       const fd = new FormData();
       fd.append("jdText", jd);
+      fd.append("candidateType", candidateType);
       if (jdFile) fd.append("jdFile", jdFile);
       if (name.trim()) fd.append("label", name.trim());
       files.forEach((f) => fd.append("files", f));
@@ -103,17 +141,41 @@ function ShortlistTool() {
           </p>
         </div>
 
-        {/* Name */}
-        <div className="mb-4 max-w-md">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Shortlist name <span className="text-gray-400">(optional)</span>
-          </label>
-          <input
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200"
-            placeholder="e.g. Backend Engineer — June batch"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+        {/* Name + candidate type */}
+        <div className="mb-4 grid sm:grid-cols-2 gap-4 max-w-2xl">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Shortlist name <span className="text-gray-400">(optional)</span>
+            </label>
+            <input
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200"
+              placeholder="e.g. Backend Engineer — June batch"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Candidate type</label>
+            <div className="inline-flex rounded-lg border border-gray-300 p-0.5 text-sm w-full">
+              {([["experienced", "Experienced"], ["intern", "Intern / student"]] as const).map(([val, lbl]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setCandidateType(val)}
+                  className={`flex-1 rounded-md px-3 py-1.5 transition-colors ${
+                    candidateType === val ? "bg-mint-600 text-white" : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              {candidateType === "intern"
+                ? "Ranks on field of study + academic results; experience not required."
+                : "Ranks on relevant experience, skills, and qualifications."}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -244,9 +306,11 @@ function ShortlistTool() {
                 Ranked candidates {results.length > 0 && <span className="text-gray-400 text-base">({results.length})</span>}
               </h2>
               {savedRunId && (
-                <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-3 text-sm flex-wrap">
                   <button onClick={printPdf} className="text-gray-600 hover:text-gray-900">Print</button>
-                  <button onClick={exportPdf} className="text-gray-600 hover:text-gray-900">Export PDF</button>
+                  <button onClick={exportPdf} className="text-gray-600 hover:text-gray-900">PDF</button>
+                  <button onClick={() => downloadReport("csv")} className="text-gray-600 hover:text-gray-900">CSV</button>
+                  <button onClick={() => downloadReport("docx")} className="text-gray-600 hover:text-gray-900">Word</button>
                   <a href={`/recruiter/shortlists/${savedRunId}`} className="text-mint-700 hover:underline">Saved ✓</a>
                 </div>
               )}
@@ -268,6 +332,7 @@ function ShortlistTool() {
                           {r.score}/100 fit
                         </span>
                       </div>
+                      <CandidateFacts r={r} intern={candidateType === "intern"} />
                       {r.verdict && <p className="text-sm text-gray-700 mt-1">{r.verdict}</p>}
                       {r.strengths.length > 0 && (
                         <div className="mt-2">

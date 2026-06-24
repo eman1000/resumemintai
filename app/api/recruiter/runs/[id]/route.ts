@@ -32,6 +32,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         id: run.id,
         label: run.label || "Shortlist",
         type: run.jobPostingId ? "posting" : "adhoc",
+        candidateType: run.candidateType || "experienced",
         jobPostingId: run.jobPostingId,
         jdText: run.jdText,
         createdAt: run.createdAt.toISOString(),
@@ -49,6 +50,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         links: (c.links as string[]) || [],
         resumeUrl: c.resumeUrl,
         resumeName: c.resumeName,
+        age: c.age,
+        gender: c.gender,
+        yearsExperience: c.yearsExperience,
+        currentRole: c.currentRole,
+        qualification: c.qualification,
+        certifications: c.certifications,
+        education: c.education,
+        academicResults: c.academicResults,
+        source: c.source,
       })),
     });
   } catch (e) {
