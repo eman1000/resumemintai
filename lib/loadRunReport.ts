@@ -41,6 +41,7 @@ export async function loadRunReport(
     email: c.email,
     phone: c.phone,
     links: (c.links as string[]) || [],
+    resumeUrl: c.resumeUrl,
     age: c.age,
     gender: c.gender,
     yearsExperience: c.yearsExperience,

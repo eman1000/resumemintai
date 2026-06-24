@@ -22,6 +22,7 @@ export type ReportCandidate = {
   email: string | null;
   phone: string | null;
   links: string[];
+  resumeUrl: string | null;
   age: number | null;
   gender: string | null;
   yearsExperience: number | null;
@@ -143,6 +144,7 @@ function nameCellHtml(c: ReportCandidate): string {
   const lines = [`<b>${esc(c.name)}</b>`];
   if (c.phone) lines.push(`📞 ${esc(c.phone)}`);
   if (c.email) lines.push(`✉ ${esc(c.email)}`);
+  if (c.resumeUrl) lines.push(`<a href="${esc(c.resumeUrl)}">📄 View resume</a>`);
   for (const u of c.links || []) lines.push(`<a href="${esc(u)}">${esc(u)}</a>`);
   return lines.join("<br>");
 }

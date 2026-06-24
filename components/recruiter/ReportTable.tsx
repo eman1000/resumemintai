@@ -15,6 +15,7 @@ export type TableCandidate = {
   email?: string | null;
   phone?: string | null;
   links?: string[];
+  resumeUrl?: string | null;
   age?: number | null;
   gender?: string | null;
   yearsExperience?: number | null;
@@ -50,6 +51,11 @@ export default function ReportTable({ candidates, intern }: { candidates: TableC
                 <div className="font-semibold text-[#1d1d20]">{c.name}</div>
                 {c.phone && <div>📞 {c.phone}</div>}
                 {c.email && <div className="break-all">✉ {c.email}</div>}
+                {c.resumeUrl && (
+                  <a href={c.resumeUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 rounded border border-mint-200 bg-mint-50 text-mint-700 px-2 py-0.5 font-medium">
+                    📄 View resume
+                  </a>
+                )}
                 {(c.links || []).map((u) => (
                   <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="block text-mint-700 break-all">{u}</a>
                 ))}

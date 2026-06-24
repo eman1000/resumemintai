@@ -8,6 +8,7 @@ import { fetchAuthed } from "@/app/builder/_client/withAuth";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
 import CandidateContact from "@/components/recruiter/CandidateContact";
 import FitChip from "@/components/recruiter/FitChip";
+import ReportTable from "@/components/recruiter/ReportTable";
 
 type Result = {
   id: string;
@@ -30,6 +31,8 @@ type Result = {
   certifications?: string | null;
   education?: string | null;
   academicResults?: string | null;
+  experienceHistory?: { period: string; role: string; company: string }[];
+  source?: string | null;
 };
 
 function CandidateFacts({ r, intern }: { r: Result; intern: boolean }) {
@@ -62,8 +65,16 @@ function ShortlistTool() {
   const [results, setResults] = React.useState<Result[] | null>(null);
   const [skipped, setSkipped] = React.useState<string[]>([]);
   const [savedRunId, setSavedRunId] = React.useState<string | null>(null);
+  const [style, setStyle] = React.useState<"cards" | "table">("cards");
   const inputRef = React.useRef<HTMLInputElement>(null);
   const jdInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    fetchAuthed("/api/recruiter/report-style")
+      .then((r) => r.json())
+      .then((j) => { if (j?.style === "table" || j?.style === "cards") setStyle(j.style); })
+      .catch(() => {});
+  }, []);
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
@@ -93,6 +104,11 @@ function ShortlistTool() {
     const w = window.open(url, "_blank");
     if (w) w.onload = () => { try { w.focus(); w.print(); } catch {} };
     setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+  const saveDefault = async () => {
+    await fetchAuthed("/api/recruiter/report-style", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ style }),
+    }).catch(() => {});
   };
   const downloadReport = async (fmt: "csv" | "docx") => {
     if (!savedRunId) return;
@@ -307,16 +323,33 @@ function ShortlistTool() {
               <h2 className="text-xl font-semibold text-gray-900">
                 Ranked candidates {results.length > 0 && <span className="text-gray-400 text-base">({results.length})</span>}
               </h2>
-              {savedRunId && (
-                <div className="flex items-center gap-3 text-sm flex-wrap">
-                  <button onClick={printPdf} className="text-gray-600 hover:text-gray-900">Print</button>
-                  <button onClick={exportPdf} className="text-gray-600 hover:text-gray-900">PDF</button>
-                  <button onClick={() => downloadReport("csv")} className="text-gray-600 hover:text-gray-900">CSV</button>
-                  <button onClick={() => downloadReport("docx")} className="text-gray-600 hover:text-gray-900">Word</button>
-                  <a href={`/recruiter/shortlists/${savedRunId}`} className="text-mint-700 hover:underline">Saved ✓</a>
+              <div className="flex items-center gap-3 text-sm flex-wrap">
+                <div className="inline-flex rounded-lg border border-gray-300 p-0.5">
+                  {(["cards", "table"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setStyle(s)}
+                      className={`rounded-md px-3 py-1 transition-colors ${style === s ? "bg-mint-600 text-white" : "text-gray-600 hover:text-gray-900"}`}
+                    >
+                      {s === "cards" ? "Cards" : "Table"}
+                    </button>
+                  ))}
                 </div>
-              )}
+                <button onClick={saveDefault} className="text-gray-500 hover:text-gray-900">Save as default</button>
+                {savedRunId && (
+                  <>
+                    <button onClick={printPdf} className="text-gray-600 hover:text-gray-900">Print</button>
+                    <button onClick={exportPdf} className="text-gray-600 hover:text-gray-900">PDF</button>
+                    <button onClick={() => downloadReport("csv")} className="text-gray-600 hover:text-gray-900">CSV</button>
+                    <button onClick={() => downloadReport("docx")} className="text-gray-600 hover:text-gray-900">Word</button>
+                    <a href={`/recruiter/shortlists/${savedRunId}`} className="text-mint-700 hover:underline">Saved ✓</a>
+                  </>
+                )}
+              </div>
             </div>
+            {style === "table" ? (
+              <ReportTable candidates={results as any} intern={candidateType === "intern"} />
+            ) : (
             <div className="space-y-3">
               {results.map((r, i) => (
                 <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -361,6 +394,7 @@ function ShortlistTool() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
       </main>

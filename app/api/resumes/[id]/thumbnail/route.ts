@@ -1,7 +1,7 @@
 // app/api/resumes/[id]/thumbnail/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
-import { adminBucket } from '@/lib/firebaseAdmin';
+import { putObject } from '@/lib/storage';
 import prisma from '@/lib/prisma';
 import { renderResumeThumbnailPng } from '@/lib/resumeThemes';
 
@@ -9,16 +9,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function storeThumbnail(id: string, buf: Buffer): Promise<string> {
-  const objectPath = `thumbnails/${id}.png`;
-  const file = adminBucket.file(objectPath);
-  await file.save(buf, {
-    contentType: 'image/png',
-    resumable: false,
-    public: true,
-    // Bust the immutable cache per save with a version query on the URL.
-    metadata: { cacheControl: 'public, max-age=31536000, immutable' },
-  });
-  const publicUrl = `https://storage.googleapis.com/${adminBucket.name}/${objectPath}`;
+  const base = await putObject(`thumbnails/${id}.png`, buf, 'image/png');
+  // Cache-bust the immutable object so a re-render shows immediately.
+  const publicUrl = `${base}?v=${Date.now()}`;
   await prisma.resume.update({ where: { id }, data: { thumbnailUrl: publicUrl } });
   return publicUrl;
 }
@@ -59,19 +52,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     });
     if (!owned) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-    const objectPath = `thumbnails/${params.id}.png`;
-    const file = adminBucket.file(objectPath);
-
-    await file.save(buf, {
-      contentType: 'image/png',
-      resumable: false,
-      public: true,
-      metadata: {
-        cacheControl: 'public, max-age=31536000, immutable',
-      },
-    });
-
-    const publicUrl = `https://storage.googleapis.com/${adminBucket.name}/${objectPath}`;
+    const base = await putObject(`thumbnails/${params.id}.png`, buf, 'image/png');
+    const publicUrl = `${base}?v=${Date.now()}`;
 
     await prisma.resume.update({
       where: { id: params.id },

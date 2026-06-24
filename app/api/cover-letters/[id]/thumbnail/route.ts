@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/app/api/server/auth/getUserFromRequest';
-import { adminBucket } from '@/lib/firebaseAdmin';
+import { putObject } from '@/lib/storage';
 import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -29,19 +29,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     });
     if (!owned) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-    const objectPath = `cover-letter-thumbnails/${params.id}.png`;
-    const file = adminBucket.file(objectPath);
-
-    await file.save(buf, {
-      contentType: 'image/png',
-      resumable: false,
-      public: true,
-      metadata: {
-        cacheControl: 'public, max-age=31536000, immutable',
-      },
-    });
-
-    const publicUrl = `https://storage.googleapis.com/${adminBucket.name}/${objectPath}`;
+    const base = await putObject(`cover-letter-thumbnails/${params.id}.png`, buf, 'image/png');
+    const publicUrl = `${base}?v=${Date.now()}`;
 
     await prisma.coverLetter.update({
       where: { id: params.id },
