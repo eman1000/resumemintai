@@ -22,13 +22,16 @@ export type ShortlistResult = {
 
 const SYSTEM =
   "You are an expert technical recruiter screening candidates for a role. You are " +
-  "given the JOB DESCRIPTION and several CANDIDATES (each with an id, name, and the " +
-  "raw text of their resume). Rank how well each candidate fits the job.\n\n" +
+  "given the JOB DESCRIPTION and several CANDIDATES (each with an id, a fileName, and " +
+  "the raw text of their resume). Rank how well each candidate fits the job.\n\n" +
   "HONESTY (critical): judge ONLY on what the resume actually states. Never assume " +
   "or invent skills, seniority, or experience a candidate hasn't written. If a key " +
   "requirement isn't evidenced, list it as a gap and lower the score — do not give " +
   "the benefit of the doubt. Cite concrete evidence from the resume in strengths.\n\n" +
-  'Return STRICT JSON: { "candidates": [ { "id": string, "score": number (0-100), ' +
+  "Also read the candidate's FULL NAME from the resume text (usually at the top). If " +
+  "no name is present, use null.\n\n" +
+  'Return STRICT JSON: { "candidates": [ { "id": string, "name": string|null (the ' +
+  "person's full name from the resume), \"score\": number (0-100), " +
   '"verdict": string (one concise line), "strengths": string[] (2-4, each citing ' +
   'resume evidence), "gaps": string[] (0-4 missing/weak requirements) } ] }. ' +
   "Include EVERY candidate. Sort by score descending. Be discerning — spread scores; " +
@@ -45,7 +48,7 @@ export async function shortlistCandidates(
   const nameById = new Map(candidates.map((c) => [c.id, c.name]));
   const user = JSON.stringify({
     jobDescription: String(jdText || "").slice(0, 8000),
-    candidates: candidates.map((c) => ({ id: c.id, name: c.name, resume: c.text.slice(0, 6000) })),
+    candidates: candidates.map((c) => ({ id: c.id, fileName: c.name, resume: c.text.slice(0, 6000) })),
   }).slice(0, 110_000);
 
   const client = new OpenAI({ apiKey });
@@ -62,14 +65,20 @@ export async function shortlistCandidates(
   const parsed = JSON.parse(resp.choices?.[0]?.message?.content || "{}");
   const rows: any[] = Array.isArray(parsed?.candidates) ? parsed.candidates : [];
   return rows
-    .map((r) => ({
+    .map((r) => {
+      const llmName = String(r.name || "").trim();
+      const fileName = nameById.get(String(r.id || "")) || "";
+      return {
       id: String(r.id || ""),
-      name: nameById.get(String(r.id || "")) || String(r.name || "Candidate"),
+      // Prefer the real name the LLM read off the resume; fall back to the
+      // (filename-derived) name we were given.
+      name: llmName || fileName || "Candidate",
       score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))),
       verdict: String(r.verdict || "").trim(),
       strengths: (Array.isArray(r.strengths) ? r.strengths : []).map((s: any) => String(s || "").trim()).filter(Boolean),
       gaps: (Array.isArray(r.gaps) ? r.gaps : []).map((s: any) => String(s || "").trim()).filter(Boolean),
-    }))
+      };
+    })
     .filter((r) => nameById.has(r.id))
     .sort((a, b) => b.score - a.score);
 }

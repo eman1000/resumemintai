@@ -6,6 +6,7 @@
 import React from "react";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
+import CandidateContact from "@/components/recruiter/CandidateContact";
 
 type Result = {
   id: string;
@@ -14,6 +15,11 @@ type Result = {
   verdict: string;
   strengths: string[];
   gaps: string[];
+  email?: string | null;
+  phone?: string | null;
+  links?: string[];
+  resumeUrl?: string | null;
+  resumeName?: string | null;
 };
 
 const MAX = 50;
@@ -247,6 +253,7 @@ function ShortlistTool() {
                           </ul>
                         </div>
                       )}
+                      <CandidateContact email={r.email} phone={r.phone} links={r.links} resumeUrl={r.resumeUrl} resumeName={r.resumeName} />
                     </div>
                   </div>
                 </div>

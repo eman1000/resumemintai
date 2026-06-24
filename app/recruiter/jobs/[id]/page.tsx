@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ExternalLink, Wand2, Trash2 } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
+import CandidateContact from "@/components/recruiter/CandidateContact";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
 type Ranking = { score: number; verdict: string | null; strengths: string[]; gaps: string[] };
@@ -15,9 +16,12 @@ type Applicant = {
   id: string;
   name: string;
   email: string | null;
+  phone: string | null;
+  links: string[];
   status: string;
   note: string | null;
   resumeId: string | null;
+  resumeUrl: string | null;
   hasResumeText: boolean;
   createdAt: string;
   ranking: Ranking | null;
@@ -180,10 +184,7 @@ function Manage() {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div>
-                      <span className="font-semibold text-[#1d1d20]">{a.name}</span>
-                      {a.email && <span className="text-sm text-[#a1a1aa] ml-2">{a.email}</span>}
-                    </div>
+                    <span className="font-semibold text-[#1d1d20]">{a.name}</span>
                     <div className="flex items-center gap-2">
                       {a.ranking && (
                         <span className={`text-sm font-semibold rounded-full px-2.5 py-0.5 ${scoreColor(a.ranking.score)}`}>{a.ranking.score}/100</span>
@@ -212,6 +213,7 @@ function Manage() {
                     </div>
                   )}
                   {!a.hasResumeText && <p className="text-xs text-amber-700 mt-1">Resume text unavailable — won&apos;t be AI-ranked.</p>}
+                  <CandidateContact email={a.email} phone={a.phone} links={a.links} resumeUrl={a.resumeUrl} resumeName={a.resumeId ? "resume" : null} />
                 </div>
               </div>
             </div>

@@ -290,6 +290,16 @@ model ShortlistCandidate {
   verdict       String?
   strengths     Json     @default("[]")
   gaps          Json     @default("[]")
+  // Contact details extracted from the resume so recruiters can reach out.
+  email         String?
+  phone         String?
+  // Portfolio / website links (LinkedIn, GitHub, personal site …) as string[].
+  links         Json     @default("[]")
+  // Preserved resume: public download URL + original filename. For ad-hoc
+  // uploads the file is stored in Firebase Storage; for board applicants the
+  // URL points at the recruiter resume-render endpoint.
+  resumeUrl     String?  @map("resume_url")
+  resumeName    String?  @map("resume_name")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   run         ShortlistRun    @relation(fields: [runId], references: [id], onDelete: Cascade)

@@ -44,6 +44,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         strengths: (c.strengths as string[]) || [],
         gaps: (c.gaps as string[]) || [],
         applicationId: c.applicationId,
+        email: c.email,
+        phone: c.phone,
+        links: (c.links as string[]) || [],
+        resumeUrl: c.resumeUrl,
+        resumeName: c.resumeName,
       })),
     });
   } catch (e) {

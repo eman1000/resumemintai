@@ -8,9 +8,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import RecruiterShell from "@/components/recruiter/RecruiterShell";
+import CandidateContact from "@/components/recruiter/CandidateContact";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 
-type Candidate = { id: string; name: string; score: number; verdict: string | null; strengths: string[]; gaps: string[] };
+type Candidate = {
+  id: string; name: string; score: number; verdict: string | null; strengths: string[]; gaps: string[];
+  email?: string | null; phone?: string | null; links?: string[]; resumeUrl?: string | null; resumeName?: string | null;
+};
 type Run = { id: string; label: string; type: "posting" | "adhoc"; jobPostingId: string | null; jdText: string; createdAt: string };
 
 const scoreColor = (s: number) =>
@@ -124,6 +128,7 @@ function Detail() {
                     <ul className="list-disc ms-5 text-sm text-gray-700">{c.gaps.map((s, j) => <li key={j}>{s}</li>)}</ul>
                   </div>
                 )}
+                <CandidateContact email={c.email} phone={c.phone} links={c.links} resumeUrl={c.resumeUrl} resumeName={c.resumeName} />
               </div>
             </div>
           </div>

@@ -40,9 +40,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     });
 
     // score-by-applicationId from the latest run (if any)
-    const scoreByApp = new Map<string, { score: number; verdict: string | null; strengths: any; gaps: any }>();
+    const scoreByApp = new Map<string, { score: number; verdict: string | null; strengths: any; gaps: any; phone: string | null; links: any }>();
     for (const c of latestRun?.candidates || []) {
-      if (c.applicationId) scoreByApp.set(c.applicationId, { score: c.score, verdict: c.verdict, strengths: c.strengths, gaps: c.gaps });
+      if (c.applicationId) scoreByApp.set(c.applicationId, { score: c.score, verdict: c.verdict, strengths: c.strengths, gaps: c.gaps, phone: c.phone, links: c.links });
     }
 
     return NextResponse.json({
@@ -61,17 +61,23 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         status: job.status,
         createdAt: job.createdAt.toISOString(),
       },
-      applicants: applications.map((a) => ({
-        id: a.id,
-        name: a.applicantName || "Candidate",
-        email: a.applicantEmail || null,
-        status: a.status,
-        note: a.note || null,
-        resumeId: a.resumeId,
-        hasResumeText: !!a.resumeText,
-        createdAt: a.createdAt.toISOString(),
-        ranking: scoreByApp.get(a.id) || null,
-      })),
+      applicants: applications.map((a) => {
+        const rank = scoreByApp.get(a.id) || null;
+        return {
+          id: a.id,
+          name: a.applicantName || "Candidate",
+          email: a.applicantEmail || null,
+          phone: rank?.phone || null,
+          links: (rank?.links as string[]) || [],
+          status: a.status,
+          note: a.note || null,
+          resumeId: a.resumeId,
+          resumeUrl: a.resumeId ? `/api/recruiter/applications/${a.id}/resume` : null,
+          hasResumeText: !!a.resumeText,
+          createdAt: a.createdAt.toISOString(),
+          ranking: rank ? { score: rank.score, verdict: rank.verdict, strengths: rank.strengths, gaps: rank.gaps } : null,
+        };
+      }),
       shortlist: latestRun
         ? { id: latestRun.id, createdAt: latestRun.createdAt.toISOString(), count: latestRun.candidates.length }
         : null,

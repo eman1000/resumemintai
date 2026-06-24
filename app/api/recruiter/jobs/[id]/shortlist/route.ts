@@ -10,6 +10,7 @@ import prisma from "@/lib/prisma";
 import { requireRecruiter, RecruiterGateError, recruiterGateResponse } from "@/lib/recruiterBilling";
 import { checkAiUsage, recordAiUsage, quotaBlockedResponse } from "@/lib/aiUsage";
 import { shortlistCandidates, type ShortlistInput } from "@/lib/shortlist";
+import { extractContact } from "@/lib/contact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,9 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
     const apps = await prisma.jobApplication.findMany({
       where: { jobPostingId: job.id, resumeText: { not: null } },
-      select: { id: true, applicantName: true, resumeText: true },
+      select: { id: true, applicantName: true, applicantEmail: true, resumeText: true },
     });
+    const appById = new Map(apps.map((a) => [a.id, a]));
     if (!apps.length) {
       return NextResponse.json(
         { error: "no_applicants", detail: "No applicants with readable resumes yet." },
@@ -42,8 +44,23 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       text: a.resumeText || "",
     }));
 
-    const results = await shortlistCandidates(job.description, candidates);
+    const ranked = await shortlistCandidates(job.description, candidates);
     await recordAiUsage(userId, "recruiter-shortlist");
+
+    // Enrich with contact details (email from the application, phone/links from
+    // the resume text) + a resume-view URL that renders the applicant's resume.
+    const results = ranked.map((r) => {
+      const app = appById.get(r.id);
+      const contact = extractContact(app?.resumeText || "");
+      return {
+        ...r,
+        email: app?.applicantEmail || contact.email || null,
+        phone: contact.phone || null,
+        links: contact.links || [],
+        resumeUrl: `/api/recruiter/applications/${r.id}/resume`,
+        resumeName: `${r.name}.pdf`,
+      };
+    });
 
     // Persist the run + ranked candidates (linked back to applications).
     const run = await prisma.shortlistRun.create({
@@ -60,6 +77,11 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
             verdict: r.verdict || null,
             strengths: r.strengths as any,
             gaps: r.gaps as any,
+            email: r.email,
+            phone: r.phone,
+            links: r.links as any,
+            resumeUrl: r.resumeUrl,
+            resumeName: r.resumeName,
           })),
         },
       },

@@ -8,9 +8,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkAiUsage, recordAiUsage, quotaBlockedResponse, MAX_SHORTLIST_RESUMES } from "@/lib/aiUsage";
-import { extractFileText } from "@/lib/extractText";
+import { extractBufferText } from "@/lib/extractText";
 import { shortlistCandidates, type ShortlistInput } from "@/lib/shortlist";
 import { requireRecruiter, RecruiterGateError, recruiterGateResponse } from "@/lib/recruiterBilling";
+import { extractContact } from "@/lib/contact";
+import { storeShortlistResume } from "@/lib/resumeStore";
+
+// Per-candidate metadata captured during extraction (contact + stored resume).
+type CandMeta = { email: string | null; phone: string | null; links: string[]; resumeUrl: string | null; resumeName: string };
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,20 +59,28 @@ export async function POST(req: Request) {
       );
     }
 
-    // Extract text from each resume (skip ones we can't read — usually scanned PDFs).
+    // Extract text from each resume (skip ones we can't read — usually scanned
+    // PDFs). Also extract contact details and preserve the file for download.
     const candidates: ShortlistInput[] = [];
+    const meta = new Map<string, CandMeta>();
     const skipped: string[] = [];
     await Promise.all(
       files.map(async (f, i) => {
+        const id = `c${i}`;
+        const name = f.name || `file ${i + 1}`;
         try {
-          const text = await extractFileText(f);
+          const buf = Buffer.from(await f.arrayBuffer());
+          const text = await extractBufferText(buf, name, f.type);
           if (text && text.length > 40) {
-            candidates.push({ id: `c${i}`, name: (f.name || `Candidate ${i + 1}`).replace(/\.[^.]+$/, ""), text });
+            candidates.push({ id, name: name.replace(/\.[^.]+$/, ""), text });
+            const contact = extractContact(text);
+            const resumeUrl = await storeShortlistResume(buf, name, f.type || "application/octet-stream");
+            meta.set(id, { ...contact, resumeUrl, resumeName: name });
           } else {
-            skipped.push(f.name || `file ${i + 1}`);
+            skipped.push(name);
           }
         } catch {
-          skipped.push(f.name || `file ${i + 1}`);
+          skipped.push(name);
         }
       }),
     );
@@ -79,11 +92,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const results = await shortlistCandidates(jdText, candidates);
+    const ranked = await shortlistCandidates(jdText, candidates);
     await recordAiUsage(dbUser.id, "recruiter-shortlist");
 
-    // Persist the run for the recruiter's history (no resume files stored —
-    // only the ranking metadata).
+    // Merge ranking + extracted contact/resume metadata by candidate id.
+    const results = ranked.map((r) => {
+      const m = meta.get(r.id);
+      return {
+        ...r,
+        email: m?.email || null,
+        phone: m?.phone || null,
+        links: m?.links || [],
+        resumeUrl: m?.resumeUrl || null,
+        resumeName: m?.resumeName || null,
+      };
+    });
+
+    // Persist the run + ranked candidates (with contacts + preserved resume).
     let runId: string | null = null;
     try {
       const runLabel = String(form.get("label") || "").trim().slice(0, 120) || "Ad-hoc shortlist";
@@ -100,6 +125,11 @@ export async function POST(req: Request) {
               verdict: r.verdict || null,
               strengths: r.strengths as any,
               gaps: r.gaps as any,
+              email: r.email,
+              phone: r.phone,
+              links: r.links as any,
+              resumeUrl: r.resumeUrl,
+              resumeName: r.resumeName,
             })),
           },
         },
