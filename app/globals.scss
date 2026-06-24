@@ -295,3 +295,8 @@ body { @apply bg-[#f8fbfc] text-[#1d1d20] antialiased;
   gap: .5rem;
 }
 .edu-row .period { justify-self: end; }
+/* Social-proof toast entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

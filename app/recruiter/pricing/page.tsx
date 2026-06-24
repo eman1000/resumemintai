@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
+import SocialProof from "@/components/SocialProof";
 import RecruiterCheckout from "@/components/recruiter/RecruiterCheckout";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 
@@ -67,6 +68,7 @@ export default function RecruiterPricingPage() {
         </div>
       </main>
       <SiteFooter />
+      <SocialProof variant="recruiter" />
     </>
   );
 }

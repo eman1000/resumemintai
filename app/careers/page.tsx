@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Search, MapPin, Briefcase } from "lucide-react";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
+import SocialProof from "@/components/SocialProof";
 
 type Job = {
   slug: string;
@@ -91,6 +92,7 @@ export default function CareersPage() {
         )}
       </main>
       <SiteFooter />
+      <SocialProof variant="candidate" />
     </>
   );
 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ListChecks, Megaphone, Users, ShieldCheck, Clock, ScanSearch, CheckCircle2 } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import SocialProof from '@/components/SocialProof';
 
 export const metadata: Metadata = {
   title: 'AI Candidate Shortlisting for Recruiters',
@@ -131,6 +132,7 @@ export default function RecruiterLanding() {
       </section>
 
       <SiteFooter />
+      <SocialProof variant="recruiter" />
     </>
   );
 }
