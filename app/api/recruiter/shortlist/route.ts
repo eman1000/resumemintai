@@ -13,6 +13,7 @@ import { shortlistCandidates, type ShortlistInput } from "@/lib/shortlist";
 import { requireRecruiter, RecruiterGateError, recruiterGateResponse } from "@/lib/recruiterBilling";
 import { extractContact } from "@/lib/contact";
 import { storeShortlistResume } from "@/lib/resumeStore";
+import { putObject } from "@/lib/storage";
 import { ocrPdf } from "@/lib/ocr";
 
 // Per-candidate metadata captured during extraction (contact + stored resume).
@@ -187,6 +188,12 @@ export async function POST(req: Request) {
         select: { id: true },
       });
       runId = run.id;
+      // Keep a JD artifact in storage too (alongside the resumes).
+      try {
+        await putObject(`shortlist-jds/${runId}.txt`, Buffer.from(jdText, "utf8"), "text/plain; charset=utf-8", {
+          cacheControl: "private, max-age=0",
+        });
+      } catch {}
     } catch (e) {
       console.warn("[recruiter/shortlist] run persist failed:", (e as any)?.message || e);
     }

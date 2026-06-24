@@ -46,22 +46,30 @@ export async function putObject(
 
   if (r2Configured()) {
     const url = `${R2_ENDPOINT}/${R2_BUCKET}/${cleanKey}`;
-    const res = await client().fetch(url, {
-      method: "PUT",
-      body,
-      headers: {
-        "content-type": contentType || "application/octet-stream",
-        "cache-control": opts?.cacheControl || "public, max-age=31536000, immutable",
-      },
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`R2 upload failed (${res.status}): ${detail.slice(0, 300)}`);
+    // Retry transient failures — serverless R2 PUTs occasionally drop under load.
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await client().fetch(url, {
+          method: "PUT",
+          body,
+          headers: {
+            "content-type": contentType || "application/octet-stream",
+            "cache-control": opts?.cacheControl || "public, max-age=31536000, immutable",
+          },
+        });
+        if (res.ok) return `${R2_PUBLIC_BASE_URL}/${cleanKey}`;
+        lastErr = `status ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`;
+      } catch (e) {
+        lastErr = e;
+      }
+      await new Promise((r) => setTimeout(r, 150 * attempt));
     }
-    return `${R2_PUBLIC_BASE_URL}/${cleanKey}`;
+    // R2 failed after retries → fall back to Firebase rather than lose the file.
+    console.warn(`[storage] R2 upload failed for ${cleanKey}, falling back to Firebase:`, lastErr);
   }
 
-  // Fallback: Firebase Storage (legacy).
+  // Fallback: Firebase Storage (legacy / R2 failure).
   const { adminBucket } = await import("@/lib/firebaseAdmin");
   const file = adminBucket.file(cleanKey);
   await file.save(body, {
