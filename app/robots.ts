@@ -13,6 +13,8 @@ export default function robots(): MetadataRoute.Robots {
         // Private surfaces — keep them out of the index. Crawlers can still
         // discover them via signed-in users, they just won't be ranked.
         disallow: [
+          "/admin",
+          "/admin/",
           "/account",
           "/applications",
           "/login",

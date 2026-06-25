@@ -53,6 +53,21 @@ const nextConfig = {
   // don’t publish readable source maps
   productionBrowserSourceMaps: false,
 
+  // Belt-and-suspenders: tell crawlers never to index the admin area (on top of
+  // robots.txt disallow + per-page noindex metadata + the server-side gate).
+  async headers() {
+    return [
+      {
+        source: '/admin/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }],
+      },
+      {
+        source: '/api/admin/:path*',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }],
+      },
+    ];
+  },
+
   webpack: (config, { isServer, dev }) => {
     const shouldObfuscate = !isServer && !dev && process.env.OBFUSCATE === '1';
 
