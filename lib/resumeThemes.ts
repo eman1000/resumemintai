@@ -120,10 +120,26 @@ function themePkg(themeId: string | null | undefined): string {
   return (t || RESUME_THEMES.find((x) => x.id === DEFAULT_THEME)!).pkg;
 }
 
+// Local themes carry no body side padding — their page margins come entirely
+// from @page, which only applies when printing. The continuous screen preview
+// therefore needs the margin mirrored as body padding (packaged npm themes
+// bring their own side padding, so they're excluded).
+const THEMES_NEEDING_SCREEN_MARGINS = new Set(["professional"]);
+
+/** Mirror the 12mm @page margin as body padding for the screen preview. Must
+ * be injected AFTER injectPrintCss so its !important padding rules win. NOT
+ * applied on the PDF path — the PDF gets its 12mm from page.pdf() margins and
+ * would double up. */
+function injectScreenPageMargins(html: string): string {
+  const css = `<style id="rm-screen-margins">body { padding: 12mm !important; }</style>`;
+  return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${css}</head>`) : css + html;
+}
+
 /** Render a stored resume's data with a JSON Resume theme → full HTML doc. */
 export async function renderResumeHtml(
   data: any,
   themeId: string | null | undefined,
+  opts?: { screenPageMargins?: boolean },
 ): Promise<{ html: string; jr: JsonResume; hasContent: boolean }> {
   const jr = toJsonResume(data);
   const hasContent = jsonResumeHasContent(jr);
@@ -158,6 +174,9 @@ export async function renderResumeHtml(
   // User font/accent customization (stored on data.styleOptions; persists +
   // flows to both preview and PDF since both send `data`).
   html = injectStyleOverrides(html, data?.styleOptions);
+  if (opts?.screenPageMargins && THEMES_NEEDING_SCREEN_MARGINS.has(resolved)) {
+    html = injectScreenPageMargins(html);
+  }
   return { html, jr, hasContent };
 }
 

@@ -30,7 +30,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { html, hasContent } = await renderResumeHtml(data, theme);
+    // screenPageMargins: the iframe preview is screen media, where @page
+    // margins don't apply — mirror them so themes that rely on @page
+    // (professional) don't bleed to the page edges.
+    const { html, hasContent } = await renderResumeHtml(data, theme, { screenPageMargins: true });
     return NextResponse.json({ html, hasContent });
   } catch (e: any) {
     console.error("[resume/preview-html]", e?.message);
