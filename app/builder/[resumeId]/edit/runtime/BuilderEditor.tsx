@@ -3286,9 +3286,14 @@ async function handleSmartTailor() {
 async function runTailor(analyzedJob: any, confirmedSkills: string[]) {
   try {
     setBusy(true); setBusyLabel("Tailoring your resume…");
+    // /api/ats/optimize requires auth (usage metering) — send the ID token.
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
     const t = await fetch("/api/ats/optimize", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ sections: doc.sections, job: analyzedJob, confirmedSkills }),
     });
     if (!t.ok) throw new Error(await t.text());
