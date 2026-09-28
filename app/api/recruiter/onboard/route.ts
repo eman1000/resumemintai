@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/app/api/server/auth/getUserFromRequest";
 import prisma from "@/lib/prisma";
+import { alertRecruiter } from "@/lib/chatAlerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,10 +25,11 @@ export async function POST(req: Request) {
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: { userType: "recruiter", ...(companyName ? { companyName } : {}) },
-      select: { userType: true, companyName: true },
+      select: { userType: true, companyName: true, email: true },
     });
 
-    return NextResponse.json({ ok: true, ...updated });
+    void alertRecruiter({ email: updated.email, userId: user.id, companyName: updated.companyName });
+    return NextResponse.json({ ok: true, userType: updated.userType, companyName: updated.companyName });
   } catch (e: any) {
     if (e?.name === "UNAUTHORIZED" || e?.code === "UNAUTHORIZED") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });

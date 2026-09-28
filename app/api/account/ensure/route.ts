@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { ensureDbUserByFirebaseUid } from '../../server/db/user';
 import { hasActiveRecruiterSub } from '@/lib/recruiterBilling';
+import { alertSignup } from '@/lib/chatAlerts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,9 +33,13 @@ export async function POST(req: NextRequest) {
     const [subscribed, recruiterSubscribed, dbUser] = await Promise.all([
       hasActiveSubByUserId(userId),
       hasActiveRecruiterSub(userId),
-      prisma.user.findUnique({ where: { id: userId }, select: { userType: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { userType: true, createdAt: true } }),
     ]);
 
+    // A row created moments ago means this is the first login = a new signup.
+    if (dbUser?.createdAt && Date.now() - new Date(dbUser.createdAt).getTime() < 2 * 60_000) {
+      void alertSignup({ email, userId, userType: dbUser.userType, country: req.headers.get('x-vercel-ip-country') });
+    }
     return NextResponse.json({
       userId,
       firebaseUid,

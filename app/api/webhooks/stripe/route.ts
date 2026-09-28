@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
+import { alertSubscription } from "@/lib/chatAlerts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +77,15 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         await upsertFromSubscription(sub);
+        if (event.type === "customer.subscription.created") {
+          try {
+            const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+            const u = customerId ? await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true, email: true } }) : null;
+            const price = sub.items?.data?.[0]?.price;
+            const amount = price?.unit_amount != null ? `${(price.unit_amount / 100).toFixed(2)} ${(price.currency || "").toUpperCase()}` : null;
+            void alertSubscription({ email: u?.email ?? null, userId: u?.id ?? null, plan: price?.nickname || (price?.product && typeof price.product === "object" && "name" in price.product ? (price.product as { name?: string }).name ?? null : null), amount, interval: price?.recurring?.interval ?? null, status: sub.status, trial: sub.status === "trialing" });
+          } catch (e) { console.warn("[stripe webhook] chat alert failed", (e as Error)?.message); }
+        }
         break;
       }
 

@@ -1,6 +1,7 @@
 // app/api/contact/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { alertContact } from '@/lib/chatAlerts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, createdAt: true },
     });
 
+    void alertContact({ name, email, subject, message, country, city, path: body.path ?? path, ref: body.ref ?? ref, id: created.id });
     return NextResponse.json(
       { ok: true, id: created.id, created_at: created.createdAt.toISOString() },
       { status: 201 },
