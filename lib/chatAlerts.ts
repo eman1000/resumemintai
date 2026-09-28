@@ -1,18 +1,19 @@
 // Google Chat alerts for ResumeMint leads (space webhook in RESUMEMINT_CHAT_WEBHOOK_URL).
-// Fire-and-forget: never throws, never blocks a request path.
+// Fire-and-forget: never throws, never blocks a request path. Registered with Vercel's
+// waitUntil so the function is not frozen before the webhook call completes.
+import { waitUntil } from '@vercel/functions';
+
 export async function postChat(text: string): Promise<void> {
   const url = process.env.RESUMEMINT_CHAT_WEBHOOK_URL;
   if (!url) return;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-      signal: AbortSignal.timeout(5000),
-    });
-  } catch (e) {
-    console.warn('[chatAlerts] post failed', (e as Error)?.message);
-  }
+  const p = fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal: AbortSignal.timeout(5000),
+  }).then(() => undefined, (e) => console.warn('[chatAlerts] post failed', (e as Error)?.message));
+  try { waitUntil(p); } catch { /* not inside a Vercel request context */ }
+  await p;
 }
 
 const base = () => (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://www.resumemintai.com').replace(/\/$/, '');

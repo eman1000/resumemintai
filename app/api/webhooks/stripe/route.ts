@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { alertSubscription } from "@/lib/chatAlerts";
-import { postPlenqorLead } from "@/lib/plenqorLeads";
+import { forwardPlenqorLead } from "@/lib/plenqorLeads";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
             const u = customerId ? await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: { id: true, email: true } }) : null;
             const price = sub.items?.data?.[0]?.price;
             const amount = price?.unit_amount != null ? `${(price.unit_amount / 100).toFixed(2)} ${(price.currency || "").toUpperCase()}` : null;
-            void postPlenqorLead({ source: sub.status === "trialing" ? "resumemint-trial" : "resumemint-subscription", email: u?.email ?? null, status: sub.status === "trialing" ? "qualified" : "won", notes: `${sub.status === "trialing" ? "Trial started" : "Subscribed"}${amount ? ` · ${amount}${price?.recurring?.interval ? "/" + price.recurring.interval : ""}` : ""} · ${sub.id}` });
+            forwardPlenqorLead({ source: sub.status === "trialing" ? "resumemint-trial" : "resumemint-subscription", email: u?.email ?? null, status: sub.status === "trialing" ? "qualified" : "won", notes: `${sub.status === "trialing" ? "Trial started" : "Subscribed"}${amount ? ` · ${amount}${price?.recurring?.interval ? "/" + price.recurring.interval : ""}` : ""} · ${sub.id}` });
             void alertSubscription({ email: u?.email ?? null, userId: u?.id ?? null, plan: price?.nickname || (price?.product && typeof price.product === "object" && "name" in price.product ? (price.product as { name?: string }).name ?? null : null), amount, interval: price?.recurring?.interval ?? null, status: sub.status, trial: sub.status === "trialing" });
           } catch (e) { console.warn("[stripe webhook] chat alert failed", (e as Error)?.message); }
         }

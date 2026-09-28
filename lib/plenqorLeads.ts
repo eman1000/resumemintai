@@ -1,7 +1,11 @@
 // Forward ResumeMint lead events into the Plenqor CRM (plenqor.com/admin/leads?product=resumemint).
 // Fire-and-forget: never throws, never blocks a request path. Plenqor folds repeat events for the
 // same email into one lead (signup → trial → subscription) and bumps its status.
+// On Vercel a fire-and-forget promise is frozen once the response is sent, so call sites use
+// forwardPlenqorLead(), which keeps the function alive via waitUntil().
 // Env: PLENQOR_INGEST_URL (default https://www.plenqor.com/api/leads/ingest), PLENQOR_INGEST_SECRET.
+
+import { waitUntil } from '@vercel/functions';
 
 type PlenqorEvent = {
   source: 'resumemint-signup' | 'resumemint-trial' | 'resumemint-subscription' | 'resumemint-contact' | 'resumemint-recruiter';
@@ -51,4 +55,10 @@ export async function postPlenqorLead(ev: PlenqorEvent): Promise<void> {
   } catch (e) {
     console.warn('[plenqorLeads] post failed', (e as Error)?.message);
   }
+}
+
+/** Fire-and-forget that survives the response being sent (Vercel waitUntil; plain promise elsewhere). */
+export function forwardPlenqorLead(ev: PlenqorEvent): void {
+  const p = postPlenqorLead(ev);
+  try { waitUntil(p); } catch { /* not inside a Vercel request context */ }
 }
