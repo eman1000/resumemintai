@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState, ReactNode } from 'react';
+import { fireSignupConversion } from '@/lib/ads';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/app/firebase';
@@ -41,6 +42,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         }
 
         const json = await res.json();
+        if (json?.isNewUser) fireSignupConversion(json.userId);
         if (!res.ok) throw new Error(json?.error || 'ensure_failed');
 
         if (!json.subscribed) {

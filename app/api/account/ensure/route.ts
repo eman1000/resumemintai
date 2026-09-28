@@ -37,10 +37,12 @@ export async function POST(req: NextRequest) {
     ]);
 
     // A row created moments ago means this is the first login = a new signup.
-    if (dbUser?.createdAt && Date.now() - new Date(dbUser.createdAt).getTime() < 2 * 60_000) {
+    const isNewUser = !!(dbUser?.createdAt && Date.now() - new Date(dbUser.createdAt).getTime() < 2 * 60_000);
+    if (isNewUser) {
       void alertSignup({ email, userId, userType: dbUser.userType, country: req.headers.get('x-vercel-ip-country') });
     }
     return NextResponse.json({
+      isNewUser,
       userId,
       firebaseUid,
       primaryEmail: email || '',

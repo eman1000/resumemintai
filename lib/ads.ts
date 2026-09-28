@@ -45,9 +45,24 @@ export function fireAdsConversionDirect({value, currency, transactionId}:{value:
   if (typeof gtag !== 'function' || (window as any).__adsConvFired) return;
   (window as any).__adsConvFired = true;
   gtag('event', 'conversion', {
-    send_to: 'AW-17589141195/rl8dCKuOv6MbEMv9k8NB',
+    send_to: process.env.NEXT_PUBLIC_ADS_PURCHASE_LABEL || 'AW-18450154360/PURCHASE_LABEL_UNSET',
     value,
     currency,
     transaction_id: transactionId,
   });
+}
+
+/** Google Ads "ResumeMint signup" conversion — fired once per browser on the first login of a new account. */
+export function fireSignupConversion(userId?: string) {
+  if (typeof window === 'undefined') return;
+  const gtag = (window as any).gtag;
+  const sendTo = process.env.NEXT_PUBLIC_ADS_SIGNUP_LABEL;
+  if (typeof gtag !== 'function' || !sendTo) return;
+  try {
+    const key = 'rm_signup_conv';
+    if (window.localStorage.getItem(key)) return;
+    window.localStorage.setItem(key, userId || '1');
+  } catch { /* storage blocked — fire anyway */ }
+  gtag('event', 'conversion', { send_to: sendTo, transaction_id: userId });
+  gtag('event', 'sign_up', { method: 'firebase' });
 }

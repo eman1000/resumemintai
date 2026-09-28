@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { fireSignupConversion } from '@/lib/ads';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/app/firebase';
 
@@ -54,6 +55,7 @@ export function useAuthStatus(): AuthStatus {
 
         if (res.ok) {
           const json = await res.json();
+          if (json?.isNewUser) fireSignupConversion(json.userId);
           setIsSubscribed(!!json.subscribed);
           setIsRecruiterSubscribed(!!json.recruiterSubscribed);
           setUserType(json.userType || 'candidate');
