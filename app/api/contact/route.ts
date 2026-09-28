@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { alertContact } from '@/lib/chatAlerts';
+import { postPlenqorLead } from '@/lib/plenqorLeads';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
     });
 
     void alertContact({ name, email, subject, message, country, city, path: body.path ?? path, ref: body.ref ?? ref, id: created.id });
+    void postPlenqorLead({ source: 'resumemint-contact', email, name, country, message: subject ? `${subject}\n\n${message}` : message, pageUrl: body.path ?? path, referrer: body.ref ?? ref });
     return NextResponse.json(
       { ok: true, id: created.id, created_at: created.createdAt.toISOString() },
       { status: 201 },

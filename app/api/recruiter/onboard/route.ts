@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/app/api/server/auth/getUserFromRequest";
 import prisma from "@/lib/prisma";
+import { postPlenqorLead } from '@/lib/plenqorLeads';
 import { alertRecruiter } from "@/lib/chatAlerts";
 
 export const runtime = "nodejs";
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
     });
 
     void alertRecruiter({ email: updated.email, userId: user.id, companyName: updated.companyName });
+    void postPlenqorLead({ source: 'resumemint-recruiter', email: updated.email, company: updated.companyName, status: 'qualified', notes: 'Recruiter onboarded' });
     return NextResponse.json({ ok: true, userType: updated.userType, companyName: updated.companyName });
   } catch (e: any) {
     if (e?.name === "UNAUTHORIZED" || e?.code === "UNAUTHORIZED") {

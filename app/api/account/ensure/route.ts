@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { ensureDbUserByFirebaseUid } from '../../server/db/user';
 import { hasActiveRecruiterSub } from '@/lib/recruiterBilling';
+import { postPlenqorLead } from '@/lib/plenqorLeads';
 import { alertSignup } from '@/lib/chatAlerts';
 
 export const runtime = 'nodejs';
@@ -38,8 +39,18 @@ export async function POST(req: NextRequest) {
 
     // A row created moments ago means this is the first login = a new signup.
     const isNewUser = !!(dbUser?.createdAt && Date.now() - new Date(dbUser.createdAt).getTime() < 2 * 60_000);
+    // ensure() is called several times on first login; only the call that claims the
+    // welcome flag sends the Chat alert.
+    let firstClaim = false;
     if (isNewUser) {
+      try {
+        const claimed = await prisma.$queryRaw<Array<{ id: string }>>`UPDATE public.users SET welcome_alerted_at = now() WHERE id = ${userId}::uuid AND welcome_alerted_at IS NULL RETURNING id`;
+        firstClaim = claimed.length > 0;
+      } catch (e) { console.warn('[account/ensure] welcome flag', (e as Error)?.message); }
+    }
+    if (firstClaim) {
       void alertSignup({ email, userId, userType: dbUser.userType, country: req.headers.get('x-vercel-ip-country') });
+      void postPlenqorLead({ source: 'resumemint-signup', email, country: req.headers.get('x-vercel-ip-country'), status: 'new', notes: `Signed up (${dbUser.userType || 'candidate'})`, referrer: req.headers.get('referer') });
     }
     return NextResponse.json({
       isNewUser,

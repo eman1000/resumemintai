@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Check } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
+import { setSelectedPlan } from '@/lib/plans';
 
 const plans = {
   monthly: { amount: '$19.99', period: '/month', billed: '' },
@@ -79,6 +80,7 @@ export default function PricingPage() {
 
           <Link
             href="/builder"
+            onClick={() => setSelectedPlan(period)}
             className="btn-primary w-full mt-8 text-center block"
           >
             Start 14-day free trial

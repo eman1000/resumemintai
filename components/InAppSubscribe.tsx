@@ -19,6 +19,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import toast from 'react-hot-toast';
 import { auth } from '@/app/firebase';
 import { track, trackSubscribeSuccess } from '@/lib/track';
+import { PLANS, getSelectedPlan, setSelectedPlan, type PlanKey } from '@/lib/plans';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -70,6 +71,10 @@ function PayForm({ clientSecret, onActivated }: { clientSecret: string; onActiva
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [showDevTestCard, setShowDevTestCard] = useState(false);
+  // The plan chosen on /pricing (or switched here); its Stripe price is what /api/billing/subscribe charges.
+  const [plan, setPlan] = useState<PlanKey>('monthly');
+  useEffect(() => { setPlan(getSelectedPlan()); }, []);
+  const choosePlan = (k: PlanKey) => { setPlan(k); setSelectedPlan(k); };
 
   const setupIntentId = clientSecret.split('_secret')[0];
 
@@ -85,7 +90,7 @@ function PayForm({ clientSecret, onActivated }: { clientSecret: string; onActiva
   async function finalize(siId: string) {
     const r = await authedFetch('/api/billing/subscribe', {
       method: 'POST',
-      body: JSON.stringify({ setupIntentId: siId }),
+      body: JSON.stringify({ setupIntentId: siId, priceId: PLANS[plan].priceId || undefined }),
     });
     const j = await r.json();
     if (!r.ok) throw new Error(j?.detail || j?.error || 'subscribe_failed');
@@ -149,6 +154,26 @@ function PayForm({ clientSecret, onActivated }: { clientSecret: string; onActiva
 
   return (
     <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Billing plan">
+        {(Object.keys(PLANS) as PlanKey[]).map((k) => {
+          const p = PLANS[k];
+          const active = k === plan;
+          return (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => choosePlan(k)}
+              className={`rounded-lg border px-2 py-2 text-left transition ${active ? 'border-brand bg-brand/5 ring-1 ring-brand' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="text-xs font-semibold text-[#1d1d20]">{p.label}</div>
+              <div className="text-sm font-bold text-[#1d1d20]">{p.perMonth}<span className="text-xs font-normal text-[#52525a]">/mo</span></div>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-[#52525a]">{PLANS[plan].billed}. Cancel anytime.</p>
       <PaymentElement options={{ layout: 'accordion' }} />
       <button
         onClick={onSubmit}

@@ -26,6 +26,17 @@ export const dynamic = 'force-dynamic';
 // @ts-ignore
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
 const DEFAULT_PRICE_ID = process.env.STRIPE_PRICE_ID || '';
+// Prices the client may ask for; anything else falls back to the default so a tampered
+// request can't subscribe to an arbitrary (e.g. $0) price.
+const ALLOWED_PRICE_IDS = new Set(
+  [
+    process.env.STRIPE_PRICE_ID,
+    process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY,
+    process.env.NEXT_PUBLIC_STRIPE_PRICE_QUARTERLY,
+    process.env.NEXT_PUBLIC_STRIPE_PRICE_ANNUAL,
+    process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
+  ].filter((v): v is string => !!v),
+);
 
 async function getActiveOrTrialingSub(customerId: string) {
   try {
@@ -60,7 +71,8 @@ export async function POST(req: Request) {
     };
 
     const setupIntentId = body.setupIntentId?.trim() || '';
-    const priceId = (body.priceId?.trim() || DEFAULT_PRICE_ID).trim();
+    const requestedPrice = body.priceId?.trim() || '';
+    const priceId = (requestedPrice && ALLOWED_PRICE_IDS.has(requestedPrice) ? requestedPrice : DEFAULT_PRICE_ID).trim();
 
     if (!setupIntentId) {
       return NextResponse.json({ error: 'missing_setup_intent_id' }, { status: 400 });

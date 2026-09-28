@@ -83,7 +83,9 @@ export default function ClientLanding({
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isIOS = /iPhone|iPad|iPod/.test(ua);
   const cc = geoData?.country_code?.toUpperCase();
-  const isCompliant = !window.ApplePaySession || !isIOS || cc === 'IN' || cc === 'INDIA';
+  // `window` is undefined during server rendering — this line used to 500 the whole page.
+  const hasApplePay = typeof window !== 'undefined' && !!(window as any).ApplePaySession;
+  const isCompliant = !hasApplePay || !isIOS || cc === 'IN' || cc === 'INDIA';
 
   if (!isCompliant) return <>
     <LandingImpression />
