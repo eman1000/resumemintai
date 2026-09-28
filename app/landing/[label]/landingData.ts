@@ -100,10 +100,11 @@ export const LANDING_VARIANTS: Record<string, LandingVariant> = {
     ],
   },
 
-  /** Example variant for A/B tests: /landing/swe */
-  swe: {
-    // You can override any copy/media for a different audience (e.g., engineers)
-    // @ts-ignore
-    ...this?.vtdft, // TS hint only; if you prefer, copy the object manually
-  } as any,
+};
+
+/** Example variant for A/B tests: /landing/swe — a copy of the default with overrides.
+ *  (`...this?.vtdft` at module scope spreads undefined and crashed the page.) */
+LANDING_VARIANTS.swe = {
+  ...LANDING_VARIANTS.vtdft,
+  seo: { ...LANDING_VARIANTS.vtdft.seo, title: 'ResumeMint — AI-tailored resumes for software engineers' },
 };
