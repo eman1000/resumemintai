@@ -102,6 +102,6 @@
     "webpack-obfuscator": "^3.5.1"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }
