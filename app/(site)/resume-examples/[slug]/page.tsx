@@ -11,6 +11,7 @@ import {
   exampleEmail,
 } from '@/lib/resumeExamples';
 import { breadcrumbLd, jsonLdScript } from '@/lib/seo-ld';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 type Params = { slug: string };
 
@@ -316,7 +317,7 @@ export default function Page({ params }: { params: Params }) {
           </h2>
           <p className="mt-3 text-[#52525a] max-w-2xl mx-auto">
             ResumeMint tailors your resume to any job description, suggests achievement-focused
-            bullets, and keeps the formatting ATS-friendly. Start free — no credit card needed.
+            bullets, and keeps the formatting ATS-friendly. Starts with a {TRIAL_PHRASE}.
           </p>
           <Link href="/builder" className="btn-primary mt-6 inline-flex text-base">
             Start my resume — it&apos;s free

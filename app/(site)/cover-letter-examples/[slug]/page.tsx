@@ -11,6 +11,7 @@ import {
 } from '@/lib/coverLetterExamples';
 import { getResumeExample, exampleEmail } from '@/lib/resumeExamples';
 import { breadcrumbLd, jsonLdScript } from '@/lib/seo-ld';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 type Params = { slug: string };
 
@@ -209,7 +210,7 @@ export default function Page({ params }: { params: Params }) {
           </h2>
           <p className="mt-3 text-[#52525a] max-w-2xl mx-auto">
             ResumeMint drafts a cover letter matched to the job description and your resume, in a
-            template that complements it. Start free — no credit card needed.
+            template that complements it. Starts with a {TRIAL_PHRASE}.
           </p>
           <Link href="/builder" className="btn-primary mt-6 inline-flex text-base">
             Start my cover letter — it&apos;s free

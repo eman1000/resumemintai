@@ -16,6 +16,7 @@ import {
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import { faqPageLd, jsonLdScript } from "@/lib/seo-ld";
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 export const metadata: Metadata = {
   title: "Just got laid off? Your 7-day comeback plan | ResumeMint",
@@ -191,7 +192,7 @@ export default function LaidOffPage() {
           </div>
           <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-brand" /> 14-day free trial
+              <CheckCircle2 className="w-4 h-4 text-brand" /> {TRIAL_PHRASE}
             </span>
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-brand" /> Cancel anytime
@@ -343,7 +344,7 @@ export default function LaidOffPage() {
             Your next role is closer than it feels.
           </h2>
           <p className="mt-3 text-[#52525a]">
-            Start the comeback plan today. The first 14 days are free.
+            Start the comeback plan today. Begins with a {TRIAL_PHRASE}.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link href="/builder" className="btn-primary inline-flex text-base">

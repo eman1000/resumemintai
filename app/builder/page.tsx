@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
+import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -49,6 +50,11 @@ export default function BuilderHome() {
 
   // Login slide panel
   const [loginOpen, setLoginOpen] = React.useState(false);
+  // Card gate: creating a resume requires an active trial/subscription.
+  const [subscribeOpen, setSubscribeOpen] = React.useState(false);
+  // Set when the user asked to create before they were signed in / subscribed,
+  // so the create resumes automatically once the gate is cleared.
+  const [pendingCreate, setPendingCreate] = React.useState(false);
 
   // NEW: sidebar state
   const [collapsed, setCollapsed] = React.useState(false);
@@ -128,6 +134,12 @@ export default function BuilderHome() {
       if (peekCheckerHandoff()) setLoginOpen(true);
       return;
     }
+    if (!isSubscribed) {
+      // Importing creates a resume, which is card-gated. Keep the handoff
+      // parked (peek, not consume) so it still runs after the card is added.
+      if (peekCheckerHandoff()) setSubscribeOpen(true);
+      return;
+    }
     const handoff = consumeCheckerHandoff();
     if (!handoff) return;
     handoffRanRef.current = true;
@@ -160,6 +172,11 @@ export default function BuilderHome() {
           }),
         );
         const createJson = await createRes.json();
+        if (createRes.status === 403 && createJson?.error === 'subscription_required') {
+          setSubscribeOpen(true);
+          setHandoffBusy(false);
+          return;
+        }
         if (!createRes.ok || !createJson?.id) {
           throw new Error(createJson?.error || 'create_failed');
         }
@@ -174,20 +191,11 @@ export default function BuilderHome() {
         setHandoffBusy(false);
       }
     })();
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, isSubscribed, router]);
 
-  const create = async () => {
-    if (!isAuthenticated) {
-      // Allow anonymous users to start editing with a local-only resume
-      const localId = "local-" + crypto.randomUUID();
-      // Store empty resume data in localStorage for the editor to pick up
-      localStorage.setItem(
-        `resume:${localId}`,
-        JSON.stringify({ title: "Untitled CV", renderer: "professional", data: { id: "local", sections: [] } })
-      );
-      router.push(`/builder/${localId}/edit`);
-      return;
-    }
+  // Creates the resume for real. Only called once the card gate is cleared;
+  // the server rejects it with subscription_required otherwise.
+  const doCreate = React.useCallback(async () => {
     setBusy(true);
     try {
       const res = await fetch(
@@ -203,6 +211,11 @@ export default function BuilderHome() {
         })
       );
       const json = await res.json();
+      if (res.status === 403 && json?.error === "subscription_required") {
+        setPendingCreate(true);
+        setSubscribeOpen(true);
+        return;
+      }
       if (!res.ok) throw new Error(json?.error || "create failed");
       router.push(`/builder/${json.id}/edit`);
     } catch (e: any) {
@@ -210,7 +223,35 @@ export default function BuilderHome() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [router]);
+
+  /**
+   * Card gate for starting a CV: sign in, then an active trial/subscription,
+   * then the editor opens. Each step remembers the intent so the user lands in
+   * the editor without clicking New again.
+   */
+  const create = React.useCallback(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setPendingCreate(true);
+      setLoginOpen(true);
+      return;
+    }
+    if (!isSubscribed) {
+      setPendingCreate(true);
+      setSubscribeOpen(true);
+      return;
+    }
+    void doCreate();
+  }, [authLoading, isAuthenticated, isSubscribed, doCreate]);
+
+  // Resume the pending create as soon as the user becomes subscribed.
+  React.useEffect(() => {
+    if (!pendingCreate || authLoading || !isAuthenticated || !isSubscribed) return;
+    setPendingCreate(false);
+    setSubscribeOpen(false);
+    void doCreate();
+  }, [pendingCreate, authLoading, isAuthenticated, isSubscribed, doCreate]);
 
   const handleDetails = (it: CardItem) => {
     toast(`Renderer: ${it.renderer}\nUpdated: ${formatDistanceToNow(new Date(it.updatedAt))} ago`);
@@ -236,8 +277,23 @@ export default function BuilderHome() {
         onSuccess={() => {
           setLoginOpen(false);
           load();
+          // The subscribe effect picks it up once useAuthStatus refreshes; if they
+          // are already subscribed it creates, otherwise the card step opens.
+          if (pendingCreate) setSubscribeOpen(true);
         }}
-        reason="Sign in to create and manage your resumes."
+        reason="Sign in to start building your CV."
+      />
+      <SubscribeSlidePanel
+        open={subscribeOpen}
+        onClose={() => { setSubscribeOpen(false); setPendingCreate(false); }}
+        heading="Add a card to start building"
+        onActivated={() => {
+          // /api/billing/subscribe writes the subscription row before it
+          // responds, so the create below passes the server gate immediately.
+          setSubscribeOpen(false);
+          setPendingCreate(false);
+          void doCreate();
+        }}
       />
       {/* Sidebar layout */}
       <div className="min-h-screen bg-[#f8fbfc] text-[#1d1d20] flex">

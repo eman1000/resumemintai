@@ -11,6 +11,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SocialProof from "@/components/SocialProof";
 import RecruiterCheckout from "@/components/recruiter/RecruiterCheckout";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 const FEATURES = [
   "AI candidate shortlisting (up to 50 resumes/run)",
@@ -48,7 +49,7 @@ export default function RecruiterPricingPage() {
             <div className="text-center">
               <div className="text-5xl font-bold text-[#1d1d20]">$49</div>
               <div className="text-[#52525a] mt-1">/month</div>
-              <div className="text-sm text-[#a1a1aa] mt-1">14-day free trial · cancel anytime</div>
+              <div className="text-sm text-[#a1a1aa] mt-1">{TRIAL_PHRASE} · cancel anytime</div>
             </div>
             <ul className="mt-8 space-y-3">
               {FEATURES.map((f) => (

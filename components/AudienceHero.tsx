@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { CheckCircle2, ShieldCheck, Users, FileText, Sparkles } from 'lucide-react';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 type Audience = 'seeker' | 'recruiter';
 
@@ -92,7 +93,7 @@ export default function AudienceHero() {
               </Link>
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-600" /> 14-day free trial</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-600" /> {TRIAL_PHRASE}</span>
               <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-mint-600" /> Evidence-based ranking</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-600" /> Cancel anytime</span>
             </div>
@@ -121,8 +122,8 @@ export default function AudienceHero() {
               </Link>
             </div>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-[#52525a]">
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> 14-day free trial</span>
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand" /> No credit card to start</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> {TRIAL_PHRASE}</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-brand" /> Cancel anytime</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-brand" /> Cancel anytime</span>
             </div>
           </div>

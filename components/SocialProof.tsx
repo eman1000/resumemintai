@@ -9,6 +9,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { useGeo } from "@/lib/useGeo";
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 type Pack = { names: string[]; cities: string[] };
 
@@ -58,7 +59,7 @@ const CANDIDATE_MSGS: Msg[] = [
   (n) => `${n} optimised their resume for a new role`,
   (n) => `${n} added missing keywords from a job post`,
   (n) => `${n} created a second tailored resume`,
-  (n, c) => `${n}${FROM(c)} started a 14-day free trial`,
+  (n, c) => `${n}${FROM(c)} started a ${TRIAL_PHRASE}`,
   (n) => `${n} exported their resume as a PDF`,
   (n, c) => `${n}${IN(c)} matched 94% to a job description`,
   (n) => `${n} just upgraded to Pro`,

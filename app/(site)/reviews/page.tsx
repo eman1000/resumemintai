@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 export const metadata: Metadata = {
   title: 'AI Reviews: Success Stories & Testimonials',
@@ -32,7 +33,7 @@ export default function Page() {
         <p>
           In the meantime, try the{' '}
           <a href="/resume-checker">free ATS resume checker</a> — no signup needed — or
-          start a <a href="/builder">14-day free trial</a> of the builder.
+          start a <a href="/builder">{TRIAL_PHRASE}</a> of the builder.
         </p>
       </div>
     </PageShell>

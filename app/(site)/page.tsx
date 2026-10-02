@@ -12,6 +12,7 @@ import {
   faqPageLd,
   jsonLdScript,
 } from '@/lib/seo-ld';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 export const metadata: Metadata = {
   title: 'AI Resume Builder & Recruiter Shortlisting',
@@ -56,7 +57,7 @@ const recruiterPoints = [
 ];
 
 const faqs = [
-  { q: 'Is there a free trial?', a: 'Yes! You get a 14-day free trial with full access to all features, templates, and AI tools. No commitment required.' },
+  { q: 'Is there a free trial?', a: `Yes — a ${TRIAL_PHRASE} with full access to all features, templates and AI tools. You add a card to start it and can cancel any time before it ends.` },
   { q: 'Can I cancel anytime?', a: 'Absolutely. You can cancel your subscription at any time from your account settings. No questions asked.' },
   { q: 'What file formats can I export?', a: 'You can export your resume and cover letters as PDF files, optimized for both digital submission and printing.' },
   { q: 'Is my data secure?', a: 'Yes. We use industry-standard encryption and never share your personal information with third parties.' },
@@ -214,7 +215,7 @@ export default function LandingPage() {
       <section className="bg-brand-50">
         <div className="max-w-site mx-auto px-4 py-16 text-center">
           <h2 className="text-3xl font-bold text-[#1d1d20]">Ready to build your resume?</h2>
-          <p className="mt-3 text-[#52525a]">Tailor your resume to any job and apply with confidence — your first 14 days are free.</p>
+          <p className="mt-3 text-[#52525a]">Tailor your resume to any job and apply with confidence — start with a {TRIAL_PHRASE}.</p>
           <Link href="/builder" className="btn-primary mt-6 inline-flex text-base">
             Get started — it&apos;s free
           </Link>

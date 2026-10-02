@@ -4,6 +4,7 @@ import { ListChecks, Megaphone, Users, ShieldCheck, Clock, ScanSearch, CheckCirc
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 import SocialProof from '@/components/SocialProof';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 export const metadata: Metadata = {
   title: 'AI Candidate Shortlisting for Recruiters',
@@ -67,7 +68,7 @@ export default function RecruiterLanding() {
             </Link>
           </div>
           <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm text-mint-100/70">
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-300" /> 14-day free trial</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-300" /> {TRIAL_PHRASE}</span>
             <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-mint-300" /> Evidence-based ranking</span>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-mint-300" /> Cancel anytime</span>
           </div>
@@ -118,7 +119,7 @@ export default function RecruiterLanding() {
           <div className="rounded-2xl bg-[#0f1b2d] px-6 py-12 md:px-12 text-center">
             <h2 className="text-3xl font-bold text-white">Try it on your next role</h2>
             <p className="mt-3 text-mint-100/80 max-w-2xl mx-auto">
-              Start with a 14-day free trial. The recruiter plan is $49/month with a generous monthly
+              Start with a {TRIAL_PHRASE}. The recruiter plan is $49/month with a generous monthly
               shortlisting allowance — cancel anytime.
             </p>
             <Link

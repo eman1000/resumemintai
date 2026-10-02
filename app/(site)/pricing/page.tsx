@@ -6,6 +6,7 @@ import { Check } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import SiteFooter from '@/components/SiteFooter';
 import { setSelectedPlan } from '@/lib/plans';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 const plans = {
   monthly: { amount: '$19.99', period: '/month', billed: '' },
@@ -37,7 +38,7 @@ export default function PricingPage() {
       <main className="max-w-site mx-auto px-4 py-16">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-[#1d1d20]">Simple, transparent pricing</h1>
-          <p className="mt-3 text-[#52525a]">One plan, all features. Start with a 14-day free trial.</p>
+          <p className="mt-3 text-[#52525a]">One plan, all features. Start with a {TRIAL_PHRASE}.</p>
         </div>
 
         {/* Billing toggle */}
@@ -83,11 +84,11 @@ export default function PricingPage() {
             onClick={() => setSelectedPlan(period)}
             className="btn-primary w-full mt-8 text-center block"
           >
-            Start 14-day free trial
+            Start {TRIAL_PHRASE}
           </Link>
 
           <p className="text-center text-xs text-[#a1a1aa] mt-4">
-            No credit card required to start. Cancel anytime.
+            Card required to start your trial. Cancel anytime before it ends and you won&apos;t be charged.
           </p>
         </div>
 

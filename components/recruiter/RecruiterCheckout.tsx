@@ -18,6 +18,7 @@ import { auth } from "@/app/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { fetchAuthed } from "@/app/builder/_client/withAuth";
 import { useQuery } from "@/app/builder/hooks/use-query";
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 const RECRUITER_PRICE = process.env.NEXT_PUBLIC_STRIPE_PRICE_RECRUITER || "";
@@ -93,7 +94,7 @@ function CheckoutInner({ clientSecret }: { clientSecret: string }) {
         disabled={!stripe || !elements || submitting}
         className="w-full rounded-lg bg-mint-600 hover:bg-mint-700 text-white px-4 py-3 font-semibold disabled:opacity-60 transition-colors"
       >
-        {submitting ? "Processing…" : "Start 14-day free trial"}
+        {submitting ? "Processing…" : `Start ${TRIAL_PHRASE}`}
       </button>
       <p className="text-xs text-[#a1a1aa]">
         We securely save your payment method, then start your trial. Cancel anytime before it ends and you won&apos;t be charged.

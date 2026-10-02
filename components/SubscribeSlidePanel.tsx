@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import InAppSubscribe from './InAppSubscribe';
+import { TRIAL_PHRASE, TRIAL_LENGTH } from '@/lib/trial';
 
 interface Props {
   open: boolean;
@@ -127,8 +128,8 @@ export default function SubscribeSlidePanel({
           )}
 
           <p className="mt-5 text-xs text-[#52525a] leading-relaxed">
-            After receipt of your payment, the product will be delivered to you immediately and you waive your right of withdrawal.
-            After 14 days, your subscription will automatically be renewed. You can cancel your subscription at any time.
+            Your card is saved now and your {TRIAL_PHRASE} starts immediately. After {TRIAL_LENGTH} the subscription renews
+            automatically at the price shown above, until you cancel. You can cancel at any time, including during the trial.
           </p>
         </div>
       </div>

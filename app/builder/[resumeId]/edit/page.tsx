@@ -33,8 +33,16 @@ type LoadedResume = {
 // EditPageWithProvider
 export default function EditPageWithProvider() {
   const { resumeId } = useParams<{ resumeId: string }>();
+  const router = useRouter();
   const isLocal = String(resumeId).startsWith("local-");
   const [bootLang, setBootLang] = React.useState<LanguageCode | null>(null);
+
+  // Guest (local-*) resumes are no longer created: building a CV is card-gated,
+  // so the editor only opens for a saved resume. Send stale local URLs back to
+  // the dashboard, which runs the gate.
+  React.useEffect(() => {
+    if (isLocal) router.replace("/builder");
+  }, [isLocal, router]);
 
   React.useEffect(() => {
     if (isLocal) {
@@ -52,7 +60,7 @@ export default function EditPageWithProvider() {
     })();
   }, [resumeId, isLocal]);
 
-  if (!bootLang) return null;
+  if (isLocal || !bootLang) return null;
 
   return (
     <LanguageProvider initial={bootLang}>
