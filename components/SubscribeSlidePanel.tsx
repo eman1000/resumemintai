@@ -22,7 +22,7 @@ export default function SubscribeSlidePanel({
   open,
   onClose,
   title = 'Account',
-  heading = 'Activate your subscription',
+  heading = `Start your ${TRIAL_PHRASE}`,
   onActivated,
 }: Props) {
   // Close on Escape

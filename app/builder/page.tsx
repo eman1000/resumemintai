@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
+import { TRIAL_PHRASE } from "@/lib/trial";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -278,7 +279,7 @@ export default function BuilderHome() {
       <SubscribeSlidePanel
         open={subscribeOpen}
         onClose={() => { setSubscribeOpen(false); setPendingCreate(false); }}
-        heading="Add a card to start building"
+        heading={`Start your ${TRIAL_PHRASE} and build your CV`}
         onActivated={() => {
           // /api/billing/subscribe writes the subscription row before it
           // responds, so the create below passes the server gate immediately.
