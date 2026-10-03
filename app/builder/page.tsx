@@ -230,24 +230,16 @@ export default function BuilderHome() {
    * then the editor opens. Each step remembers the intent so the user lands in
    * the editor without clicking New again.
    */
-  const create = React.useCallback(() => {
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      setPendingCreate(true);
-      setLoginOpen(true);
-      return;
-    }
-    if (!isSubscribed) {
-      setPendingCreate(true);
-      setSubscribeOpen(true);
-      return;
-    }
-    void doCreate();
-  }, [authLoading, isAuthenticated, isSubscribed, doCreate]);
+  // Record the intent to build a CV. The effect below routes it to the next
+  // step once auth is known — clicking while auth is still loading used to be a
+  // silent no-op, which looked like a dead button.
+  const create = React.useCallback(() => setPendingCreate(true), []);
 
-  // Resume the pending create as soon as the user becomes subscribed.
+  // Single place that advances a pending create: sign in -> card -> create.
   React.useEffect(() => {
-    if (!pendingCreate || authLoading || !isAuthenticated || !isSubscribed) return;
+    if (!pendingCreate || authLoading) return;
+    if (!isAuthenticated) { setLoginOpen(true); return; }
+    if (!isSubscribed) { setSubscribeOpen(true); return; }
     setPendingCreate(false);
     setSubscribeOpen(false);
     void doCreate();
@@ -343,7 +335,7 @@ export default function BuilderHome() {
               {/* New card (kept here too) */}
               <button
                 onClick={create}
-                disabled={busy}
+                disabled={busy || (pendingCreate && authLoading)}
                 className="aspect-[3/4] rounded-xl border-2 border-dashed grid place-items-center text-gray-500 hover:bg-white/40"
               >
                 <div className="text-center">
