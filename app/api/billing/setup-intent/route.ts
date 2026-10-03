@@ -19,6 +19,13 @@ export const dynamic = 'force-dynamic';
 // @ts-ignore
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
 
+/** Stripe messages are written for buyers; anything else (DB/internal) must not reach the browser. */
+function safeDetail(e: any): string {
+  return e?.type && String(e.type).startsWith('Stripe')
+    ? e?.message || 'Payment could not be started.'
+    : 'Something went wrong on our side. Please try again.';
+}
+
 export async function POST(req: Request) {
   try {
     const authz = req.headers.get('authorization') || '';
@@ -93,7 +100,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     console.error('[billing/setup-intent] error', e);
     return NextResponse.json(
-      { error: 'setup_intent_failed', detail: e?.message || 'unexpected_error' },
+      { error: 'setup_intent_failed', detail: safeDetail(e) },
       { status: 500 },
     );
   }

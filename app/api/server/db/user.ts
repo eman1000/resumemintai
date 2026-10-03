@@ -137,16 +137,61 @@ export async function linkFirebaseUid(
   `;
 }
 
+/** Postgres unique-violation (23505), however Prisma surfaces it. */
+function isUniqueViolation(e: unknown): boolean {
+  const err = e as { code?: string; message?: string; meta?: { code?: string } };
+  return (
+    err?.code === 'P2002' ||
+    err?.meta?.code === '23505' ||
+    /\b23505\b|already exists/i.test(err?.message || '')
+  );
+}
+
 /**
  * Ensures there's exactly one row for this Firebase user.
  * Mirrors the original 4-CTE logic: update-by-uid → claim-empty-email → bind-to-existing-email → insert.
- * Kept as raw SQL to preserve atomic semantics under concurrent calls.
+ *
+ * Concurrency: several routes call this at once for the same person (the builder
+ * page fires /api/account/ensure while the subscribe panel fires
+ * /api/billing/setup-intent). Under READ COMMITTED each transaction sees the
+ * pre-insert snapshot, so they all fall through to the INSERT and every loser
+ * used to blow up with `Key (email)=(...) already exists`, which surfaced as a
+ * broken checkout. The INSERT is now ON CONFLICT DO NOTHING and a race just
+ * re-reads the row the winner created.
  */
 export async function ensureDbUserByFirebaseUid(
   firebaseUid: string,
   email?: string | null,
 ): Promise<string> {
   const norm = (email || '').trim().toLowerCase() || null;
+
+  // Whoever won the race already wrote the row; find it instead of inserting again.
+  const reread = async (): Promise<string | null> => {
+    const byUid = await prisma.user.findUnique({ where: { firebaseUid }, select: { id: true } });
+    if (byUid) return byUid.id;
+    if (!norm) return null;
+    const byEmail = await prisma.user.findFirst({ where: { email: norm }, select: { id: true } });
+    return byEmail?.id ?? null;
+  };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const id = await ensureDbUserOnce(firebaseUid, norm);
+      if (id) return id;
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+    }
+    const existing = await reread();
+    if (existing) return existing;
+  }
+  throw new Error('ensureDbUserByFirebaseUid failed to resolve an id');
+}
+
+/** One attempt at the upsert. Returns null when a concurrent writer won the race. */
+async function ensureDbUserOnce(
+  firebaseUid: string,
+  norm: string | null,
+): Promise<string | null> {
   // The Prisma schema declares `id String @default(uuid())` — that's a
   // client-side default, so $queryRaw INSERTs must supply an id explicitly.
   const newId = randomUUID();
@@ -186,6 +231,7 @@ export async function ensureDbUserByFirebaseUid(
        WHERE (SELECT COUNT(*) FROM by_uid) = 0
          AND (SELECT COUNT(*) FROM claim_email) = 0
          AND (SELECT COUNT(*) FROM bound_email) = 0
+      ON CONFLICT DO NOTHING
       RETURNING id
     )
     SELECT id FROM by_uid
@@ -195,10 +241,7 @@ export async function ensureDbUserByFirebaseUid(
     LIMIT 1
   `;
 
-  if (!rows[0]?.id) {
-    throw new Error('ensureDbUserByFirebaseUid failed to resolve an id');
-  }
-  return rows[0].id;
+  return rows[0]?.id ?? null;
 }
 
 /** Look up internal user id (no upsert) */
