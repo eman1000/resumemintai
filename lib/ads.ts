@@ -66,3 +66,37 @@ export function fireSignupConversion(userId?: string) {
   gtag('event', 'conversion', { send_to: sendTo, transaction_id: userId });
   gtag('event', 'sign_up', { method: 'firebase' });
 }
+
+/**
+ * Fire the Google Ads conversion for a real subscription — i.e. the moment a card
+ * is captured and Stripe creates the subscription (trialing or active).
+ *
+ * This is the conversion that should drive bidding. Before this existed, Google
+ * only ever received "signup", which is free and card-less, so Smart Bidding was
+ * being trained to find people who create an account and never pay.
+ *
+ * Deduped per subscription id so a reload or a second tab cannot double-count.
+ */
+export function fireSubscriptionConversion(args: {
+  subscriptionId: string;
+  value?: number;
+  currency?: string;
+}) {
+  if (typeof window === 'undefined') return;
+  const gtag = (window as any).gtag;
+  const sendTo = process.env.NEXT_PUBLIC_ADS_PURCHASE_LABEL;
+  if (typeof gtag !== 'function' || !sendTo) return;
+  const key = `ads_sub_conv:${args.subscriptionId}`;
+  try {
+    if (window.localStorage.getItem(key)) return;
+    window.localStorage.setItem(key, '1');
+  } catch {
+    /* private mode: still fire, the transaction_id dedupes server-side */
+  }
+  gtag('event', 'conversion', {
+    send_to: sendTo,
+    value: args.value,
+    currency: args.currency,
+    transaction_id: args.subscriptionId,
+  });
+}

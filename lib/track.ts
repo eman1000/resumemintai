@@ -2,6 +2,7 @@
 'use client';
 
 import { getKeymanIdPreferUrl } from '@/lib/keyman';
+import { fireSubscriptionConversion } from '@/lib/ads';
 
 type TrackOpts = {
   event: 'impression' | 'checkout_start' | 'sale' | string;
@@ -41,6 +42,10 @@ export function trackSubscribeSuccess(args: {
   const isTrial = (args.status || '').toLowerCase() === 'trialing';
   const value = typeof args.priceAmount === 'number' ? args.priceAmount / 100 : undefined;
   const currency = args.priceCurrency ? args.priceCurrency.toUpperCase() : undefined;
+
+  // Tell Google Ads a card was actually captured. This is the signal bidding
+  // should optimise for; "signup" is free and must not stand in for it.
+  fireSubscriptionConversion({ subscriptionId: args.subscriptionId, value, currency });
 
   if (!alreadyFired(`subscribe:${args.subscriptionId}`)) {
     track({
