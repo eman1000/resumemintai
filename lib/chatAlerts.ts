@@ -26,7 +26,7 @@ export function alertContact(c: { name: string; email: string; subject?: string 
     c.subject ? `Subject: ${c.subject}` : null,
     `“${clip(c.message)}”`,
     [c.path ? `Page: ${c.path}` : null, c.ref ? `Ref: ${c.ref}` : null].filter(Boolean).join(' · ') || null,
-    c.id ? `Admin: ${base()}/admin/contacts` : null,
+    c.id ? `Contact id: ${c.id}` : null,
   ].filter(Boolean).join('\n'));
 }
 
