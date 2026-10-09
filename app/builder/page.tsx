@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
+import { adoptLocalResumes } from "@/lib/localResumes";
 import { TRIAL_PHRASE } from "@/lib/trial";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -186,6 +187,14 @@ export default function BuilderHome() {
   // Building is free. Anonymous visitors get a local-only resume so they can
   // see the product before being asked for anything; the card is requested at
   // download, which is where the value actually lands.
+  // Someone may have signed in on another screen with local work still pending.
+  const adoptedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (adoptedRef.current || authLoading || !isAuthenticated) return;
+    adoptedRef.current = true;
+    adoptLocalResumes().then((moved) => { if (Object.keys(moved).length) load(); });
+  }, [authLoading, isAuthenticated]);
+
   const doCreate = React.useCallback(async () => {
     if (!isAuthenticated) {
       const localId = "local-" + crypto.randomUUID();
@@ -259,8 +268,9 @@ export default function BuilderHome() {
       <LoginSlidePanel
         open={loginOpen}
         onClose={() => setLoginOpen(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setLoginOpen(false);
+          await adoptLocalResumes();
           load();
           // The subscribe effect picks it up once useAuthStatus refreshes; if they
           // are already subscribed it creates, otherwise the card step opens.

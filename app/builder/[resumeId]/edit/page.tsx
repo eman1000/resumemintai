@@ -17,6 +17,7 @@ import { LanguageCode, localizeDocTitles } from "@/lib/i18n";
 import FullscreenLoader from "../../components/FullscreenLoader";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
+import { adoptLocalResumes } from "@/lib/localResumes";
 import { TRIAL_PHRASE } from "@/lib/trial";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { trackResumeExported } from "@/lib/track";
@@ -429,7 +430,14 @@ const handleChangeLanguage = (next: LanguageCode) => {
           setLoginOpen(false);
           setPendingProAfterLogin(false);
         }}
-        onSuccess={() => setLoginOpen(false)}
+        onSuccess={async () => {
+          setLoginOpen(false);
+          // Their CV only existed in this browser until now. Save it to the
+          // account and switch to the stored copy.
+          const moved = await adoptLocalResumes();
+          const newId = moved[String(resumeId)];
+          if (newId) router.replace(`/builder/${newId}/edit`);
+        }}
         reason={pendingProAfterLogin
           ? "Sign in to unlock premium templates and features."
           : "Sign in to download your resume."}
