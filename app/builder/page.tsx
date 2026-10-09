@@ -135,12 +135,6 @@ export default function BuilderHome() {
       if (peekCheckerHandoff()) setLoginOpen(true);
       return;
     }
-    if (!isSubscribed) {
-      // Importing creates a resume, which is card-gated. Keep the handoff
-      // parked (peek, not consume) so it still runs after the card is added.
-      if (peekCheckerHandoff()) setSubscribeOpen(true);
-      return;
-    }
     const handoff = consumeCheckerHandoff();
     if (!handoff) return;
     handoffRanRef.current = true;
@@ -173,11 +167,6 @@ export default function BuilderHome() {
           }),
         );
         const createJson = await createRes.json();
-        if (createRes.status === 403 && createJson?.error === 'subscription_required') {
-          setSubscribeOpen(true);
-          setHandoffBusy(false);
-          return;
-        }
         if (!createRes.ok || !createJson?.id) {
           throw new Error(createJson?.error || 'create_failed');
         }
@@ -192,11 +181,21 @@ export default function BuilderHome() {
         setHandoffBusy(false);
       }
     })();
-  }, [authLoading, isAuthenticated, isSubscribed, router]);
+  }, [authLoading, isAuthenticated, router]);
 
-  // Creates the resume for real. Only called once the card gate is cleared;
-  // the server rejects it with subscription_required otherwise.
+  // Building is free. Anonymous visitors get a local-only resume so they can
+  // see the product before being asked for anything; the card is requested at
+  // download, which is where the value actually lands.
   const doCreate = React.useCallback(async () => {
+    if (!isAuthenticated) {
+      const localId = "local-" + crypto.randomUUID();
+      localStorage.setItem(
+        `resume:${localId}`,
+        JSON.stringify({ title: "Untitled CV", renderer: "professional", data: { id: "local", sections: [] } }),
+      );
+      router.push(`/builder/${localId}/edit`);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(
@@ -212,11 +211,6 @@ export default function BuilderHome() {
         })
       );
       const json = await res.json();
-      if (res.status === 403 && json?.error === "subscription_required") {
-        setPendingCreate(true);
-        setSubscribeOpen(true);
-        return;
-      }
       if (!res.ok) throw new Error(json?.error || "create failed");
       router.push(`/builder/${json.id}/edit`);
     } catch (e: any) {
@@ -224,7 +218,7 @@ export default function BuilderHome() {
     } finally {
       setBusy(false);
     }
-  }, [router]);
+  }, [router, isAuthenticated]);
 
   /**
    * Card gate for starting a CV: sign in, then an active trial/subscription,
@@ -236,15 +230,13 @@ export default function BuilderHome() {
   // silent no-op, which looked like a dead button.
   const create = React.useCallback(() => setPendingCreate(true), []);
 
-  // Single place that advances a pending create: sign in -> card -> create.
+  // Advances a pending create once auth is known. No card is involved: signed
+  // out builds locally, signed in saves to the account.
   React.useEffect(() => {
     if (!pendingCreate || authLoading) return;
-    if (!isAuthenticated) { setLoginOpen(true); return; }
-    if (!isSubscribed) { setSubscribeOpen(true); return; }
     setPendingCreate(false);
-    setSubscribeOpen(false);
     void doCreate();
-  }, [pendingCreate, authLoading, isAuthenticated, isSubscribed, doCreate]);
+  }, [pendingCreate, authLoading, doCreate]);
 
   const handleDetails = (it: CardItem) => {
     toast(`Renderer: ${it.renderer}\nUpdated: ${formatDistanceToNow(new Date(it.updatedAt))} ago`);
@@ -272,20 +264,16 @@ export default function BuilderHome() {
           load();
           // The subscribe effect picks it up once useAuthStatus refreshes; if they
           // are already subscribed it creates, otherwise the card step opens.
-          if (pendingCreate) setSubscribeOpen(true);
         }}
         reason="Sign in to start building your CV."
       />
       <SubscribeSlidePanel
         open={subscribeOpen}
         onClose={() => { setSubscribeOpen(false); setPendingCreate(false); }}
-        heading={`Start your ${TRIAL_PHRASE} and build your CV`}
+        heading={`Start your ${TRIAL_PHRASE}`}
         onActivated={() => {
-          // /api/billing/subscribe writes the subscription row before it
-          // responds, so the create below passes the server gate immediately.
           setSubscribeOpen(false);
           setPendingCreate(false);
-          void doCreate();
         }}
       />
       {/* Sidebar layout */}

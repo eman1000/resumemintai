@@ -17,6 +17,7 @@ import { LanguageCode, localizeDocTitles } from "@/lib/i18n";
 import FullscreenLoader from "../../components/FullscreenLoader";
 import LoginSlidePanel from "@/components/LoginSlidePanel";
 import SubscribeSlidePanel from "@/components/SubscribeSlidePanel";
+import { TRIAL_PHRASE } from "@/lib/trial";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { trackResumeExported } from "@/lib/track";
 import { consumeTailoredJdForResume } from "@/lib/checkerHandoff";
@@ -37,13 +38,6 @@ export default function EditPageWithProvider() {
   const isLocal = String(resumeId).startsWith("local-");
   const [bootLang, setBootLang] = React.useState<LanguageCode | null>(null);
 
-  // Guest (local-*) resumes are no longer created: building a CV is card-gated,
-  // so the editor only opens for a saved resume. Send stale local URLs back to
-  // the dashboard, which runs the gate.
-  React.useEffect(() => {
-    if (isLocal) router.replace("/builder");
-  }, [isLocal, router]);
-
   React.useEffect(() => {
     if (isLocal) {
       setBootLang("en");
@@ -60,7 +54,7 @@ export default function EditPageWithProvider() {
     })();
   }, [resumeId, isLocal]);
 
-  if (isLocal || !bootLang) return null;
+  if (!bootLang) return null;
 
   return (
     <LanguageProvider initial={bootLang}>
@@ -324,7 +318,9 @@ const handleChangeLanguage = (next: LanguageCode) => {
       return;
     }
     if (!isSubscribed) {
-      router.push('/landing/vtdft');
+      // Ask for the card right here, with the finished CV still on screen.
+      // Bouncing to a marketing page lost people who were ready to buy.
+      setSubscribeOpen(true);
       return;
     }
     try {
@@ -441,6 +437,7 @@ const handleChangeLanguage = (next: LanguageCode) => {
       <SubscribeSlidePanel
         open={subscribeOpen}
         onClose={() => setSubscribeOpen(false)}
+        heading={`Download your CV — start your ${TRIAL_PHRASE}`}
       />
       <TopBar
       // key={`topbar-${lang}`}

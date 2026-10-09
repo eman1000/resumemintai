@@ -15,18 +15,6 @@ const ALLOWED_RENDERERS = new Set<string>([
   'creative','compact','executive','chrono','horizontal','casual',
 ]);
 
-/** Subscription statuses that count as paying (mirrors the PDF + jobs routes). */
-const ACTIVE_SUB = ['active', 'trialing', 'past_due'];
-
-/** True when the user has a live subscription or trial. Creating a resume requires one. */
-async function hasActiveSubscription(userId: string) {
-  const sub = await prisma.subscription.findFirst({
-    where: { userId, status: { in: ACTIVE_SUB } },
-    select: { id: true },
-  });
-  return !!sub;
-}
-
 async function getDbUserIdByFirebaseUid(firebaseUid: string) {
   const u = await prisma.user.findUnique({
     where: { firebaseUid },
@@ -85,15 +73,6 @@ export async function POST(req: Request) {
     const fb = await getUserFromRequest();
     const userId = await getDbUserIdByFirebaseUid(fb.uid);
     if (!userId) return NextResponse.json({ error: 'no_user' }, { status: 403 });
-
-    // Creating a resume is gated on a card: a trial or paid subscription must
-    // exist. The client opens the checkout panel on this response.
-    if (!(await hasActiveSubscription(userId))) {
-      return NextResponse.json(
-        { error: 'subscription_required', detail: 'Add a payment method to start building.' },
-        { status: 403 },
-      );
-    }
 
     const body = (await req.json()) as CreatePayload;
     const title = (body.title ?? 'Untitled CV').toString().slice(0, 200);
