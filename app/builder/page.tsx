@@ -129,6 +129,14 @@ export default function BuilderHome() {
   // hand off the JD to the editor for tailoring.
   const [handoffBusy, setHandoffBusy] = React.useState(false);
   const handoffRanRef = React.useRef(false);
+  // Card gate for the checker handoff: the import only runs once the account
+  // has an active trial/subscription. `handoffUnlocked` flips when the card is
+  // saved in this session (useAuthStatus only re-reads sub status on reload),
+  // and `handoffGated` drives the "your resume is waiting" banner if the user
+  // closes the panel without subscribing.
+  const [handoffUnlocked, setHandoffUnlocked] = React.useState(false);
+  const [handoffGated, setHandoffGated] = React.useState(false);
+  const gateTrackedRef = React.useRef(false);
   React.useEffect(() => {
     if (authLoading || handoffRanRef.current) return;
     if (!isAuthenticated) {
@@ -136,9 +144,23 @@ export default function BuilderHome() {
       if (peekCheckerHandoff()) setLoginOpen(true);
       return;
     }
+    if (!isSubscribed && !handoffUnlocked) {
+      // Signed in but no card on file: ask for the trial before importing.
+      const pending = peekCheckerHandoff();
+      if (pending) {
+        setHandoffGated(true);
+        setSubscribeOpen(true);
+        if (!gateTrackedRef.current) {
+          gateTrackedRef.current = true;
+          track({ event: 'checker_handoff_gate', props: { score: pending.score } });
+        }
+      }
+      return;
+    }
     const handoff = consumeCheckerHandoff();
     if (!handoff) return;
     handoffRanRef.current = true;
+    setHandoffGated(false);
 
     (async () => {
       setHandoffBusy(true);
@@ -182,7 +204,7 @@ export default function BuilderHome() {
         setHandoffBusy(false);
       }
     })();
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, isSubscribed, handoffUnlocked, router]);
 
   // Building is free. Anonymous visitors get a local-only resume so they can
   // see the product before being asked for anything; the card is requested at
@@ -280,10 +302,12 @@ export default function BuilderHome() {
       <SubscribeSlidePanel
         open={subscribeOpen}
         onClose={() => { setSubscribeOpen(false); setPendingCreate(false); }}
-        heading={`Start your ${TRIAL_PHRASE}`}
+        heading={handoffGated ? `Start your ${TRIAL_PHRASE} to build your tailored resume` : `Start your ${TRIAL_PHRASE}`}
         onActivated={() => {
           setSubscribeOpen(false);
           setPendingCreate(false);
+          // Lets the checker handoff effect proceed without a reload.
+          setHandoffUnlocked(true);
         }}
       />
       {/* Sidebar layout */}
@@ -326,6 +350,17 @@ export default function BuilderHome() {
                 ★ My Profile (Master Resume)
               </a>
             </div>
+            {handoffGated && !subscribeOpen && !handoffUnlocked && (
+              <div className="mb-4 rounded-lg border border-brand-100 bg-brand-50 p-4 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="font-semibold text-[#1d1d20]">Your checked resume is ready to import</div>
+                  <div className="text-sm text-[#52525a]">Start your {TRIAL_PHRASE} to build the tailored version. Cancel anytime.</div>
+                </div>
+                <button type="button" className="btn-primary" onClick={() => setSubscribeOpen(true)}>
+                  Start free trial
+                </button>
+              </div>
+            )}
             <p className="text-sm text-gray-500 mb-4 -mt-1">
               Your <strong>Master Resume</strong> is your source of truth. Tailoring a job creates a separate copy, so your master never drifts.
             </p>

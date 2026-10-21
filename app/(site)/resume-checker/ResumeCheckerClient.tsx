@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/track";
 import { setCheckerHandoff } from "@/lib/checkerHandoff";
+import { TRIAL_PHRASE } from "@/lib/trial";
 
 type CheckStatus = "pass" | "warn" | "fail";
 type Check = {
@@ -242,6 +243,9 @@ export default function ResumeCheckerClient() {
               >
                 Build my tailored resume
               </button>
+              <p className="mt-3 text-xs text-[#52525a]">
+                Building needs a {TRIAL_PHRASE} with a card on file. Cancel anytime.
+              </p>
             </div>
           </div>
         </div>
