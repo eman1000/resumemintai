@@ -1,5 +1,6 @@
 // app/api/webhooks/stripe/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { syncSubscription } from "@/lib/mailchimp";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { alertSubscription } from "@/lib/chatAlerts";
@@ -78,6 +79,11 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         await upsertFromSubscription(sub);
+        try {
+          const cid = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+          const mu = cid ? await prisma.user.findFirst({ where: { stripeCustomerId: cid }, select: { email: true } }) : null;
+          syncSubscription({ email: mu?.email ?? null, status: event.type === "customer.subscription.deleted" ? "canceled" : sub.status });
+        } catch (e) { console.warn("[stripe webhook] mailchimp sync failed", (e as Error)?.message); }
         if (event.type === "customer.subscription.created") {
           try {
             const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;

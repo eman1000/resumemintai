@@ -6,6 +6,7 @@ import { ensureDbUserByFirebaseUid } from '../../server/db/user';
 import { hasActiveRecruiterSub } from '@/lib/recruiterBilling';
 import { forwardPlenqorLead } from '@/lib/plenqorLeads';
 import { alertSignup } from '@/lib/chatAlerts';
+import { syncSignup } from '@/lib/mailchimp';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
     if (firstClaim) {
       void alertSignup({ email, userId, userType: dbUser.userType, country: req.headers.get('x-vercel-ip-country') });
       forwardPlenqorLead({ source: 'resumemint-signup', email, country: req.headers.get('x-vercel-ip-country'), status: 'new', notes: `Signed up (${dbUser.userType || 'candidate'})`, referrer: req.headers.get('referer') });
+      syncSignup({ email, userType: dbUser?.userType, country: req.headers.get('x-vercel-ip-country') });
     }
     return NextResponse.json({
       isNewUser,
